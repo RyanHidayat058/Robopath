@@ -26,6 +26,10 @@ Robopath is a web-based autonomous robot tracking and fleet management system bu
 - Composer >= 2.x
 - Node.js >= 18.x and NPM
 
+## Environment Configuration (.env.example)
+
+The actual `.env` file containing local environment credentials is excluded from version control via `.gitignore` for security. When cloning or deploying the repository, developers must duplicate `.env.example` to create a new `.env` file before executing key generation and database migrations.
+
 ## Installation Guide
 
 1. Clone the repository:
@@ -44,13 +48,13 @@ Robopath is a web-based autonomous robot tracking and fleet management system bu
    npm install
    ```
 
-4. Environment Configuration:
+4. Environment Setup (Copy from .env.example):
    ```bash
    cp .env.example .env
    php artisan key:generate
    ```
 
-5. Configure database credentials in `.env`, then run database migrations and seeders:
+5. Configure database credentials inside `.env`, then run database migrations and seeders:
    ```bash
    php artisan migrate:fresh --seed
    ```
