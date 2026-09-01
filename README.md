@@ -34,7 +34,7 @@ The actual `.env` file containing local environment credentials is excluded from
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/Robopath.git
+   git clone https://github.com/RyanHidayat058/Robopath.git
    cd Robopath
    ```
 
