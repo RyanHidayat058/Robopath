@@ -78,8 +78,10 @@ class DashboardController extends Controller
     public function botControl()
     {
         $robots = Robot::all();
+        $locations = $this->getLocationsData();
+        $adj = $this->getAdjData();
 
-        return view('bot_control', compact('robots'));
+        return view('bot_control', compact('robots', 'locations', 'adj'));
     }
 
     public function history()
