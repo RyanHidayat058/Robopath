@@ -1,16 +1,40 @@
 @extends('layouts.layout')
 
-@section('title', 'ROBOPATH - 3D Live Fleet Tracking')
+@section('title', 'ROBOPATH - 2-Floor Real-Time Fleet Tracking')
 @section('page_title', 'System Overview')
-@section('page_subtitle', 'Real-time 3D Multi-Floor Building & Robot Fleet Tracking')
+@section('page_subtitle', 'Real-time Multi-Floor Robot Tracking & System Metrics')
 
 @section('styles')
 <style>
-    model-viewer {
+    .floor-map-card {
+        position: relative;
         width: 100%;
-        height: 580px;
-        background-color: #0f172a;
-        --poster-color: transparent;
+        aspect-ratio: 16/9;
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+        border-radius: 1rem;
+        box-shadow: 0 4px 20px rgba(59, 76, 184, 0.08), inset 0 0 0 1px rgba(0,0,0,0.06);
+    }
+    .location-pin {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        cursor: pointer;
+    }
+    .robot-marker {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        transition: left 0.05s linear, top 0.05s linear;
+        z-index: 30;
+    }
+    .path-svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 10;
     }
 </style>
 @endsection
@@ -78,67 +102,58 @@
     </div>
 </div>
 
-<!-- Main Section: 3D Live Building View & Robot Roster -->
+<!-- Main Section: 2-Floor Stacked Live Tracking & Robot Roster -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-    <!-- Left / Main Column: 3D Model Live Building View (2/3 width) -->
+    <!-- Left / Main Column: Dual Floor Stacked Live Tracking (2/3 width) -->
     <div class="lg:col-span-2 space-y-6 lg:sticky lg:top-6 self-start">
-        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
-            <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-3 border-b border-gray-100">
+        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-gray-100">
                 <div>
                     <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                        <i class="fa-solid fa-cube text-[#3b4cb8]"></i> 3D Building Floor Model (OFFICE V2)
+                        <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> Multi-Floor Active Tracking
                     </h3>
-                    <p class="text-xs text-gray-500">Interactive 3D building visualization, floor inspection, and robot telemetry</p>
+                    <p class="text-xs text-gray-500">Live 60 FPS interior floor layout tracking for Lantai 1 and Lantai 2</p>
                 </div>
                 <div class="flex items-center gap-2 text-xs font-bold text-[#3b4cb8] bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-200 shadow-sm">
-                    <i class="fa-solid fa-layer-group"></i> 2 Floors (Lantai 1 &amp; 2)
+                    <i class="fa-solid fa-building"></i> Office 2 Floors Stacked
                 </div>
             </div>
 
-            <!-- 3D Model Viewer with WebAssembly Draco Mesh Decompression -->
-            <div class="relative w-full h-[580px] rounded-2xl overflow-hidden shadow-inner border border-slate-700 bg-slate-900">
-                <model-viewer
-                    id="office-model-viewer"
-                    src="{{ asset('models/office_v2.glb') }}"
-                    alt="3D Building Floor Model OFFICE V2"
-                    loading="eager"
-                    reveal="auto"
-                    camera-controls
-                    touch-action="pan-y"
-                    auto-rotate
-                    rotation-per-second="12deg"
-                    auto-rotate-delay="3000"
-                    shadow-intensity="1.2"
-                    shadow-softness="0.8"
-                    exposure="1.3"
-                    camera-orbit="45deg 55deg auto"
-                    min-camera-orbit="auto auto 5%"
-                    max-camera-orbit="auto auto 300%"
-                    interaction-prompt="auto"
-                >
-                </model-viewer>
-
-                <!-- Loading Progress Overlay with Auto-Dismiss on 'load' -->
-                <div id="loading-overlay" class="absolute inset-0 bg-slate-900/95 z-50 flex flex-col items-center justify-center p-6 text-white text-center transition-opacity duration-500">
-                    <div class="w-14 h-14 rounded-2xl bg-[#3b4cb8] flex items-center justify-center text-2xl mb-4 shadow-lg animate-bounce">
-                        <i class="fa-solid fa-cube text-white"></i>
-                    </div>
-                    <h4 class="font-bold text-base text-white mb-2">Loading 3D Office Model</h4>
-                    <p id="loading-text" class="text-xs text-blue-200 mb-4 font-mono">Decompressing 3D Geometry...</p>
-                    <div class="w-64 bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
-                        <div id="loading-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2.5 rounded-full transition-all duration-300" style="width: 15%"></div>
-                    </div>
+            <!-- Floor 2 (Lantai 2 - Upper Floor) -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-gray-200">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-bold text-[#3b4cb8] flex items-center gap-1.5">
+                        <i class="fa-solid fa-building-user"></i> Lantai 2 (Upper Floor - Direksi, Lounge &amp; Meeting Rooms)
+                    </span>
+                    <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
+                        Floor 2
+                    </span>
                 </div>
+                <div class="floor-map-card overflow-hidden" id="map-container-f2" style="background-image: url('{{ asset('images/floor2.jpeg') }}');">
+                    <svg class="path-svg" id="path-svg-f2"></svg>
+                    <div id="robots-overlay-f2"></div>
+                </div>
+            </div>
 
-                <!-- 3D Controls Help Tag -->
-                <div class="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-2 z-20 border border-white/10 shadow-lg pointer-events-none">
-                    <i class="fa-solid fa-mouse text-sky-400"></i> Klik Kiri &amp; Geser untuk Memutar • Scroll untuk Zoom • Klik Kanan untuk Pan
+            <!-- Floor 1 (Lantai 1 - Ground Floor) -->
+            <div class="bg-slate-50 p-4 rounded-2xl border border-gray-200">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-bold text-[#3b4cb8] flex items-center gap-1.5">
+                        <i class="fa-solid fa-building-user"></i> Lantai 1 (Ground Floor - Lobby, Office &amp; Receptionist)
+                    </span>
+                    <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
+                        Floor 1
+                    </span>
+                </div>
+                <div class="floor-map-card overflow-hidden" id="map-container-f1" style="background-image: url('{{ asset('images/floor1.jpeg') }}');">
+                    <svg class="path-svg" id="path-svg-f1"></svg>
+                    <div id="robots-overlay-f1"></div>
                 </div>
             </div>
 
             <!-- Status Indicator Legends -->
-            <div class="flex flex-wrap gap-4 mt-4 pt-4 border-t border-gray-200 text-xs text-gray-600 font-semibold">
+            <div class="flex flex-wrap gap-4 pt-4 border-t border-gray-200 text-xs text-gray-600 font-semibold">
                 <div class="flex items-center gap-2">
                     <span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span>
                     <span>Idle / Standby</span>
@@ -210,37 +225,264 @@
 
 @section('scripts')
 <script>
+    const locations = {
+        @foreach($locations as $name => $coords)
+        '{{ $name }}': { x: {{ $coords['x'] }}, y: {{ $coords['y'] }}, floor: {{ $coords['floor'] ?? 1 }} },
+        @endforeach
+    };
+
+    const adj = {
+        @foreach($adj as $node => $neighbors)
+        '{{ $node }}': [ @foreach($neighbors as $nbr) '{{ $nbr }}', @endforeach ],
+        @endforeach
+    };
+
     let robots = @json($robots);
     let activeDeliveries = @json($activeDeliveries);
+    let serverClientOffset = 0;
 
-    function initModelViewerEvents() {
-        const viewer = document.getElementById('office-model-viewer');
-        const overlay = document.getElementById('loading-overlay');
-        const bar = document.getElementById('loading-bar');
-        const text = document.getElementById('loading-text');
+    function getDeliveryPath(delivery, robot) {
+        if (delivery._cachedPath && delivery._cachedPath.length >= 2) {
+            return delivery._cachedPath;
+        }
+        
+        const startLoc = delivery.start_location;
+        const destLoc = delivery.destination_location;
+        let originNode = delivery.origin_location;
+        
+        if (!originNode || originNode === 'Resepsionis' || !locations[originNode]) {
+            if (robot && robot.current_x && robot.current_y) {
+                originNode = resolveLocationName(robot.current_x, robot.current_y);
+            }
+        }
+        if (!originNode || !locations[originNode]) {
+            originNode = 'Blank Room 2';
+        }
+        
+        const path1 = (originNode !== startLoc) ? findShortestPath(originNode, startLoc) : [startLoc];
+        const path2 = findShortestPath(startLoc, destLoc);
+        const fullPath = (path1.length > 0 && path2.length > 0) ? [...path1, ...path2.slice(1)] : (path2.length > 0 ? path2 : path1);
+        
+        delivery._cachedPath = fullPath;
+        return fullPath;
+    }
 
-        if (!viewer) return;
+    function findShortestPath(start, end) {
+        if (start === end) return [start];
+        let queue = [[start]];
+        let visited = new Set([start]);
 
-        viewer.addEventListener('progress', (e) => {
-            const pct = Math.round(e.detail.totalProgress * 100);
-            if (bar) bar.style.width = Math.max(15, pct) + '%';
-            if (text) text.textContent = `Downloading & Processing (${pct}%)...`;
-        });
+        while (queue.length > 0) {
+            let path = queue.shift();
+            let current = path[path.length - 1];
 
-        viewer.addEventListener('load', () => {
-            if (bar) bar.style.width = '100%';
-            if (text) text.textContent = '3D Model Ready!';
-            if (overlay) {
-                overlay.style.opacity = '0';
-                setTimeout(() => {
-                    overlay.classList.add('hidden');
-                }, 450);
+            let neighbors = adj[current] || [];
+            for (let neighbor of neighbors) {
+                if (!visited.has(neighbor)) {
+                    visited.add(neighbor);
+                    let newPath = [...path, neighbor];
+                    if (neighbor === end) return newPath;
+                    queue.push(newPath);
+                }
+            }
+        }
+        return [];
+    }
+
+    function resolveLocationName(x, y) {
+        let closestName = 'Blank Room 2';
+        let minDst = Infinity;
+        for (let name in locations) {
+            const loc = locations[name];
+            const dst = Math.hypot(loc.x - x, loc.y - y);
+            if (dst < minDst) {
+                minDst = dst;
+                closestName = name;
+            }
+        }
+        return closestName;
+    }
+
+    function parseServerDate(dateStr) {
+        if (!dateStr) return new Date();
+        let s = String(dateStr).trim().replace(' ', 'T');
+        if (!s.includes('Z') && !s.includes('+') && !s.slice(10).includes('-')) s += 'Z';
+        return new Date(s);
+    }
+
+    function interpolate(p1, p2, ratio) {
+        return {
+            x: p1.x + (p2.x - p1.x) * ratio,
+            y: p1.y + (p2.y - p1.y) * ratio
+        };
+    }
+
+    function drawRobotPaths() {
+        const svgF1 = document.getElementById('path-svg-f1');
+        const svgF2 = document.getElementById('path-svg-f2');
+        if (svgF1) svgF1.innerHTML = '';
+        if (svgF2) svgF2.innerHTML = '';
+        
+        activeDeliveries.forEach(delivery => {
+            const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
+            if (!robot || robot.status !== 'Delivering') return;
+            
+            const path = getDeliveryPath(delivery, robot);
+            if (path.length < 2) return;
+
+            let ptsF1 = '', ptsF2 = '';
+            path.forEach((nodeName) => {
+                const node = locations[nodeName];
+                if (!node) return;
+                
+                const container = document.getElementById(node.floor === 2 ? 'map-container-f2' : 'map-container-f1');
+                if (!container) return;
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                
+                const px = (node.x / 100) * w;
+                const py = (node.y / 100) * h;
+                
+                if (node.floor === 2) ptsF2 += `${px},${py} `;
+                else ptsF1 += `${px},${py} `;
+            });
+
+            if (ptsF1.trim() && svgF1) {
+                const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                poly.setAttribute('points', ptsF1.trim());
+                poly.setAttribute('stroke', '#38bdf8');
+                poly.setAttribute('stroke-width', '2');
+                poly.setAttribute('stroke-dasharray', '5,5');
+                poly.setAttribute('fill', 'none');
+                svgF1.appendChild(poly);
+            }
+            if (ptsF2.trim() && svgF2) {
+                const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                poly.setAttribute('points', ptsF2.trim());
+                poly.setAttribute('stroke', '#38bdf8');
+                poly.setAttribute('stroke-width', '2');
+                poly.setAttribute('stroke-dasharray', '5,5');
+                poly.setAttribute('fill', 'none');
+                svgF2.appendChild(poly);
             }
         });
+    }
 
-        viewer.addEventListener('error', (e) => {
-            console.error('Error loading 3D model:', e);
-            if (text) text.textContent = 'Error loading 3D asset.';
+    function runSimulationStep() {
+        const now = new Date(new Date().getTime() + serverClientOffset);
+        drawRobotPaths();
+        
+        const overlayF1 = document.getElementById('robots-overlay-f1');
+        const overlayF2 = document.getElementById('robots-overlay-f2');
+        if (overlayF1) overlayF1.innerHTML = '';
+        if (overlayF2) overlayF2.innerHTML = '';
+        
+        robots.forEach(robot => {
+            const delivery = activeDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && d.status === 'In Progress');
+            let coords = { x: robot.current_x, y: robot.current_y };
+            let floorNum = robot.floor || 1;
+            let statusColor = 'bg-emerald-500';
+            let taskText = 'Standby at home base';
+            let currentLocName = 'Blank Room 2';
+
+            if (robot.status === 'Charging') {
+                statusColor = 'bg-orange-500';
+                taskText = '<i class="fa-solid fa-bolt text-orange-500 mr-1"></i> Battery charging';
+            } else if (robot.status === 'Maintenance') {
+                statusColor = 'bg-rose-500';
+                taskText = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Maintenance required</span>';
+            }
+            
+            if (robot.status === 'Delivering' && delivery) {
+                statusColor = 'bg-sky-500';
+                const path = getDeliveryPath(delivery, robot);
+                
+                if (path.length >= 2) {
+                    const totalDurationMs = 30000;
+                    const startedTime = parseServerDate(delivery.started_at);
+                    const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
+                    const ratio = Math.max(0.0, Math.min(elapsedMs / totalDurationMs, 1.0));
+                    let angle = 0;
+                    
+                    if (ratio < 1.0) {
+                        const floatIdx = ratio * (path.length - 1);
+                        const currentSegIdx = Math.max(0, Math.min(Math.floor(floatIdx), path.length - 2));
+                        const ratioInSegment = floatIdx - currentSegIdx;
+                        const node1 = path[currentSegIdx];
+                        const node2 = path[currentSegIdx + 1];
+                        const p1 = locations[node1];
+                        const p2 = locations[node2];
+                        
+                        if (p1 && p2) {
+                            coords = interpolate(p1, p2, ratioInSegment);
+                            floorNum = p2.floor || p1.floor || 1;
+                            const dx = p2.x - p1.x;
+                            const dy = p2.y - p1.y;
+                            if (dx !== 0 || dy !== 0) {
+                                angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+                            }
+                        } else {
+                            coords = p1 || p2 || locations['Blank Room 2'];
+                        }
+                    } else {
+                        const lastNode = locations[path[path.length - 1]];
+                        coords = lastNode;
+                        floorNum = lastNode.floor || 1;
+                    }
+                    
+                    robot.current_x = coords.x;
+                    robot.current_y = coords.y;
+                    robot.rotation = angle;
+                    taskText = `Delivering ${delivery.item_name} to ${delivery.destination_location}`;
+                    currentLocName = resolveLocationName(coords.x, coords.y);
+                }
+            }
+
+            // Render marker on designated floor overlay
+            const targetOverlay = floorNum === 2 ? overlayF2 : overlayF1;
+            if (targetOverlay) {
+                const marker = document.createElement('div');
+                marker.className = 'robot-marker z-30';
+                marker.style.left = `${coords.x}%`;
+                marker.style.top = `${coords.y}%`;
+                
+                marker.innerHTML = `
+                    <div class="relative flex items-center justify-center">
+                        <span class="animate-ping absolute inline-flex h-10 w-10 rounded-full ${statusColor} opacity-40"></span>
+                        <div class="relative w-8 h-8 rounded-xl bg-white border border-gray-300 flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
+                            <i class="fa-solid fa-robot text-xs ${robot.status === 'Delivering' ? 'text-[#3b4cb8]' : (robot.status === 'Charging' ? 'text-orange-500' : (robot.status === 'Maintenance' ? 'text-rose-600' : 'text-emerald-600'))}"></i>
+                        </div>
+                        <div class="absolute -top-6 bg-white/95 text-gray-800 border border-gray-200 text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap pointer-events-none">
+                            ${robot.name.split(' ')[1]} (${robot.battery_level}%)
+                        </div>
+                    </div>
+                `;
+                targetOverlay.appendChild(marker);
+            }
+
+            // Update Robot Card info
+            const badge = document.getElementById(`robot-status-badge-${robot.id}`);
+            const batBar = document.getElementById(`robot-battery-bar-${robot.id}`);
+            const batText = document.getElementById(`robot-battery-text-${robot.id}`);
+            const locText = document.getElementById(`robot-location-text-${robot.id}`);
+            const taskTextDiv = document.getElementById(`robot-task-text-${robot.id}`);
+
+            if (badge) {
+                badge.textContent = robot.status;
+                badge.className = `text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                    robot.status === 'Delivering' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                    (robot.status === 'Charging' ? 'bg-orange-100 text-orange-700 border border-orange-200' :
+                    (robot.status === 'Maintenance' ? 'bg-rose-100 text-rose-700 border border-rose-200' :
+                    'bg-emerald-100 text-emerald-700 border border-emerald-200'))
+                }`;
+            }
+            if (batBar) {
+                batBar.style.width = `${robot.battery_level}%`;
+                batBar.className = `h-1.5 rounded-full ${robot.battery_level <= 20 ? 'bg-rose-500' : 'bg-[#3b4cb8]'}`;
+            }
+            if (batText) batText.textContent = `${robot.battery_level}%`;
+            if (locText) locText.textContent = `${currentLocName} (Floor ${floorNum})`;
+            if (taskTextDiv) taskTextDiv.innerHTML = taskText;
         });
     }
 
@@ -248,40 +490,33 @@
         fetch('/api/telemetry')
         .then(res => res.json())
         .then(data => {
+            if (data.server_time) {
+                const serverTime = new Date(data.server_time);
+                const clientTime = new Date();
+                serverClientOffset = serverTime.getTime() - clientTime.getTime();
+            }
+            
+            if (window.activeDeliveries && Array.isArray(window.activeDeliveries)) {
+                data.active_deliveries.forEach(newDeliv => {
+                    const existing = window.activeDeliveries.find(d => d.id === newDeliv.id);
+                    if (existing && existing._cachedPath) {
+                        newDeliv._cachedPath = existing._cachedPath;
+                    }
+                });
+            }
             activeDeliveries = data.active_deliveries;
+
             data.robots.forEach(newRobot => {
                 const existing = robots.find(r => Number(r.id) === Number(newRobot.id));
                 if (existing) {
-                    existing.status = newRobot.status;
+                    if (existing.status !== newRobot.status) {
+                        existing.status = newRobot.status;
+                        existing.current_x = newRobot.current_x;
+                        existing.current_y = newRobot.current_y;
+                    }
                     existing.battery_level = newRobot.battery_level;
-                    existing.current_x = newRobot.current_x;
-                    existing.current_y = newRobot.current_y;
                 } else {
                     robots.push(newRobot);
-                }
-
-                // Update cards
-                const badge = document.getElementById(`robot-status-badge-${newRobot.id}`);
-                const batBar = document.getElementById(`robot-battery-bar-${newRobot.id}`);
-                const batText = document.getElementById(`robot-battery-text-${newRobot.id}`);
-                const taskTextDiv = document.getElementById(`robot-task-text-${newRobot.id}`);
-
-                if (badge) {
-                    badge.textContent = newRobot.status;
-                    badge.className = `text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                        newRobot.status === 'Delivering' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
-                        (newRobot.status === 'Charging' ? 'bg-orange-100 text-orange-700 border border-orange-200' :
-                        (newRobot.status === 'Maintenance' ? 'bg-rose-100 text-rose-700 border border-rose-200' :
-                        'bg-emerald-100 text-emerald-700 border border-emerald-200'))
-                    }`;
-                }
-                if (batBar) {
-                    batBar.style.width = `${newRobot.battery_level}%`;
-                    batBar.className = `h-1.5 rounded-full ${newRobot.battery_level <= 20 ? 'bg-rose-500' : 'bg-[#3b4cb8]'}`;
-                }
-                if (batText) batText.textContent = `${newRobot.battery_level}%`;
-                if (taskTextDiv) {
-                    taskTextDiv.textContent = newRobot.status === 'Delivering' ? 'In delivery mission' : (newRobot.status === 'Charging' ? 'Charging battery' : 'Standby at home base');
                 }
             });
         })
@@ -289,7 +524,8 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        initModelViewerEvents();
+        runSimulationStep();
+        setInterval(runSimulationStep, 50);
         setInterval(fetchData, 3000);
     });
 </script>
