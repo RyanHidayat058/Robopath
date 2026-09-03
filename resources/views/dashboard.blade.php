@@ -16,14 +16,37 @@
         border-radius: 1rem;
         box-shadow: 0 4px 20px rgba(59, 76, 184, 0.08), inset 0 0 0 1px rgba(0,0,0,0.06);
     }
-    .fullview-floor {
+    
+    /* Full View 1-Screen Fit (Zero Scroll) */
+    #fullview-mode {
+        height: calc(100vh - 120px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    .fullview-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-evenly;
+        align-items: center;
+        gap: 0.5rem;
+        overflow: hidden;
+        padding: 0.25rem 0;
+    }
+    .fullview-floor-box {
         position: relative;
-        width: 100%;
+        height: calc((100vh - 210px) / 2);
+        max-height: 42vh;
         aspect-ratio: 16/9;
+        max-width: 100%;
         background-size: 100% 100%;
         background-repeat: no-repeat;
         background-position: center;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(0,0,0,0.05);
     }
+
     .location-pin {
         position: absolute;
         transform: translate(-50%, -50%);
@@ -235,53 +258,48 @@
     </div>
 </div>
 
-<!-- Container 2: Full View 2 Lantai Tanpa Sekat (Seamless Stacked View) -->
-<div id="fullview-mode" class="hidden space-y-4">
-    <!-- Floating Fullview Header Bar with Back Button -->
-    <div class="bg-white/95 backdrop-blur-md border border-gray-200 p-4 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4 sticky top-0 z-40">
+<!-- Container 2: Full View 2 Lantai 1-Screen Fit (Tanpa Scroll) -->
+<div id="fullview-mode" class="hidden">
+    <!-- Header Bar with Back Button & Legend -->
+    <div class="bg-white border border-gray-200 px-5 py-3 rounded-2xl shadow-md flex items-center justify-between gap-4 shrink-0 mb-2">
         <div class="flex items-center gap-3">
-            <button onclick="toggleFullView(false)" class="bg-[#3b4cb8] hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md hover:shadow-lg transition duration-200">
+            <button onclick="toggleFullView(false)" class="bg-[#3b4cb8] hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow transition duration-200">
                 <i class="fa-solid fa-arrow-left"></i> Kembali ke Dashboard
             </button>
-            <div>
-                <h3 class="text-sm font-bold text-gray-800 flex items-center gap-2">
-                    <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> Full View Gedung 2 Lantai (Seamless Overview)
+            <div class="hidden sm:block">
+                <h3 class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                    <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> 2-Floor Full View (Single Screen Overview)
                 </h3>
-                <p class="text-[11px] text-gray-500">Lantai 2 (Atas) dan Lantai 1 (Bawah) tersambung utuh tanpa sekat</p>
             </div>
         </div>
 
         <!-- Robot Status Legend in Fullview -->
-        <div class="flex items-center gap-4 text-xs font-semibold text-gray-600 bg-gray-50 px-4 py-2 rounded-xl border border-gray-200">
-            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span>Idle</span></div>
-            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span><span>Delivering</span></div>
-            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span><span>Charging</span></div>
-            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span><span>Maintenance</span></div>
+        <div class="flex items-center gap-3 text-[11px] font-semibold text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+            <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Idle</span></div>
+            <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500"></span><span>Delivering</span></div>
+            <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500"></span><span>Charging</span></div>
+            <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Maintenance</span></div>
         </div>
     </div>
 
-    <!-- Seamless Stacked 2 Floors Canvas (Tanpa Sekat) -->
-    <div class="bg-white border border-gray-200 rounded-3xl shadow-2xl overflow-hidden divide-y divide-gray-200">
+    <!-- Scaled Wrapper (Both floors fit entirely on 1 screen) -->
+    <div class="fullview-wrapper">
         <!-- Floor 2 (Atas) -->
-        <div class="relative">
-            <div class="absolute top-4 left-4 z-20 bg-black/70 backdrop-blur-md text-white font-bold text-xs px-3 py-1.5 rounded-xl border border-white/10 shadow-lg flex items-center gap-2">
-                <i class="fa-solid fa-building-user text-sky-400"></i> LANTAI 2 (Upper Floor - Direksi &amp; Meeting Rooms)
+        <div class="fullview-floor-box" id="fullview-container-f2" style="background-image: url('{{ asset('images/floor2.jpeg') }}');">
+            <div class="absolute top-2 left-2 z-20 bg-black/75 backdrop-blur-sm text-white font-bold text-[10px] px-2.5 py-1 rounded-lg border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
+                <i class="fa-solid fa-building-user text-sky-400"></i> LANTAI 2 (Upper Floor)
             </div>
-            <div class="fullview-floor overflow-hidden" id="fullview-container-f2" style="background-image: url('{{ asset('images/floor2.jpeg') }}');">
-                <svg class="path-svg" id="fullview-path-svg-f2"></svg>
-                <div id="fullview-robots-overlay-f2"></div>
-            </div>
+            <svg class="path-svg" id="fullview-path-svg-f2"></svg>
+            <div id="fullview-robots-overlay-f2"></div>
         </div>
 
         <!-- Floor 1 (Bawah) -->
-        <div class="relative">
-            <div class="absolute top-4 left-4 z-20 bg-black/70 backdrop-blur-md text-white font-bold text-xs px-3 py-1.5 rounded-xl border border-white/10 shadow-lg flex items-center gap-2">
-                <i class="fa-solid fa-building-user text-emerald-400"></i> LANTAI 1 (Ground Floor - Lobby, Office &amp; Receptionist)
+        <div class="fullview-floor-box" id="fullview-container-f1" style="background-image: url('{{ asset('images/floor1.jpeg') }}');">
+            <div class="absolute top-2 left-2 z-20 bg-black/75 backdrop-blur-sm text-white font-bold text-[10px] px-2.5 py-1 rounded-lg border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
+                <i class="fa-solid fa-building-user text-emerald-400"></i> LANTAI 1 (Ground Floor)
             </div>
-            <div class="fullview-floor overflow-hidden" id="fullview-container-f1" style="background-image: url('{{ asset('images/floor1.jpeg') }}');">
-                <svg class="path-svg" id="fullview-path-svg-f1"></svg>
-                <div id="fullview-robots-overlay-f1"></div>
-            </div>
+            <svg class="path-svg" id="fullview-path-svg-f1"></svg>
+            <div id="fullview-robots-overlay-f1"></div>
         </div>
     </div>
 </div>
@@ -314,7 +332,6 @@
         if (showFull) {
             stdView.classList.add('hidden');
             fullView.classList.remove('hidden');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
             fullView.classList.add('hidden');
             stdView.classList.remove('hidden');
@@ -419,7 +436,6 @@
             const path = getDeliveryPath(delivery, robot);
             if (path.length < 2) return;
 
-            // Render on active container (Standard or Fullview)
             const targetContainerF1 = isFullViewMode ? document.getElementById('fullview-container-f1') : document.getElementById('map-container-f1');
             const targetContainerF2 = isFullViewMode ? document.getElementById('fullview-container-f2') : document.getElementById('map-container-f2');
             
@@ -440,7 +456,6 @@
                 else ptsF1 += `${px},${py} `;
             });
 
-            // Target SVGs
             const targetSvgF1 = isFullViewMode ? fullSvgF1 : svgF1;
             const targetSvgF2 = isFullViewMode ? fullSvgF2 : svgF2;
 
@@ -448,8 +463,8 @@
                 const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                 poly.setAttribute('points', ptsF1.trim());
                 poly.setAttribute('stroke', '#38bdf8');
-                poly.setAttribute('stroke-width', '2.5');
-                poly.setAttribute('stroke-dasharray', '6,6');
+                poly.setAttribute('stroke-width', isFullViewMode ? '2' : '2.5');
+                poly.setAttribute('stroke-dasharray', '5,5');
                 poly.setAttribute('fill', 'none');
                 targetSvgF1.appendChild(poly);
             }
@@ -457,8 +472,8 @@
                 const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                 poly.setAttribute('points', ptsF2.trim());
                 poly.setAttribute('stroke', '#38bdf8');
-                poly.setAttribute('stroke-width', '2.5');
-                poly.setAttribute('stroke-dasharray', '6,6');
+                poly.setAttribute('stroke-width', isFullViewMode ? '2' : '2.5');
+                poly.setAttribute('stroke-dasharray', '5,5');
                 poly.setAttribute('fill', 'none');
                 targetSvgF2.appendChild(poly);
             }
@@ -543,19 +558,23 @@
             }
 
             // Create Robot marker element
-            function createRobotMarker() {
+            function createRobotMarker(compact = false) {
                 const marker = document.createElement('div');
                 marker.className = 'robot-marker z-30';
                 marker.style.left = `${coords.x}%`;
                 marker.style.top = `${coords.y}%`;
                 
+                const sizeClass = compact ? 'w-6 h-6' : 'w-8 h-8';
+                const pingClass = compact ? 'h-8 w-8' : 'h-10 w-10';
+                const iconSize = compact ? 'text-[10px]' : 'text-xs';
+
                 marker.innerHTML = `
                     <div class="relative flex items-center justify-center">
-                        <span class="animate-ping absolute inline-flex h-10 w-10 rounded-full ${statusColor} opacity-40"></span>
-                        <div class="relative w-8 h-8 rounded-xl bg-white border border-gray-300 flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
-                            <i class="fa-solid fa-robot text-xs ${robot.status === 'Delivering' ? 'text-[#3b4cb8]' : (robot.status === 'Charging' ? 'text-orange-500' : (robot.status === 'Maintenance' ? 'text-rose-600' : 'text-emerald-600'))}"></i>
+                        <span class="animate-ping absolute inline-flex ${pingClass} rounded-full ${statusColor} opacity-40"></span>
+                        <div class="relative ${sizeClass} rounded-lg bg-white border border-gray-300 flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
+                            <i class="fa-solid fa-robot ${iconSize} ${robot.status === 'Delivering' ? 'text-[#3b4cb8]' : (robot.status === 'Charging' ? 'text-orange-500' : (robot.status === 'Maintenance' ? 'text-rose-600' : 'text-emerald-600'))}"></i>
                         </div>
-                        <div class="absolute -top-6 bg-white/95 text-gray-800 border border-gray-200 text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap pointer-events-none">
+                        <div class="absolute -top-5 bg-white/95 text-gray-800 border border-gray-200 text-[8px] font-bold px-1.5 py-0.2 rounded shadow-sm whitespace-nowrap pointer-events-none">
                             ${robot.name.split(' ')[1]} (${robot.battery_level}%)
                         </div>
                     </div>
@@ -566,10 +585,10 @@
             // Render on active overlays
             if (isFullViewMode) {
                 const targetOverlay = floorNum === 2 ? fullOverlayF2 : fullOverlayF1;
-                if (targetOverlay) targetOverlay.appendChild(createRobotMarker());
+                if (targetOverlay) targetOverlay.appendChild(createRobotMarker(true));
             } else {
                 const targetOverlay = floorNum === 2 ? overlayF2 : overlayF1;
-                if (targetOverlay) targetOverlay.appendChild(createRobotMarker());
+                if (targetOverlay) targetOverlay.appendChild(createRobotMarker(false));
             }
 
             // Update Robot Cards in standard view
