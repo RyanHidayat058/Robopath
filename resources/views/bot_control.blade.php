@@ -134,11 +134,11 @@
                         </div>
                         <div>
                             <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">X (%)</label>
-                            <input type="text" id="inspect-x" readonly class="w-full bg-gray-100 border border-gray-200 rounded-xl px-2 py-2 font-mono text-gray-600">
+                            <input type="number" step="0.1" min="0" max="100" id="inspect-x" oninput="handleCoordinateChange()" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition">
                         </div>
                         <div>
                             <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Y (%)</label>
-                            <input type="text" id="inspect-y" readonly class="w-full bg-gray-100 border border-gray-200 rounded-xl px-2 py-2 font-mono text-gray-600">
+                            <input type="number" step="0.1" min="0" max="100" id="inspect-y" oninput="handleCoordinateChange()" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition">
                         </div>
                     </div>
 
@@ -160,9 +160,13 @@
                         </label>
                     </div>
 
+                    <!-- Connected Neighbors (Edges) Manager -->
                     <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Connected Neighbors (Edges)</label>
-                        <div id="inspect-neighbors" class="bg-gray-50 border border-gray-200 rounded-xl p-3 min-h-[60px] max-h-[140px] overflow-y-auto space-y-1 font-mono text-xs">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="font-bold text-gray-500 uppercase tracking-wider">Connected Edges</label>
+                            <span class="text-[10px] text-gray-400 font-semibold" id="neighbors-count-badge">0 edges</span>
+                        </div>
+                        <div id="inspect-neighbors" class="bg-gray-50 border border-gray-200 rounded-xl p-3 min-h-[70px] max-h-[160px] overflow-y-auto space-y-1.5">
                             <span class="text-gray-400 italic">No node selected</span>
                         </div>
                     </div>
@@ -348,6 +352,7 @@
                 if (!adjData[nodeId].includes(connectStartNodeId)) adjData[nodeId].push(connectStartNodeId);
 
                 connectStartNodeId = null;
+                inspectNode(selectedNodeId);
             }
         } else if (currentTool === 'delete') {
             if (confirm(`Are you sure you want to delete node "${nodeId}"?`)) {
@@ -421,6 +426,34 @@
         }
     }
 
+    function handleCoordinateChange() {
+        if (!selectedNodeId || !locationsData[selectedNodeId]) return;
+        const xVal = parseFloat(document.getElementById('inspect-x').value);
+        const yVal = parseFloat(document.getElementById('inspect-y').value);
+
+        if (!isNaN(xVal)) {
+            locationsData[selectedNodeId].x = Math.max(0, Math.min(100, parseFloat(xVal.toFixed(2))));
+        }
+        if (!isNaN(yVal)) {
+            locationsData[selectedNodeId].y = Math.max(0, Math.min(100, parseFloat(yVal.toFixed(2))));
+        }
+
+        renderEditorMap();
+    }
+
+    function disconnectEdge(nodeA, nodeB) {
+        if (adjData[nodeA]) {
+            adjData[nodeA] = adjData[nodeA].filter(n => n !== nodeB);
+        }
+        if (adjData[nodeB]) {
+            adjData[nodeB] = adjData[nodeB].filter(n => n !== nodeA);
+        }
+        if (selectedNodeId) {
+            inspectNode(selectedNodeId);
+        }
+        renderEditorMap();
+    }
+
     function inspectNode(nodeId) {
         const loc = locationsData[nodeId];
         if (!loc) return;
@@ -433,11 +466,23 @@
         document.getElementById('inspect-hidden').checked = !!loc.hidden;
 
         const neighbors = adjData[nodeId] || [];
+        const badge = document.getElementById('neighbors-count-badge');
+        if (badge) badge.textContent = `${neighbors.length} edge(s)`;
+
         const nbrsContainer = document.getElementById('inspect-neighbors');
         if (neighbors.length === 0) {
             nbrsContainer.innerHTML = '<span class="text-gray-400 italic">No neighbors connected</span>';
         } else {
-            nbrsContainer.innerHTML = neighbors.map(nbr => `<div class="text-gray-800 font-bold flex items-center gap-1"><span class="text-sky-500">→</span> ${nbr}</div>`).join('');
+            nbrsContainer.innerHTML = neighbors.map(nbr => `
+                <div class="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs shadow-xs">
+                    <span class="font-bold text-gray-800 font-mono flex items-center gap-1.5">
+                        <i class="fa-solid fa-link text-sky-500 text-[10px]"></i> ${nbr}
+                    </span>
+                    <button onclick="disconnectEdge('${nodeId}', '${nbr}')" class="text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 p-1 rounded transition text-[11px]" title="Putus Garis Edge (${nodeId} <-> ${nbr})">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `).join('');
         }
     }
 
@@ -448,6 +493,8 @@
         document.getElementById('inspect-is-destination').checked = false;
         document.getElementById('inspect-hidden').checked = false;
         document.getElementById('inspect-neighbors').innerHTML = '<span class="text-gray-400 italic">No node selected</span>';
+        const badge = document.getElementById('neighbors-count-badge');
+        if (badge) badge.textContent = `0 edges`;
     }
 
     function handleRenameNode(newName) {
