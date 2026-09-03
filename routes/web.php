@@ -18,4 +18,5 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::post('/reports', [TelemetryController::class, 'reportIncident'])->name('reports.create');
     Route::put('/reports/{report}/resolve', [TelemetryController::class, 'resolveIncident'])->name('reports.resolve');
     Route::post('/system/reset', [TelemetryController::class, 'resetSystem'])->name('system.reset');
+    Route::post('/graph/save', [TelemetryController::class, 'saveGraph'])->name('graph.save');
 });

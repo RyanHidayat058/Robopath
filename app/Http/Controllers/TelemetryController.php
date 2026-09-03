@@ -264,4 +264,26 @@ class TelemetryController extends Controller
             'message' => 'System reset completed successfully.',
         ]);
     }
+
+    public function saveGraph(Request $request)
+    {
+        $request->validate([
+            'locations' => 'required|array',
+            'adj' => 'required|array',
+        ]);
+
+        $graphPath = base_path('graph.json');
+        $data = [
+            'locations' => $request->locations,
+            'adj' => $request->adj,
+        ];
+
+        file_put_contents($graphPath, json_encode($data, JSON_PRETTY_PRINT));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Graph map data updated and saved successfully!',
+            'total_nodes' => count($request->locations),
+        ]);
+    }
 }

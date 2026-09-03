@@ -157,7 +157,15 @@
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h3 class="text-base font-bold text-gray-800">Live Active Tracking</h3>
-                    <p class="text-xs text-gray-500">Smooth navigation and real-time path visualization</p>
+                    <p class="text-xs text-gray-500">Smooth navigation and real-time multi-floor path visualization</p>
+                </div>
+                <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
+                    <button onclick="switchLiveFloor(1)" id="btn-deliv-f1" class="px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition">
+                        Lantai 1
+                    </button>
+                    <button onclick="switchLiveFloor(2)" id="btn-deliv-f2" class="px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">
+                        Lantai 2
+                    </button>
                 </div>
             </div>
 

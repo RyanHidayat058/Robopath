@@ -9,6 +9,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Three.js 3D Rendering Engine -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -64,7 +69,7 @@
                     <span class="text-sm">Alerts</span>
                 </a>
 
-                                <a href="{{ route('history') }}" 
+                <a href="{{ route('history') }}" 
                    class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('history') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-clock-rotate-left text-lg {{ Route::is('history') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
                     <span class="text-sm">History</span>
@@ -75,10 +80,10 @@
                     <i class="fa-solid fa-sliders text-lg {{ Route::is('bot-control') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
                     <span class="text-sm">Bot Control</span>
                 </a>
-                        </nav>
+            </nav>
         </div>
 
-                                        <!-- Sidebar Footer / System Health -->
+        <!-- Sidebar Footer / System Health -->
         <div class="p-4 border-t border-white/20 bg-brand-blue">
             <div class="flex items-center gap-3 p-3 bg-black/10 rounded">
                 <div class="relative flex h-3 w-3">
@@ -136,33 +141,5 @@
     </style>
 
     @yield('scripts')
-    <script>
-        function globalUpdateBotSettings(robotId, field, value) {
-            const body = {};
-            body[field] = value;
-            
-            fetch(\/api/robots/\/telemetry\, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify(body)
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.reload();
-                }
-            })
-            .catch(err => console.error(err));
-        }
-    </script>
-
-    
-
 </body>
 </html>
-
-
-
