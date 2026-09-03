@@ -102,31 +102,34 @@
                     id="office-model-viewer"
                     src="{{ asset('models/office_v2.glb') }}"
                     alt="3D Building Floor Model OFFICE V2"
+                    loading="eager"
+                    reveal="auto"
                     camera-controls
                     touch-action="pan-y"
                     auto-rotate
-                    rotation-per-second="15deg"
-                    auto-rotate-delay="4000"
-                    shadow-intensity="1.5"
+                    rotation-per-second="12deg"
+                    auto-rotate-delay="3000"
+                    shadow-intensity="1.2"
                     shadow-softness="0.8"
                     exposure="1.3"
                     camera-orbit="45deg 55deg auto"
                     min-camera-orbit="auto auto 5%"
-                    max-camera-orbit="auto auto 200%"
+                    max-camera-orbit="auto auto 300%"
                     interaction-prompt="auto"
                 >
-                    <!-- Loading Progress bar inside model-viewer -->
-                    <div slot="progress-bar" class="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-6 text-white text-center z-50">
-                        <div class="w-14 h-14 rounded-2xl bg-[#3b4cb8] flex items-center justify-center text-2xl mb-4 shadow-lg animate-bounce">
-                            <i class="fa-solid fa-cube text-white"></i>
-                        </div>
-                        <h4 class="font-bold text-base text-white mb-2">Loading 3D Office Model</h4>
-                        <p class="text-xs text-blue-200 mb-4 font-mono">Decompressing 3D Draco Geometry &amp; Shaders...</p>
-                        <div class="w-64 bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
-                            <div class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2.5 rounded-full animate-pulse" style="width: 85%"></div>
-                        </div>
-                    </div>
                 </model-viewer>
+
+                <!-- Loading Progress Overlay with Auto-Dismiss on 'load' -->
+                <div id="loading-overlay" class="absolute inset-0 bg-slate-900/95 z-50 flex flex-col items-center justify-center p-6 text-white text-center transition-opacity duration-500">
+                    <div class="w-14 h-14 rounded-2xl bg-[#3b4cb8] flex items-center justify-center text-2xl mb-4 shadow-lg animate-bounce">
+                        <i class="fa-solid fa-cube text-white"></i>
+                    </div>
+                    <h4 class="font-bold text-base text-white mb-2">Loading 3D Office Model</h4>
+                    <p id="loading-text" class="text-xs text-blue-200 mb-4 font-mono">Decompressing 3D Geometry...</p>
+                    <div class="w-64 bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
+                        <div id="loading-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2.5 rounded-full transition-all duration-300" style="width: 15%"></div>
+                    </div>
+                </div>
 
                 <!-- 3D Controls Help Tag -->
                 <div class="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-2 z-20 border border-white/10 shadow-lg pointer-events-none">
@@ -210,6 +213,37 @@
     let robots = @json($robots);
     let activeDeliveries = @json($activeDeliveries);
 
+    function initModelViewerEvents() {
+        const viewer = document.getElementById('office-model-viewer');
+        const overlay = document.getElementById('loading-overlay');
+        const bar = document.getElementById('loading-bar');
+        const text = document.getElementById('loading-text');
+
+        if (!viewer) return;
+
+        viewer.addEventListener('progress', (e) => {
+            const pct = Math.round(e.detail.totalProgress * 100);
+            if (bar) bar.style.width = Math.max(15, pct) + '%';
+            if (text) text.textContent = `Downloading & Processing (${pct}%)...`;
+        });
+
+        viewer.addEventListener('load', () => {
+            if (bar) bar.style.width = '100%';
+            if (text) text.textContent = '3D Model Ready!';
+            if (overlay) {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                }, 450);
+            }
+        });
+
+        viewer.addEventListener('error', (e) => {
+            console.error('Error loading 3D model:', e);
+            if (text) text.textContent = 'Error loading 3D asset.';
+        });
+    }
+
     function fetchData() {
         fetch('/api/telemetry')
         .then(res => res.json())
@@ -255,6 +289,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        initModelViewerEvents();
         setInterval(fetchData, 3000);
     });
 </script>
