@@ -191,7 +191,7 @@
 
     let currentFloor = 1;
     let currentTool = 'move';
-    let showHiddenDots = true; // Show all nodes in editor by default
+    let showHiddenDots = true;
     let selectedNodeId = null;
     let connectStartNodeId = null;
     let draggedNodeId = null;
@@ -268,19 +268,19 @@
         const w = container.clientWidth || 800;
         const h = container.clientHeight || 450;
 
-        // Render Edges for current floor
+        // Render Edges for current floor using for...of loops
         const drawnEdges = new Set();
         for (let nodeA in adjData) {
             const locA = locationsData[nodeA];
             if (!locA || Number(locA.floor) !== Number(currentFloor)) continue;
 
             const neighbors = adjData[nodeA] || [];
-            neighbors.forEach(nodeB => {
+            for (let nodeB of neighbors) {
                 const locB = locationsData[nodeB];
                 if (!locB || Number(locB.floor) !== Number(currentFloor)) continue;
 
                 const edgeKey = [nodeA, nodeB].sort().join('--');
-                if (drawnEdges.has(edgeKey)) return;
+                if (drawnEdges.has(edgeKey)) continue;
                 drawnEdges.add(edgeKey);
 
                 const pxA = (locA.x / 100) * w;
@@ -297,7 +297,7 @@
                 line.setAttribute('stroke-width', '2');
                 line.setAttribute('stroke-dasharray', '4,4');
                 svg.appendChild(line);
-            });
+            }
         }
 
         // Render Nodes for current floor
@@ -437,7 +437,7 @@
         if (neighbors.length === 0) {
             nbrsContainer.innerHTML = '<span class="text-gray-400 italic">No neighbors connected</span>';
         } else {
-            nbrsContainer.innerHTML = neighbors.map(nbr => `<div class="text-gray-800 font-bold flex items-center gap-1"><span class="text-sky-500">?</span> ${nbr}</div>`).join('');
+            nbrsContainer.innerHTML = neighbors.map(nbr => `<div class="text-gray-800 font-bold flex items-center gap-1"><span class="text-sky-500">→</span> ${nbr}</div>`).join('');
         }
     }
 
