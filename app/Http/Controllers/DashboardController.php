@@ -112,6 +112,8 @@ class DashboardController extends Controller
                 'x' => $loc['x'],
                 'y' => $loc['y'],
                 'floor' => $loc['floor'] ?? 1,
+                'hidden' => $loc['hidden'] ?? false,
+                'is_destination' => $loc['is_destination'] ?? false,
             ];
         }
 

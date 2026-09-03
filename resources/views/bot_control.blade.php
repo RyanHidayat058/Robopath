@@ -2,7 +2,7 @@
 
 @section('title', 'ROBOPATH - Map Editor & Bot Control')
 @section('page_title', 'Interactive Map Editor & Fleet Control')
-@section('page_subtitle', 'Drag and drop nodes, connect floor paths, and manage robot fleet units')
+@section('page_subtitle', 'Drag and drop nodes, rename rooms, set hidden transit dots, and manage graph paths')
 
 @section('styles')
 <style>
@@ -44,7 +44,7 @@
 @section('content')
 <div class="space-y-8">
 
-    <!-- Top Control Bar: Floor Selection & Editor Modes & Save Button -->
+    <!-- Top Control Bar: Floor Selection, Editor Tools, Show/Hide Hidden Dots, & Save Button -->
     <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
         <!-- Floor Selector Tabs -->
         <div class="flex items-center gap-2 bg-gray-100 p-1.5 rounded-xl border border-gray-200">
@@ -60,7 +60,7 @@
         <div class="flex flex-wrap items-center gap-3">
             <div class="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
                 <button onclick="setEditorTool('move')" id="tool-move" class="px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5">
-                    <i class="fa-solid fa-up-down-left-right"></i> Move / Drag Node
+                    <i class="fa-solid fa-up-down-left-right"></i> Move Node
                 </button>
                 <button onclick="setEditorTool('add')" id="tool-add" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5">
                     <i class="fa-solid fa-plus-circle"></i> Add Node
@@ -72,6 +72,11 @@
                     <i class="fa-solid fa-trash-can"></i> Delete
                 </button>
             </div>
+
+            <!-- Show/Hide Transit Dots Toggle -->
+            <button onclick="toggleShowHiddenDots()" id="btn-toggle-hidden" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-eye-slash" id="icon-toggle-hidden"></i> <span id="text-toggle-hidden">Show Hidden Transit Nodes</span>
+            </button>
 
             <button onclick="saveGraphToServer()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md hover:shadow-lg transition">
                 <i class="fa-solid fa-floppy-disk"></i> Save Graph Map
@@ -90,7 +95,7 @@
                         <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
                             <i class="fa-solid fa-map-location-dot text-[#3b4cb8]"></i> Visual Map Node Editor
                         </h3>
-                        <p class="text-xs text-gray-500" id="editor-hint">Tool: Drag nodes to position them. Click Save Graph when finished.</p>
+                        <p class="text-xs text-gray-500" id="editor-hint">Tool: Drag nodes to position them. Click a node to rename or configure pickup/hidden flags.</p>
                     </div>
                     <span class="text-xs font-bold text-[#3b4cb8] bg-blue-50 px-3 py-1 rounded-full border border-blue-200" id="floor-badge">
                         Showing Floor 1
@@ -105,42 +110,71 @@
             </div>
         </div>
 
-        <!-- Node & Graph Inspector Panel (1/3 Width) -->
+        <!-- Node Inspector & Configuration Panel (1/3 Width) -->
         <div class="space-y-6">
             <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col">
                 <h3 class="text-base font-bold text-gray-800 mb-4 pb-3 border-b border-gray-200 flex items-center gap-2">
-                    <i class="fa-solid fa-circle-info text-[#3b4cb8]"></i> Node & Path Inspector
+                    <i class="fa-solid fa-[#3b4cb8] fa-pen-to-square text-[#3b4cb8]"></i> Node Properties Inspector
                 </h3>
 
                 <div class="space-y-4 flex-1 text-xs text-gray-700">
+                    <!-- Node ID / Name Edit Field -->
                     <div>
-                        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Selected Node</span>
-                        <div class="p-3 bg-blue-50/50 border border-blue-200 rounded-xl font-bold text-[#3b4cb8] text-sm" id="inspect-node-id">
-                            None selected (Click a node to inspect)
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                            Node Name / Room Title <span class="text-blue-600 lowercase font-normal">(e.g. Hall, Lobby)</span>
+                        </label>
+                        <input type="text" id="inspect-node-name" onchange="handleRenameNode(this.value)" placeholder="Click a node to edit name..." class="w-full bg-blue-50/50 border border-blue-200 rounded-xl p-3 font-bold text-[#3b4cb8] text-sm focus:outline-none focus:border-[#3b4cb8]">
+                    </div>
+
+                    <!-- Floor Selection & Coordinates -->
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Floor Level</label>
+                            <select id="inspect-floor" onchange="handleFloorChange(this.value)" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 font-bold text-gray-800 text-xs">
+                                <option value="1">Lantai 1</option>
+                                <option value="2">Lantai 2</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">X (%)</label>
+                            <input type="number" step="0.01" id="inspect-x" readonly class="w-full bg-gray-100 border border-gray-200 rounded-lg p-2 font-mono font-bold text-gray-800 text-xs">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Y (%)</label>
+                            <input type="number" step="0.01" id="inspect-y" readonly class="w-full bg-gray-100 border border-gray-200 rounded-lg p-2 font-mono font-bold text-gray-800 text-xs">
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">X Coordinate (%)</label>
-                            <input type="number" step="0.01" id="inspect-x" readonly class="w-full bg-gray-100 border border-gray-200 rounded-lg p-2 font-mono font-bold text-gray-800">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Y Coordinate (%)</label>
-                            <input type="number" step="0.01" id="inspect-y" readonly class="w-full bg-gray-100 border border-gray-200 rounded-lg p-2 font-mono font-bold text-gray-800">
-                        </div>
+                    <!-- Node Checkboxes: Hidden Node & Destination Room -->
+                    <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-200 space-y-3">
+                        <label class="flex items-center gap-2.5 cursor-pointer">
+                            <input type="checkbox" id="inspect-is-destination" onchange="handleIsDestinationChange(this.checked)" class="w-4 h-4 text-[#3b4cb8] rounded border-gray-300 focus:ring-[#3b4cb8]">
+                            <div>
+                                <span class="font-bold text-gray-800 text-xs block">Use as Pickup / Destination Room</span>
+                                <span class="text-[10px] text-gray-500 block">Available in delivery room selection dropdowns</span>
+                            </div>
+                        </label>
+
+                        <label class="flex items-center gap-2.5 cursor-pointer pt-2 border-t border-gray-200">
+                            <input type="checkbox" id="inspect-hidden" onchange="handleHiddenChange(this.checked)" class="w-4 h-4 text-amber-500 rounded border-gray-300 focus:ring-amber-500">
+                            <div>
+                                <span class="font-bold text-gray-800 text-xs block">Hide Marker on Floor Map</span>
+                                <span class="text-[10px] text-gray-500 block">Functions for routing but hidden on map view</span>
+                            </div>
+                        </label>
                     </div>
 
+                    <!-- Connected Neighbors list -->
                     <div>
-                        <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Connected Neighbors (Edges)</label>
-                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl max-h-[120px] overflow-y-auto space-y-1 font-mono text-[11px]" id="inspect-neighbors">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Connected Neighbors (Edges)</label>
+                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl max-h-[100px] overflow-y-auto space-y-1 font-mono text-[11px]" id="inspect-neighbors">
                             <span class="text-gray-400 italic">No neighbors connected</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Unit Fleet Quick Reset Card -->
+            <!-- Fleet Reset Card -->
             <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
                 <h3 class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
                     <i class="fa-solid fa-sliders text-amber-500"></i> Fleet System Controls
@@ -161,14 +195,21 @@
     const floor2Img = "{{ asset('images/floor2.jpeg') }}";
 
     let currentFloor = 1;
-    let currentTool = 'move'; // 'move', 'add', 'connect', 'delete'
+    let currentTool = 'move';
+    let showHiddenDots = false;
     let selectedNodeId = null;
     let connectStartNodeId = null;
     let draggedNodeId = null;
 
     let locationsData = {
         @foreach($locations as $id => $coords)
-        '{{ $id }}': { x: {{ $coords['x'] }}, y: {{ $coords['y'] }}, floor: {{ $coords['floor'] ?? 1 }} },
+        '{{ $id }}': { 
+            x: {{ $coords['x'] }}, 
+            y: {{ $coords['y'] }}, 
+            floor: {{ $coords['floor'] ?? 1 }},
+            hidden: {{ ($coords['hidden'] ?? false) ? 'true' : 'false' }},
+            is_destination: {{ ($coords['is_destination'] ?? false) ? 'true' : 'false' }}
+        },
         @endforeach
     };
 
@@ -177,6 +218,24 @@
         '{{ $node }}': [ @foreach($neighbors as $nbr) '{{ $nbr }}', @endforeach ],
         @endforeach
     };
+
+    function toggleShowHiddenDots() {
+        showHiddenDots = !showHiddenDots;
+        const icon = document.getElementById('icon-toggle-hidden');
+        const text = document.getElementById('text-toggle-hidden');
+        const btn = document.getElementById('btn-toggle-hidden');
+
+        if (showHiddenDots) {
+            icon.className = "fa-solid fa-eye text-[#3b4cb8]";
+            text.textContent = "Showing All Transit Nodes";
+            btn.className = "bg-blue-50 border border-blue-300 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+        } else {
+            icon.className = "fa-solid fa-eye-slash";
+            text.textContent = "Show Hidden Transit Nodes";
+            btn.className = "bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+        }
+        renderEditorMap();
+    }
 
     function switchFloor(floorNum) {
         currentFloor = floorNum;
@@ -206,8 +265,8 @@
         });
 
         const hint = document.getElementById('editor-hint');
-        if (tool === 'move') hint.textContent = "Tool: Drag nodes to adjust coordinates. Click a node to inspect.";
-        if (tool === 'add') hint.textContent = "Tool: Click anywhere on the map to add a new node.";
+        if (tool === 'move') hint.textContent = "Tool: Drag nodes to adjust coordinates. Click a node to edit room title & hidden flags.";
+        if (tool === 'add') hint.textContent = "Tool: Click anywhere on the map to add a new room node (e.g. Hall, Lobby).";
         if (tool === 'connect') hint.textContent = "Tool: Click Node A, then click Node B to draw a path line connection.";
         if (tool === 'delete') hint.textContent = "Tool: Click any node to delete it from the graph.";
         
@@ -263,8 +322,9 @@
         for (let nodeId in locationsData) {
             const loc = locationsData[nodeId];
             if (loc.floor !== currentFloor) continue;
+            if (loc.hidden && !showHiddenDots && selectedNodeId !== nodeId) continue;
 
-            const isNamed = !nodeId.startsWith('N') || nodeId === 'N';
+            const isNamed = loc.is_destination || (!nodeId.startsWith('N') || nodeId === 'N');
             const isSelected = selectedNodeId === nodeId;
             const isConnectStart = connectStartNodeId === nodeId;
 
@@ -273,12 +333,12 @@
             el.style.left = `${loc.x}%`;
             el.style.top = `${loc.y}%`;
 
-            let dotBg = isNamed ? 'bg-[#3b4cb8]' : (isConnectStart ? 'bg-amber-500 animate-bounce' : 'bg-sky-500');
+            let dotBg = loc.hidden ? 'bg-gray-400 opacity-60' : (isNamed ? 'bg-[#3b4cb8]' : (isConnectStart ? 'bg-amber-500 animate-bounce' : 'bg-sky-500'));
 
             el.innerHTML = `
                 <div class="relative flex items-center justify-center group" onclick="handleNodeClick(event, '${nodeId}')" onmousedown="handleNodeMouseDown(event, '${nodeId}')">
-                    <div class="w-3.5 h-3.5 rounded-full ${dotBg} border-2 border-white shadow-md transition transform group-hover:scale-125"></div>
-                    ${isNamed ? `<div class="absolute -top-5 bg-gray-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow pointer-events-none whitespace-nowrap">${nodeId}</div>` : ''}
+                    <div class="w-4 h-4 rounded-full ${dotBg} border-2 border-white shadow-md transition transform group-hover:scale-125"></div>
+                    ${isNamed ? `<div class="absolute -top-5 bg-[#3b4cb8] text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow pointer-events-none whitespace-nowrap">${nodeId}</div>` : ''}
                 </div>
             `;
             nodesLayer.appendChild(el);
@@ -294,7 +354,6 @@
             if (!connectStartNodeId) {
                 connectStartNodeId = nodeId;
             } else if (connectStartNodeId !== nodeId) {
-                // Connect connectStartNodeId <-> nodeId
                 if (!adjData[connectStartNodeId]) adjData[connectStartNodeId] = [];
                 if (!adjData[nodeId]) adjData[nodeId] = [];
 
@@ -304,13 +363,14 @@
                 connectStartNodeId = null;
             }
         } else if (currentTool === 'delete') {
-            if (confirm(`Are you sure you want to delete node ${nodeId}?`)) {
+            if (confirm(`Are you sure you want to delete node "${nodeId}"?`)) {
                 delete locationsData[nodeId];
                 delete adjData[nodeId];
                 for (let k in adjData) {
                     adjData[k] = adjData[k].filter(n => n !== nodeId);
                 }
                 selectedNodeId = null;
+                clearInspector();
             }
         }
 
@@ -356,12 +416,19 @@
             let xPct = parseFloat((((e.clientX - rect.left) / rect.width) * 100).toFixed(2));
             let yPct = parseFloat((((e.clientY - rect.top) / rect.height) * 100).toFixed(2));
 
-            const name = prompt("Enter new node name / ID:", `Node_${Math.floor(Math.random() * 1000)}`);
-            if (name) {
-                locationsData[name] = { x: xPct, y: yPct, floor: currentFloor };
-                adjData[name] = [];
-                selectedNodeId = name;
-                inspectNode(name);
+            const name = prompt("Enter new room / location name (e.g. Hall):", `Hall_${Math.floor(Math.random() * 100)}`);
+            if (name && name.trim()) {
+                const nodeKey = name.trim();
+                locationsData[nodeKey] = { 
+                    x: xPct, 
+                    y: yPct, 
+                    floor: currentFloor, 
+                    hidden: false, 
+                    is_destination: true 
+                };
+                adjData[nodeKey] = [];
+                selectedNodeId = nodeKey;
+                inspectNode(nodeKey);
                 renderEditorMap();
             }
         }
@@ -371,9 +438,12 @@
         const loc = locationsData[nodeId];
         if (!loc) return;
 
-        document.getElementById('inspect-node-id').textContent = `${nodeId} (Floor ${loc.floor})`;
+        document.getElementById('inspect-node-name').value = nodeId;
+        document.getElementById('inspect-floor').value = loc.floor || 1;
         document.getElementById('inspect-x').value = loc.x;
         document.getElementById('inspect-y').value = loc.y;
+        document.getElementById('inspect-is-destination').checked = !!loc.is_destination;
+        document.getElementById('inspect-hidden').checked = !!loc.hidden;
 
         const neighbors = adjData[nodeId] || [];
         const nbrsContainer = document.getElementById('inspect-neighbors');
@@ -384,14 +454,69 @@
         }
     }
 
+    function clearInspector() {
+        document.getElementById('inspect-node-name').value = '';
+        document.getElementById('inspect-x').value = '';
+        document.getElementById('inspect-y').value = '';
+        document.getElementById('inspect-is-destination').checked = false;
+        document.getElementById('inspect-hidden').checked = false;
+        document.getElementById('inspect-neighbors').innerHTML = '<span class="text-gray-400 italic">No node selected</span>';
+    }
+
+    function handleRenameNode(newName) {
+        if (!selectedNodeId || !newName || !newName.trim() || newName === selectedNodeId) return;
+        const cleanName = newName.trim();
+        if (locationsData[cleanName]) {
+            alert(`A node named "${cleanName}" already exists! Please use a unique name.`);
+            document.getElementById('inspect-node-name').value = selectedNodeId;
+            return;
+        }
+
+        const oldId = selectedNodeId;
+        locationsData[cleanName] = { ...locationsData[oldId] };
+        delete locationsData[oldId];
+
+        adjData[cleanName] = adjData[oldId] || [];
+        delete adjData[oldId];
+
+        for (let k in adjData) {
+            adjData[k] = adjData[k].map(n => n === oldId ? cleanName : n);
+        }
+
+        selectedNodeId = cleanName;
+        inspectNode(cleanName);
+        renderEditorMap();
+    }
+
+    function handleFloorChange(val) {
+        if (!selectedNodeId) return;
+        locationsData[selectedNodeId].floor = parseInt(val, 10);
+        renderEditorMap();
+    }
+
+    function handleIsDestinationChange(val) {
+        if (!selectedNodeId) return;
+        locationsData[selectedNodeId].is_destination = val;
+        renderEditorMap();
+    }
+
+    function handleHiddenChange(val) {
+        if (!selectedNodeId) return;
+        locationsData[selectedNodeId].hidden = val;
+        renderEditorMap();
+    }
+
     function saveGraphToServer() {
         const formattedLocations = [];
         for (let id in locationsData) {
             formattedLocations.push({
                 id: id,
+                name: id,
                 x: locationsData[id].x,
                 y: locationsData[id].y,
-                floor: locationsData[id].floor || 1
+                floor: locationsData[id].floor || 1,
+                hidden: !!locationsData[id].hidden,
+                is_destination: !!locationsData[id].is_destination
             });
         }
 

@@ -96,7 +96,9 @@
                     <select id="dispatch-start" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
                         <option value="" disabled selected>Choose starting location...</option>
                         @foreach($locations as $name => $coords)
-                        <option value="{{ $name }}">{{ $name }}</option>
+                        @if(($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false))
+                        <option value="{{ $name }}">{{ $name }} (Lantai {{ $coords['floor'] ?? 1 }})</option>
+                        @endif
                         @endforeach
                     </select>
                 </div>
@@ -108,7 +110,9 @@
                         <option value="" disabled selected>Choose destination...</option>
                         <!-- Render locations dynamically -->
                         @foreach($locations as $name => $coords)
-                        <option value="{{ $name }}">{{ $name }}</option>
+                        @if(($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false))
+                        <option value="{{ $name }}">{{ $name }} (Lantai {{ $coords['floor'] ?? 1 }})</option>
+                        @endif
                         @endforeach
                     </select>
                 </div>

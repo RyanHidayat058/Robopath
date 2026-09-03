@@ -7,7 +7,10 @@
       "px_x": 182.67924528301887,
       "px_y": 476.6320754716981,
       "count": 106,
-      "floor": 1
+      "floor": 1,
+      "name": "N0",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N1",
@@ -16,7 +19,10 @@
       "px_x": 205.5,
       "px_y": 476.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N1",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N2",
@@ -25,7 +31,10 @@
       "px_x": 223.5,
       "px_y": 476.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N2",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N4",
@@ -34,7 +43,10 @@
       "px_x": 241.5,
       "px_y": 476.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N4",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N7",
@@ -43,7 +55,10 @@
       "px_x": 257.72527472527474,
       "px_y": 656.0439560439561,
       "count": 91,
-      "floor": 1
+      "floor": 1,
+      "name": "N7",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N10",
@@ -52,7 +67,10 @@
       "px_x": 266.88235294117646,
       "px_y": 640.0588235294117,
       "count": 17,
-      "floor": 1
+      "floor": 1,
+      "name": "N10",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N11",
@@ -61,7 +79,10 @@
       "px_x": 267.78494623655916,
       "px_y": 479.8817204301075,
       "count": 93,
-      "floor": 1
+      "floor": 1,
+      "name": "N11",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N12",
@@ -70,7 +91,10 @@
       "px_x": 268.48571428571427,
       "px_y": 500.74285714285713,
       "count": 35,
-      "floor": 1
+      "floor": 1,
+      "name": "N12",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N13",
@@ -79,7 +103,10 @@
       "px_x": 268.5,
       "px_y": 518.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N13",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N14",
@@ -88,7 +115,10 @@
       "px_x": 268.5,
       "px_y": 536.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N14",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N15",
@@ -97,7 +127,10 @@
       "px_x": 268.5,
       "px_y": 554.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N15",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N16",
@@ -106,7 +139,10 @@
       "px_x": 268.5,
       "px_y": 572.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N16",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N17",
@@ -115,7 +151,10 @@
       "px_x": 268.5,
       "px_y": 590.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N17",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N18",
@@ -124,7 +163,10 @@
       "px_x": 268.5,
       "px_y": 608.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N18",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Kantin (Tempat Makan)",
@@ -133,7 +175,10 @@
       "px_x": 268.6263736263736,
       "px_y": 629.7472527472528,
       "count": 91,
-      "floor": 1
+      "floor": 1,
+      "name": "Kantin (Tempat Makan)",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N20",
@@ -142,7 +187,10 @@
       "px_x": 268.9298245614035,
       "px_y": 469.2105263157895,
       "count": 57,
-      "floor": 1
+      "floor": 1,
+      "name": "N20",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N21",
@@ -151,7 +199,10 @@
       "px_x": 270.5081967213115,
       "px_y": 445.6803278688525,
       "count": 122,
-      "floor": 1
+      "floor": 1,
+      "name": "N21",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Kantin (Display Makanan)",
@@ -160,7 +211,10 @@
       "px_x": 293.5,
       "px_y": 356.88461538461536,
       "count": 104,
-      "floor": 1
+      "floor": 1,
+      "name": "Kantin (Display Makanan)",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N27",
@@ -169,7 +223,10 @@
       "px_x": 293.5,
       "px_y": 377.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N27",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N28",
@@ -178,7 +235,10 @@
       "px_x": 293.5,
       "px_y": 395.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N28",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N29",
@@ -187,7 +247,10 @@
       "px_x": 293.5,
       "px_y": 413.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N29",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N30",
@@ -196,7 +259,10 @@
       "px_x": 293.5,
       "px_y": 432.35,
       "count": 40,
-      "floor": 1
+      "floor": 1,
+      "name": "N30",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N31",
@@ -205,7 +271,10 @@
       "px_x": 294.56481481481484,
       "px_y": 444.75,
       "count": 108,
-      "floor": 1
+      "floor": 1,
+      "name": "N31",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N34",
@@ -214,7 +283,10 @@
       "px_x": 316.5,
       "px_y": 444.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N34",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N36",
@@ -223,7 +295,10 @@
       "px_x": 334.5,
       "px_y": 444.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N36",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N39",
@@ -232,7 +307,10 @@
       "px_x": 352.0,
       "px_y": 444.5,
       "count": 34,
-      "floor": 1
+      "floor": 1,
+      "name": "N39",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N41",
@@ -241,7 +319,10 @@
       "px_x": 369.5360824742268,
       "px_y": 550.7216494845361,
       "count": 97,
-      "floor": 1
+      "floor": 1,
+      "name": "N41",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N42",
@@ -250,7 +331,10 @@
       "px_x": 376.16083916083915,
       "px_y": 565.083916083916,
       "count": 143,
-      "floor": 1
+      "floor": 1,
+      "name": "N42",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N43",
@@ -259,7 +343,10 @@
       "px_x": 379.24,
       "px_y": 445.46,
       "count": 150,
-      "floor": 1
+      "floor": 1,
+      "name": "N43",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Kantin (Masak Makanan)",
@@ -268,7 +355,10 @@
       "px_x": 379.88235294117646,
       "px_y": 534.3529411764706,
       "count": 85,
-      "floor": 1
+      "floor": 1,
+      "name": "Kantin (Masak Makanan)",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N45",
@@ -277,7 +367,10 @@
       "px_x": 380.5,
       "px_y": 466.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N45",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N46",
@@ -286,7 +379,10 @@
       "px_x": 380.5,
       "px_y": 484.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N46",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N47",
@@ -295,7 +391,10 @@
       "px_x": 380.5,
       "px_y": 502.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N47",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N48",
@@ -304,7 +403,10 @@
       "px_x": 380.43589743589746,
       "px_y": 521.1538461538462,
       "count": 39,
-      "floor": 1
+      "floor": 1,
+      "name": "N48",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N51",
@@ -313,7 +415,10 @@
       "px_x": 404.5,
       "px_y": 444.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N51",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N52",
@@ -322,7 +427,10 @@
       "px_x": 422.5,
       "px_y": 444.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N52",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N54",
@@ -331,7 +439,10 @@
       "px_x": 440.5,
       "px_y": 444.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N54",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N56",
@@ -340,7 +451,10 @@
       "px_x": 454.5,
       "px_y": 444.5,
       "count": 20,
-      "floor": 1
+      "floor": 1,
+      "name": "N56",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N59",
@@ -349,7 +463,10 @@
       "px_x": 478.6439393939394,
       "px_y": 444.70454545454544,
       "count": 132,
-      "floor": 1
+      "floor": 1,
+      "name": "N59",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Blank Room 1",
@@ -358,7 +475,10 @@
       "px_x": 480.5,
       "px_y": 356.88461538461536,
       "count": 104,
-      "floor": 1
+      "floor": 1,
+      "name": "Blank Room 1",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N62",
@@ -367,7 +487,10 @@
       "px_x": 480.5,
       "px_y": 377.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N62",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N63",
@@ -376,7 +499,10 @@
       "px_x": 480.5,
       "px_y": 395.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N63",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N64",
@@ -385,7 +511,10 @@
       "px_x": 480.5,
       "px_y": 413.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N64",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N65",
@@ -394,7 +523,10 @@
       "px_x": 480.5,
       "px_y": 432.35,
       "count": 40,
-      "floor": 1
+      "floor": 1,
+      "name": "N65",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Kamar Mandi 1",
@@ -403,7 +535,10 @@
       "px_x": 502.21,
       "px_y": 302.77,
       "count": 100,
-      "floor": 1
+      "floor": 1,
+      "name": "Kamar Mandi 1",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N69",
@@ -412,7 +547,10 @@
       "px_x": 503.5,
       "px_y": 444.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N69",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N71",
@@ -421,7 +559,10 @@
       "px_x": 521.5,
       "px_y": 444.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N71",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N72",
@@ -430,7 +571,10 @@
       "px_x": 523.5,
       "px_y": 302.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N72",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N74",
@@ -439,7 +583,10 @@
       "px_x": 537.0,
       "px_y": 444.5,
       "count": 26,
-      "floor": 1
+      "floor": 1,
+      "name": "N74",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N75",
@@ -448,7 +595,10 @@
       "px_x": 539.0,
       "px_y": 302.5,
       "count": 26,
-      "floor": 1
+      "floor": 1,
+      "name": "N75",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N76",
@@ -457,7 +607,10 @@
       "px_x": 562.125,
       "px_y": 303.625,
       "count": 128,
-      "floor": 1
+      "floor": 1,
+      "name": "N76",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N77",
@@ -466,7 +619,10 @@
       "px_x": 562.5833333333334,
       "px_y": 444.89166666666665,
       "count": 120,
-      "floor": 1
+      "floor": 1,
+      "name": "N77",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N78",
@@ -475,7 +631,10 @@
       "px_x": 564.5,
       "px_y": 324.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N78",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N79",
@@ -484,7 +643,10 @@
       "px_x": 564.5,
       "px_y": 360.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N79",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N80",
@@ -493,7 +655,10 @@
       "px_x": 564.5,
       "px_y": 378.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N80",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N81",
@@ -502,7 +667,10 @@
       "px_x": 564.5,
       "px_y": 396.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N81",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N82",
@@ -511,7 +679,10 @@
       "px_x": 564.5,
       "px_y": 414.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N82",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N83",
@@ -520,7 +691,10 @@
       "px_x": 564.6363636363636,
       "px_y": 433.97727272727275,
       "count": 44,
-      "floor": 1
+      "floor": 1,
+      "name": "N83",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N84",
@@ -529,7 +703,10 @@
       "px_x": 566.4488188976378,
       "px_y": 340.34645669291336,
       "count": 127,
-      "floor": 1
+      "floor": 1,
+      "name": "N84",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N86",
@@ -538,7 +715,10 @@
       "px_x": 585.2708333333334,
       "px_y": 448.5208333333333,
       "count": 48,
-      "floor": 1
+      "floor": 1,
+      "name": "N86",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N87",
@@ -547,7 +727,10 @@
       "px_x": 590.2432432432432,
       "px_y": 339.5135135135135,
       "count": 37,
-      "floor": 1
+      "floor": 1,
+      "name": "N87",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N89",
@@ -556,7 +739,10 @@
       "px_x": 605.5,
       "px_y": 444.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N89",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N90",
@@ -565,7 +751,10 @@
       "px_x": 608.5,
       "px_y": 339.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N90",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N93",
@@ -574,7 +763,10 @@
       "px_x": 626.5,
       "px_y": 339.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N93",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Resepsionis",
@@ -583,7 +775,10 @@
       "px_x": 633.231884057971,
       "px_y": 444.5,
       "count": 138,
-      "floor": 1
+      "floor": 1,
+      "name": "Resepsionis",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N97",
@@ -592,7 +787,10 @@
       "px_x": 642.5769230769231,
       "px_y": 339.84615384615387,
       "count": 26,
-      "floor": 1
+      "floor": 1,
+      "name": "N97",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N100",
@@ -601,7 +799,10 @@
       "px_x": 656.3235294117648,
       "px_y": 336.44117647058823,
       "count": 102,
-      "floor": 1
+      "floor": 1,
+      "name": "N100",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Kamar Mandi 2",
@@ -610,7 +811,10 @@
       "px_x": 656.5,
       "px_y": 293.88461538461536,
       "count": 104,
-      "floor": 1
+      "floor": 1,
+      "name": "Kamar Mandi 2",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N102",
@@ -619,7 +823,10 @@
       "px_x": 656.5,
       "px_y": 314.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N102",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N103",
@@ -628,7 +835,10 @@
       "px_x": 663.6428571428571,
       "px_y": 341.2142857142857,
       "count": 42,
-      "floor": 1
+      "floor": 1,
+      "name": "N103",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N105",
@@ -637,7 +847,10 @@
       "px_x": 665.7555555555556,
       "px_y": 445.0740740740741,
       "count": 135,
-      "floor": 1
+      "floor": 1,
+      "name": "N105",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N106",
@@ -646,7 +859,10 @@
       "px_x": 666.0,
       "px_y": 466.5,
       "count": 18,
-      "floor": 1
+      "floor": 1,
+      "name": "N106",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N107",
@@ -655,7 +871,10 @@
       "px_x": 666.0,
       "px_y": 484.5,
       "count": 18,
-      "floor": 1
+      "floor": 1,
+      "name": "N107",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Pintu Masuk",
@@ -664,7 +883,10 @@
       "px_x": 665.9375,
       "px_y": 533.8,
       "count": 80,
-      "floor": 1
+      "floor": 1,
+      "name": "Pintu Masuk",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "Pintu Keluar",
@@ -673,7 +895,10 @@
       "px_x": 666.0434782608696,
       "px_y": 522.304347826087,
       "count": 23,
-      "floor": 1
+      "floor": 1,
+      "name": "Pintu Keluar",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N110",
@@ -682,7 +907,10 @@
       "px_x": 668.0598290598291,
       "px_y": 503.34188034188037,
       "count": 117,
-      "floor": 1
+      "floor": 1,
+      "name": "N110",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N112",
@@ -691,7 +919,10 @@
       "px_x": 690.2432432432432,
       "px_y": 503.5135135135135,
       "count": 37,
-      "floor": 1
+      "floor": 1,
+      "name": "N112",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N114",
@@ -700,7 +931,10 @@
       "px_x": 692.7014925373135,
       "px_y": 340.57462686567163,
       "count": 134,
-      "floor": 1
+      "floor": 1,
+      "name": "N114",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N115",
@@ -709,7 +943,10 @@
       "px_x": 693.79,
       "px_y": 444.77,
       "count": 100,
-      "floor": 1
+      "floor": 1,
+      "name": "N115",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N116",
@@ -718,7 +955,10 @@
       "px_x": 695.5,
       "px_y": 361.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N116",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N117",
@@ -727,7 +967,10 @@
       "px_x": 695.5,
       "px_y": 382.8,
       "count": 70,
-      "floor": 1
+      "floor": 1,
+      "name": "N117",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N118",
@@ -736,7 +979,10 @@
       "px_x": 695.4857142857143,
       "px_y": 413.74285714285713,
       "count": 35,
-      "floor": 1
+      "floor": 1,
+      "name": "N118",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N119",
@@ -745,7 +991,10 @@
       "px_x": 695.5,
       "px_y": 432.35,
       "count": 40,
-      "floor": 1
+      "floor": 1,
+      "name": "N119",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N120",
@@ -754,7 +1003,10 @@
       "px_x": 700.3980582524272,
       "px_y": 391.873786407767,
       "count": 103,
-      "floor": 1
+      "floor": 1,
+      "name": "N120",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N121",
@@ -763,7 +1015,10 @@
       "px_x": 708.5,
       "px_y": 503.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N121",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N122",
@@ -772,7 +1027,10 @@
       "px_x": 726.5,
       "px_y": 503.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N122",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N123",
@@ -781,7 +1039,10 @@
       "px_x": 727.5,
       "px_y": 388.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N123",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N124",
@@ -790,7 +1051,10 @@
       "px_x": 744.5,
       "px_y": 503.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N124",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N125",
@@ -799,7 +1063,10 @@
       "px_x": 745.5,
       "px_y": 388.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N125",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N126",
@@ -808,7 +1075,10 @@
       "px_x": 746.1666666666666,
       "px_y": 300.53125,
       "count": 96,
-      "floor": 1
+      "floor": 1,
+      "name": "N126",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N128",
@@ -817,7 +1087,10 @@
       "px_x": 761.2592592592592,
       "px_y": 388.51851851851853,
       "count": 27,
-      "floor": 1
+      "floor": 1,
+      "name": "N128",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N129",
@@ -826,7 +1099,10 @@
       "px_x": 762.5,
       "px_y": 503.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N129",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N130",
@@ -835,7 +1111,10 @@
       "px_x": 770.1929824561404,
       "px_y": 300.4736842105263,
       "count": 114,
-      "floor": 1
+      "floor": 1,
+      "name": "N130",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N131",
@@ -844,7 +1123,10 @@
       "px_x": 777.3363636363637,
       "px_y": 385.3181818181818,
       "count": 110,
-      "floor": 1
+      "floor": 1,
+      "name": "N131",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Blank Room 2",
@@ -853,7 +1135,10 @@
       "px_x": 777.5,
       "px_y": 324.88461538461536,
       "count": 104,
-      "floor": 1
+      "floor": 1,
+      "name": "Blank Room 2",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N133",
@@ -862,7 +1147,10 @@
       "px_x": 777.5,
       "px_y": 345.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N133",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N134",
@@ -871,7 +1159,10 @@
       "px_x": 777.5,
       "px_y": 363.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N134",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N136",
@@ -880,7 +1171,10 @@
       "px_x": 789.3454545454546,
       "px_y": 301.2909090909091,
       "count": 55,
-      "floor": 1
+      "floor": 1,
+      "name": "N136",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N137",
@@ -889,7 +1183,10 @@
       "px_x": 790.3725490196078,
       "px_y": 389.3137254901961,
       "count": 51,
-      "floor": 1
+      "floor": 1,
+      "name": "N137",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Meeting Room 1",
@@ -898,7 +1195,10 @@
       "px_x": 791.231884057971,
       "px_y": 503.5,
       "count": 138,
-      "floor": 1
+      "floor": 1,
+      "name": "Meeting Room 1",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N140",
@@ -907,7 +1207,10 @@
       "px_x": 807.6052631578947,
       "px_y": 300.75,
       "count": 76,
-      "floor": 1
+      "floor": 1,
+      "name": "N140",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N141",
@@ -916,7 +1219,10 @@
       "px_x": 813.5,
       "px_y": 388.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N141",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N142",
@@ -925,7 +1231,10 @@
       "px_x": 816.5,
       "px_y": 503.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N142",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N144",
@@ -934,7 +1243,10 @@
       "px_x": 831.5,
       "px_y": 388.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N144",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N146",
@@ -943,7 +1255,10 @@
       "px_x": 834.5,
       "px_y": 503.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N146",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N147",
@@ -952,7 +1267,10 @@
       "px_x": 849.5,
       "px_y": 388.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N147",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N148",
@@ -961,7 +1279,10 @@
       "px_x": 852.5,
       "px_y": 503.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N148",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N149",
@@ -970,7 +1291,10 @@
       "px_x": 863.5,
       "px_y": 388.5,
       "count": 20,
-      "floor": 1
+      "floor": 1,
+      "name": "N149",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N150",
@@ -979,7 +1303,10 @@
       "px_x": 867.76,
       "px_y": 503.52,
       "count": 25,
-      "floor": 1
+      "floor": 1,
+      "name": "N150",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N152",
@@ -988,7 +1315,10 @@
       "px_x": 885.7014925373135,
       "px_y": 389.57462686567163,
       "count": 134,
-      "floor": 1
+      "floor": 1,
+      "name": "N152",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N153",
@@ -997,7 +1327,10 @@
       "px_x": 886.9918699186992,
       "px_y": 502.6178861788618,
       "count": 123,
-      "floor": 1
+      "floor": 1,
+      "name": "N153",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N154",
@@ -1006,7 +1339,10 @@
       "px_x": 888.5,
       "px_y": 410.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N154",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N155",
@@ -1015,7 +1351,10 @@
       "px_x": 888.5,
       "px_y": 428.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N155",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N156",
@@ -1024,7 +1363,10 @@
       "px_x": 888.5,
       "px_y": 446.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N156",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N157",
@@ -1033,7 +1375,10 @@
       "px_x": 888.5,
       "px_y": 464.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N157",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N158",
@@ -1042,7 +1387,10 @@
       "px_x": 888.5,
       "px_y": 482.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N158",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N159",
@@ -1051,7 +1399,10 @@
       "px_x": 888.5,
       "px_y": 521.8,
       "count": 70,
-      "floor": 1
+      "floor": 1,
+      "name": "N159",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N160",
@@ -1060,7 +1411,10 @@
       "px_x": 894.8,
       "px_y": 528.75,
       "count": 80,
-      "floor": 1
+      "floor": 1,
+      "name": "N160",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N162",
@@ -1069,7 +1423,10 @@
       "px_x": 920.0,
       "px_y": 527.5,
       "count": 34,
-      "floor": 1
+      "floor": 1,
+      "name": "N162",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N163",
@@ -1078,7 +1435,10 @@
       "px_x": 926.4473684210526,
       "px_y": 604.8157894736842,
       "count": 38,
-      "floor": 1
+      "floor": 1,
+      "name": "N163",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N164",
@@ -1087,7 +1447,10 @@
       "px_x": 943.7539682539683,
       "px_y": 603.8253968253969,
       "count": 126,
-      "floor": 1
+      "floor": 1,
+      "name": "N164",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N165",
@@ -1096,7 +1459,10 @@
       "px_x": 947.3636363636364,
       "px_y": 528.4350649350649,
       "count": 154,
-      "floor": 1
+      "floor": 1,
+      "name": "N165",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N166",
@@ -1105,7 +1471,10 @@
       "px_x": 948.5,
       "px_y": 549.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N166",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N167",
@@ -1114,7 +1483,10 @@
       "px_x": 948.5,
       "px_y": 567.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N167",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Meeting Room 2",
@@ -1123,7 +1495,10 @@
       "px_x": 948.5,
       "px_y": 588.7872340425532,
       "count": 94,
-      "floor": 1
+      "floor": 1,
+      "name": "Meeting Room 2",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N170",
@@ -1132,7 +1507,10 @@
       "px_x": 972.5,
       "px_y": 527.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N170",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N171",
@@ -1141,7 +1519,10 @@
       "px_x": 1001.776923076923,
       "px_y": 603.5615384615385,
       "count": 130,
-      "floor": 1
+      "floor": 1,
+      "name": "N171",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N172",
@@ -1150,7 +1531,10 @@
       "px_x": 1002.3636363636364,
       "px_y": 528.4350649350649,
       "count": 154,
-      "floor": 1
+      "floor": 1,
+      "name": "N172",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N173",
@@ -1159,7 +1543,10 @@
       "px_x": 1003.5,
       "px_y": 549.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N173",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N174",
@@ -1168,7 +1555,10 @@
       "px_x": 1003.5,
       "px_y": 567.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N174",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Meeting Room 3",
@@ -1177,7 +1567,10 @@
       "px_x": 1003.5,
       "px_y": 588.7872340425532,
       "count": 94,
-      "floor": 1
+      "floor": 1,
+      "name": "Meeting Room 3",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N176",
@@ -1186,7 +1579,10 @@
       "px_x": 1027.5,
       "px_y": 527.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N176",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N180",
@@ -1195,7 +1591,10 @@
       "px_x": 1045.5,
       "px_y": 527.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N180",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Ruang Kerja Utama",
@@ -1204,7 +1603,10 @@
       "px_x": 1075.231884057971,
       "px_y": 527.5,
       "count": 138,
-      "floor": 1
+      "floor": 1,
+      "name": "Ruang Kerja Utama",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N188",
@@ -1213,7 +1615,10 @@
       "px_x": 1116.3636363636363,
       "px_y": 528.4350649350649,
       "count": 154,
-      "floor": 1
+      "floor": 1,
+      "name": "N188",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N189",
@@ -1222,7 +1627,10 @@
       "px_x": 1117.5,
       "px_y": 549.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N189",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N190",
@@ -1231,7 +1639,10 @@
       "px_x": 1117.5,
       "px_y": 567.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N190",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Meeting Room 4",
@@ -1240,7 +1651,10 @@
       "px_x": 1117.5,
       "px_y": 588.7872340425532,
       "count": 94,
-      "floor": 1
+      "floor": 1,
+      "name": "Meeting Room 4",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N194",
@@ -1249,7 +1663,10 @@
       "px_x": 1141.5,
       "px_y": 527.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N194",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N196",
@@ -1258,7 +1675,10 @@
       "px_x": 1159.5,
       "px_y": 527.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N196",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N198",
@@ -1267,7 +1687,10 @@
       "px_x": 1177.5,
       "px_y": 527.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N198",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N200",
@@ -1276,7 +1699,10 @@
       "px_x": 1195.5,
       "px_y": 527.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N200",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N202",
@@ -1285,7 +1711,10 @@
       "px_x": 1209.5,
       "px_y": 527.5,
       "count": 20,
-      "floor": 1
+      "floor": 1,
+      "name": "N202",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N203",
@@ -1294,7 +1723,10 @@
       "px_x": 1233.3636363636363,
       "px_y": 528.4350649350649,
       "count": 154,
-      "floor": 1
+      "floor": 1,
+      "name": "N203",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N204",
@@ -1303,7 +1735,10 @@
       "px_x": 1233.888888888889,
       "px_y": 603.3333333333334,
       "count": 117,
-      "floor": 1
+      "floor": 1,
+      "name": "N204",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N205",
@@ -1312,7 +1747,10 @@
       "px_x": 1234.5,
       "px_y": 549.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N205",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N206",
@@ -1321,7 +1759,10 @@
       "px_x": 1234.5,
       "px_y": 567.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N206",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Meeting Room 5",
@@ -1330,7 +1771,10 @@
       "px_x": 1234.5,
       "px_y": 588.7872340425532,
       "count": 94,
-      "floor": 1
+      "floor": 1,
+      "name": "Meeting Room 5",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N208",
@@ -1339,7 +1783,10 @@
       "px_x": 1258.5,
       "px_y": 527.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N208",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N210",
@@ -1348,7 +1795,10 @@
       "px_x": 1276.5,
       "px_y": 527.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N210",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N212",
@@ -1357,7 +1807,10 @@
       "px_x": 1294.5,
       "px_y": 527.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N212",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N214",
@@ -1366,7 +1819,10 @@
       "px_x": 1311.7575757575758,
       "px_y": 527.5151515151515,
       "count": 33,
-      "floor": 1
+      "floor": 1,
+      "name": "N214",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N216",
@@ -1375,7 +1831,10 @@
       "px_x": 1334.515873015873,
       "px_y": 527.4603174603175,
       "count": 126,
-      "floor": 1
+      "floor": 1,
+      "name": "N216",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Meeting Room 6",
@@ -1384,7 +1843,10 @@
       "px_x": 1335.936170212766,
       "px_y": 310.3404255319149,
       "count": 94,
-      "floor": 1
+      "floor": 1,
+      "name": "Meeting Room 6",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N218",
@@ -1393,7 +1855,10 @@
       "px_x": 1336.0,
       "px_y": 331.5,
       "count": 18,
-      "floor": 1
+      "floor": 1,
+      "name": "N218",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N219",
@@ -1402,7 +1867,10 @@
       "px_x": 1336.0,
       "px_y": 383.5,
       "count": 18,
-      "floor": 1
+      "floor": 1,
+      "name": "N219",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N220",
@@ -1411,7 +1879,10 @@
       "px_x": 1336.0,
       "px_y": 401.5,
       "count": 18,
-      "floor": 1
+      "floor": 1,
+      "name": "N220",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N221",
@@ -1420,7 +1891,10 @@
       "px_x": 1336.0,
       "px_y": 419.5,
       "count": 18,
-      "floor": 1
+      "floor": 1,
+      "name": "N221",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N222",
@@ -1429,7 +1903,10 @@
       "px_x": 1336.0,
       "px_y": 437.5,
       "count": 18,
-      "floor": 1
+      "floor": 1,
+      "name": "N222",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N223",
@@ -1438,7 +1915,10 @@
       "px_x": 1336.0,
       "px_y": 455.5,
       "count": 18,
-      "floor": 1
+      "floor": 1,
+      "name": "N223",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N224",
@@ -1447,7 +1927,10 @@
       "px_x": 1336.0,
       "px_y": 473.5,
       "count": 18,
-      "floor": 1
+      "floor": 1,
+      "name": "N224",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N225",
@@ -1456,7 +1939,10 @@
       "px_x": 1336.0,
       "px_y": 491.5,
       "count": 18,
-      "floor": 1
+      "floor": 1,
+      "name": "N225",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N226",
@@ -1465,7 +1951,10 @@
       "px_x": 1336.357142857143,
       "px_y": 510.92857142857144,
       "count": 28,
-      "floor": 1
+      "floor": 1,
+      "name": "N226",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N227",
@@ -1474,7 +1963,10 @@
       "px_x": 1336.6521739130435,
       "px_y": 351.3478260869565,
       "count": 23,
-      "floor": 1
+      "floor": 1,
+      "name": "N227",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N228",
@@ -1483,7 +1975,10 @@
       "px_x": 1336.5,
       "px_y": 545.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N228",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N229",
@@ -1492,7 +1987,10 @@
       "px_x": 1337.4513274336284,
       "px_y": 566.7433628318585,
       "count": 113,
-      "floor": 1
+      "floor": 1,
+      "name": "N229",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N230",
@@ -1501,7 +1999,10 @@
       "px_x": 1345.421052631579,
       "px_y": 360.7894736842105,
       "count": 57,
-      "floor": 1
+      "floor": 1,
+      "name": "N230",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N232",
@@ -1510,7 +2011,10 @@
       "px_x": 1354.3488372093022,
       "px_y": 569.1395348837209,
       "count": 43,
-      "floor": 1
+      "floor": 1,
+      "name": "N232",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N234",
@@ -1519,7 +2023,10 @@
       "px_x": 1377.2444444444445,
       "px_y": 570.5555555555555,
       "count": 45,
-      "floor": 1
+      "floor": 1,
+      "name": "N234",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N235",
@@ -1528,7 +2035,10 @@
       "px_x": 1379.3636363636363,
       "px_y": 359.43506493506493,
       "count": 154,
-      "floor": 1
+      "floor": 1,
+      "name": "N235",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N236",
@@ -1537,7 +2047,10 @@
       "px_x": 1380.3372093023256,
       "px_y": 564.2906976744187,
       "count": 86,
-      "floor": 1
+      "floor": 1,
+      "name": "N236",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N237",
@@ -1546,7 +2059,10 @@
       "px_x": 1380.5,
       "px_y": 380.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N237",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N238",
@@ -1555,7 +2071,10 @@
       "px_x": 1380.5,
       "px_y": 398.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N238",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N239",
@@ -1564,7 +2083,10 @@
       "px_x": 1380.5,
       "px_y": 416.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N239",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N240",
@@ -1573,7 +2095,10 @@
       "px_x": 1380.5,
       "px_y": 452.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N240",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N241",
@@ -1582,7 +2107,10 @@
       "px_x": 1380.5,
       "px_y": 470.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N241",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N242",
@@ -1591,7 +2119,10 @@
       "px_x": 1380.5,
       "px_y": 488.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N242",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N243",
@@ -1600,7 +2131,10 @@
       "px_x": 1380.5,
       "px_y": 506.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N243",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N244",
@@ -1609,7 +2143,10 @@
       "px_x": 1380.5,
       "px_y": 524.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N244",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N245",
@@ -1618,7 +2155,10 @@
       "px_x": 1380.5,
       "px_y": 542.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N245",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Ruang Manajer",
@@ -1627,7 +2167,10 @@
       "px_x": 1382.4117647058824,
       "px_y": 432.97478991596637,
       "count": 119,
-      "floor": 1
+      "floor": 1,
+      "name": "Ruang Manajer",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N248",
@@ -1636,7 +2179,10 @@
       "px_x": 1396.121951219512,
       "px_y": 568.6341463414634,
       "count": 41,
-      "floor": 1
+      "floor": 1,
+      "name": "N248",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N250",
@@ -1645,7 +2191,10 @@
       "px_x": 1404.5,
       "px_y": 358.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N250",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N252",
@@ -1654,7 +2203,10 @@
       "px_x": 1415.5,
       "px_y": 568.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N252",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N254",
@@ -1663,7 +2215,10 @@
       "px_x": 1422.5,
       "px_y": 358.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N254",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N255",
@@ -1672,7 +2227,10 @@
       "px_x": 1433.5,
       "px_y": 568.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N255",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N257",
@@ -1681,7 +2239,10 @@
       "px_x": 1440.5,
       "px_y": 358.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N257",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N258",
@@ -1690,7 +2251,10 @@
       "px_x": 1451.5,
       "px_y": 568.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N258",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N259",
@@ -1699,7 +2263,10 @@
       "px_x": 1459.3589743589744,
       "px_y": 359.1794871794872,
       "count": 39,
-      "floor": 1
+      "floor": 1,
+      "name": "N259",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N261",
@@ -1708,7 +2275,10 @@
       "px_x": 1469.5,
       "px_y": 568.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N261",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N262",
@@ -1717,7 +2287,10 @@
       "px_x": 1470.5849056603774,
       "px_y": 348.79245283018867,
       "count": 159,
-      "floor": 1
+      "floor": 1,
+      "name": "N262",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N263",
@@ -1726,7 +2299,10 @@
       "px_x": 1470.6451612903227,
       "px_y": 360.9032258064516,
       "count": 31,
-      "floor": 1
+      "floor": 1,
+      "name": "N263",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N265",
@@ -1735,7 +2311,10 @@
       "px_x": 1487.5,
       "px_y": 568.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N265",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N266",
@@ -1744,7 +2323,10 @@
       "px_x": 1491.974358974359,
       "px_y": 346.4871794871795,
       "count": 39,
-      "floor": 1
+      "floor": 1,
+      "name": "N266",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N268",
@@ -1753,7 +2335,10 @@
       "px_x": 1505.5,
       "px_y": 568.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N268",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Ruang Direktur",
@@ -1762,7 +2347,10 @@
       "px_x": 1521.0425531914893,
       "px_y": 286.3085106382979,
       "count": 94,
-      "floor": 1
+      "floor": 1,
+      "name": "Ruang Direktur",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N271",
@@ -1771,7 +2359,10 @@
       "px_x": 1521.0,
       "px_y": 307.5,
       "count": 18,
-      "floor": 1
+      "floor": 1,
+      "name": "N271",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N272",
@@ -1780,7 +2371,10 @@
       "px_x": 1521.0,
       "px_y": 325.5,
       "count": 18,
-      "floor": 1
+      "floor": 1,
+      "name": "N272",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N273",
@@ -1789,7 +2383,10 @@
       "px_x": 1520.9685039370079,
       "px_y": 344.45669291338584,
       "count": 127,
-      "floor": 1
+      "floor": 1,
+      "name": "N273",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N274",
@@ -1798,7 +2395,10 @@
       "px_x": 1523.5,
       "px_y": 568.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N274",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N275",
@@ -1807,7 +2407,10 @@
       "px_x": 1541.5,
       "px_y": 568.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N275",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N277",
@@ -1816,7 +2419,10 @@
       "px_x": 1544.5,
       "px_y": 345.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N277",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N278",
@@ -1825,7 +2431,10 @@
       "px_x": 1559.5,
       "px_y": 568.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N278",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N280",
@@ -1834,7 +2443,10 @@
       "px_x": 1562.5,
       "px_y": 345.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N280",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N282",
@@ -1843,7 +2455,10 @@
       "px_x": 1577.5,
       "px_y": 568.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N282",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N283",
@@ -1852,7 +2467,10 @@
       "px_x": 1579.5,
       "px_y": 345.5,
       "count": 32,
-      "floor": 1
+      "floor": 1,
+      "name": "N283",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N285",
@@ -1861,7 +2479,10 @@
       "px_x": 1595.5,
       "px_y": 568.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N285",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Tangga dan Lift",
@@ -1870,7 +2491,10 @@
       "px_x": 1604.1290322580646,
       "px_y": 345.88709677419354,
       "count": 124,
-      "floor": 1
+      "floor": 1,
+      "name": "Tangga dan Lift",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N289",
@@ -1879,7 +2503,10 @@
       "px_x": 1613.5,
       "px_y": 568.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N289",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N290",
@@ -1888,7 +2515,10 @@
       "px_x": 1631.2571428571428,
       "px_y": 568.5142857142857,
       "count": 35,
-      "floor": 1
+      "floor": 1,
+      "name": "N290",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N292",
@@ -1897,7 +2527,10 @@
       "px_x": 1645.7014925373135,
       "px_y": 346.57462686567163,
       "count": 134,
-      "floor": 1
+      "floor": 1,
+      "name": "N292",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N293",
@@ -1906,7 +2539,10 @@
       "px_x": 1648.0963855421687,
       "px_y": 564.156626506024,
       "count": 83,
-      "floor": 1
+      "floor": 1,
+      "name": "N293",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N294",
@@ -1915,7 +2551,10 @@
       "px_x": 1648.111111111111,
       "px_y": 571.1666666666666,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N294",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N295",
@@ -1924,7 +2563,10 @@
       "px_x": 1648.5,
       "px_y": 367.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N295",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "Kamar Mandi 3",
@@ -1933,7 +2575,10 @@
       "px_x": 1648.5,
       "px_y": 384.9166666666667,
       "count": 96,
-      "floor": 1
+      "floor": 1,
+      "name": "Kamar Mandi 3",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "Kamar Mandi 4",
@@ -1942,7 +2587,10 @@
       "px_x": 1648.5,
       "px_y": 503.88461538461536,
       "count": 104,
-      "floor": 1
+      "floor": 1,
+      "name": "Kamar Mandi 4",
+      "is_destination": true,
+      "hidden": false
     },
     {
       "id": "N298",
@@ -1951,7 +2599,10 @@
       "px_x": 1648.5,
       "px_y": 524.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N298",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N299",
@@ -1960,43 +2611,64 @@
       "px_x": 1648.5,
       "px_y": 542.5,
       "count": 36,
-      "floor": 1
+      "floor": 1,
+      "name": "N299",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N310",
       "x": 39.14,
       "y": 37.7,
-      "floor": 1
+      "floor": 1,
+      "name": "N310",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N311",
       "x": 69.56,
       "y": 51.28,
-      "floor": 1
+      "floor": 1,
+      "name": "N311",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N312",
       "x": 72.44,
       "y": 51.28,
-      "floor": 1
+      "floor": 1,
+      "name": "N312",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N313",
       "x": 63.28,
       "y": 51.28,
-      "floor": 1
+      "floor": 1,
+      "name": "N313",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N314",
       "x": 66.36,
       "y": 51.28,
-      "floor": 1
+      "floor": 1,
+      "name": "N314",
+      "is_destination": false,
+      "hidden": true
     },
     {
       "id": "N315",
       "x": 50.24,
       "y": 51.2,
-      "floor": 1
+      "floor": 1,
+      "name": "N315",
+      "is_destination": false,
+      "hidden": true
     }
   ],
   "adj": {
