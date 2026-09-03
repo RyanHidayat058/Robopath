@@ -6,18 +6,11 @@
 
 @section('styles')
 <style>
-    #three-canvas-container {
+    model-viewer {
         width: 100%;
-        height: 560px;
-        position: relative;
-        border-radius: 1rem;
-        overflow: hidden;
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-    }
-    #three-canvas-container canvas {
-        display: block;
-        width: 100% !important;
-        height: 100% !important;
+        height: 580px;
+        background-color: #0f172a;
+        --poster-color: transparent;
     }
 </style>
 @endsection
@@ -103,29 +96,42 @@
                 </div>
             </div>
 
-            <!-- 3D WebGL Canvas Container with Interactive Loading Overlay -->
-            <div id="three-canvas-container" class="shadow-inner border border-slate-700">
-                <!-- Loading Progress Overlay -->
-                <div id="loading-overlay" class="absolute inset-0 bg-slate-900/90 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-white text-center">
-                    <div class="w-14 h-14 rounded-2xl bg-[#3b4cb8] flex items-center justify-center text-2xl mb-4 shadow-lg animate-bounce">
-                        <i class="fa-solid fa-cube text-white"></i>
+            <!-- 3D Model Viewer with WebAssembly Draco Mesh Decompression -->
+            <div class="relative w-full h-[580px] rounded-2xl overflow-hidden shadow-inner border border-slate-700 bg-slate-900">
+                <model-viewer
+                    id="office-model-viewer"
+                    src="{{ asset('models/office_v2.glb') }}"
+                    alt="3D Building Floor Model OFFICE V2"
+                    camera-controls
+                    touch-action="pan-y"
+                    auto-rotate
+                    rotation-per-second="15deg"
+                    auto-rotate-delay="4000"
+                    shadow-intensity="1.5"
+                    shadow-softness="0.8"
+                    exposure="1.3"
+                    camera-orbit="45deg 55deg auto"
+                    min-camera-orbit="auto auto 5%"
+                    max-camera-orbit="auto auto 200%"
+                    interaction-prompt="auto"
+                >
+                    <!-- Loading Progress bar inside model-viewer -->
+                    <div slot="progress-bar" class="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-6 text-white text-center z-50">
+                        <div class="w-14 h-14 rounded-2xl bg-[#3b4cb8] flex items-center justify-center text-2xl mb-4 shadow-lg animate-bounce">
+                            <i class="fa-solid fa-cube text-white"></i>
+                        </div>
+                        <h4 class="font-bold text-base text-white mb-2">Loading 3D Office Model</h4>
+                        <p class="text-xs text-blue-200 mb-4 font-mono">Decompressing 3D Draco Geometry &amp; Shaders...</p>
+                        <div class="w-64 bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
+                            <div class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2.5 rounded-full animate-pulse" style="width: 85%"></div>
+                        </div>
                     </div>
-                    <h4 class="font-bold text-base text-white mb-2">Loading 3D Office Model</h4>
-                    <p id="loading-text" class="text-xs text-blue-200 mb-4 font-mono">Initializing 3D WebGL Scene...</p>
-                    <div class="w-64 bg-slate-800 rounded-full h-2.5 overflow-hidden border border-slate-700">
-                        <div id="loading-bar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-2.5 rounded-full transition-all duration-200" style="width: 10%"></div>
-                    </div>
-                </div>
+                </model-viewer>
 
                 <!-- 3D Controls Help Tag -->
-                <div class="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-2 z-20 border border-white/10 shadow-lg">
+                <div class="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg flex items-center gap-2 z-20 border border-white/10 shadow-lg pointer-events-none">
                     <i class="fa-solid fa-mouse text-sky-400"></i> Klik Kiri &amp; Geser untuk Memutar • Scroll untuk Zoom • Klik Kanan untuk Pan
                 </div>
-
-                <!-- Reset Camera Button -->
-                <button onclick="reset3DCamera()" class="absolute top-3 right-3 bg-black/70 hover:bg-black text-white text-xs font-bold px-3 py-1.5 rounded-lg z-20 border border-white/10 shadow-lg transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-arrows-rotate"></i> Reset View
-                </button>
             </div>
 
             <!-- Status Indicator Legends -->
@@ -201,153 +207,8 @@
 
 @section('scripts')
 <script>
-    const locations = {
-        @foreach($locations as $name => $coords)
-        '{{ $name }}': { x: {{ $coords['x'] }}, y: {{ $coords['y'] }}, floor: {{ $coords['floor'] ?? 1 }} },
-        @endforeach
-    };
-
     let robots = @json($robots);
     let activeDeliveries = @json($activeDeliveries);
-    let scene, camera, renderer, controls, gltfModel;
-    let initialCameraPos = null;
-    let initialTargetPos = null;
-
-    function initThreeScene() {
-        const container = document.getElementById('three-canvas-container');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const loadingBar = document.getElementById('loading-bar');
-        const loadingText = document.getElementById('loading-text');
-        if (!container) return;
-
-        container.innerHTML = '';
-        if (loadingOverlay) container.appendChild(loadingOverlay);
-
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0f172a); // Deep modern dark blue slate
-
-        camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 10000);
-
-        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.outputEncoding = THREE.sRGBEncoding;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.3;
-        container.appendChild(renderer.domElement);
-
-        controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.maxPolarAngle = Math.PI / 2 - 0.02; // Keep camera above floor level
-
-        // Rich Multi-Angle Lighting Setup
-        const ambientLight = new THREE.AmbientLight(0xffffff, 2.2);
-        scene.add(ambientLight);
-
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x334155, 1.5);
-        hemiLight.position.set(0, 500, 0);
-        scene.add(hemiLight);
-
-        const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.5);
-        dirLight1.position.set(400, 600, 400);
-        scene.add(dirLight1);
-
-        const dirLight2 = new THREE.DirectionalLight(0xffffff, 1.8);
-        dirLight2.position.set(-400, 500, -400);
-        scene.add(dirLight2);
-
-        const dirLight3 = new THREE.DirectionalLight(0x93c5fd, 1.2);
-        dirLight3.position.set(0, -300, 0);
-        scene.add(dirLight3);
-
-        // Load 3D GLB Model
-        const loader = new THREE.GLTFLoader();
-        const modelUrl = "{{ asset('models/office_v2.glb') }}";
-
-        loader.load(
-            modelUrl,
-            function (gltf) {
-                gltfModel = gltf.scene;
-
-                // Traverse meshes to ensure two-sided materials and full opacity
-                gltfModel.traverse(function (child) {
-                    if (child.isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                        if (child.material) {
-                            child.material.side = THREE.DoubleSide;
-                        }
-                    }
-                });
-
-                // Compute exact bounding box and center model at origin (0, 0, 0)
-                const box = new THREE.Box3().setFromObject(gltfModel);
-                const center = box.getCenter(new THREE.Vector3());
-                const size = box.getSize(new THREE.Vector3());
-
-                gltfModel.position.x -= center.x;
-                gltfModel.position.y -= box.min.y; // Align bottom of model to ground
-                gltfModel.position.z -= center.z;
-
-                scene.add(gltfModel);
-
-                // Auto-frame camera based on model dimensions
-                const maxDim = Math.max(size.x, size.y, size.z);
-                const fov = camera.fov * (Math.PI / 180);
-                let cameraDist = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
-
-                camera.position.set(cameraDist * 0.7, cameraDist * 0.6, cameraDist * 0.7);
-                camera.near = maxDim / 100;
-                camera.far = maxDim * 100;
-                camera.updateProjectionMatrix();
-
-                controls.target.set(0, size.y * 0.35, 0);
-                controls.update();
-
-                initialCameraPos = camera.position.clone();
-                initialTargetPos = controls.target.clone();
-
-                // Hide loading overlay
-                if (loadingOverlay) {
-                    loadingOverlay.classList.add('hidden');
-                }
-            },
-            function (xhr) {
-                if (xhr.lengthComputable) {
-                    const percent = Math.round((xhr.loaded / xhr.total) * 100);
-                    if (loadingBar) loadingBar.style.width = percent + '%';
-                    if (loadingText) loadingText.textContent = `Downloading 3D Assets (${percent}%)...`;
-                }
-            },
-            function (err) {
-                console.error('Error loading OFFICE V2.glb:', err);
-                if (loadingText) loadingText.textContent = 'Error rendering 3D model. Please check console.';
-            }
-        );
-
-        // Resize handler
-        window.addEventListener('resize', () => {
-            if (!container || !renderer || !camera) return;
-            camera.aspect = container.clientWidth / container.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
-        });
-
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
-    }
-
-    function reset3DCamera() {
-        if (!controls || !camera || !initialCameraPos) return;
-        camera.position.copy(initialCameraPos);
-        controls.target.copy(initialTargetPos);
-        controls.update();
-    }
 
     function fetchData() {
         fetch('/api/telemetry')
@@ -394,7 +255,6 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        initThreeScene();
         setInterval(fetchData, 3000);
     });
 </script>
