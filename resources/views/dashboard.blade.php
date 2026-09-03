@@ -16,6 +16,14 @@
         border-radius: 1rem;
         box-shadow: 0 4px 20px rgba(59, 76, 184, 0.08), inset 0 0 0 1px rgba(0,0,0,0.06);
     }
+    .fullview-floor {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+        background-position: center;
+    }
     .location-pin {
         position: absolute;
         transform: translate(-50%, -50%);
@@ -40,184 +48,240 @@
 @endsection
 
 @section('content')
-<!-- Top Stat Cards (4 Columns) -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+<!-- Container 1: Standard Dashboard View (Stat Cards + 2-Floor Map + Roster) -->
+<div id="standard-view" class="space-y-8">
+    <!-- Top Stat Cards (4 Columns) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
-    <!-- Card 1: Active Units -->
-    <div class="bg-white border border-gray-200 p-5 rounded-2xl shadow-md hover:shadow-lg transition duration-200 flex items-center justify-between">
-        <div>
-            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Active Units</span>
-            <div class="flex items-baseline gap-2">
-                <span class="text-2xl font-black text-gray-800">{{ $activeRobotsCount }}/{{ $totalRobotsCount }}</span>
-                <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Online</span>
+        <!-- Card 1: Active Units -->
+        <div class="bg-white border border-gray-200 p-5 rounded-2xl shadow-md hover:shadow-lg transition duration-200 flex items-center justify-between">
+            <div>
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Active Units</span>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-2xl font-black text-gray-800">{{ $activeRobotsCount }}/{{ $totalRobotsCount }}</span>
+                    <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Online</span>
+                </div>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#3b4cb8] text-xl shadow-sm">
+                <i class="fa-solid fa-robot"></i>
             </div>
         </div>
-        <div class="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#3b4cb8] text-xl shadow-sm">
-            <i class="fa-solid fa-robot"></i>
+
+        <!-- Card 2: Active Missions -->
+        <div class="bg-white border border-gray-200 p-5 rounded-2xl shadow-md hover:shadow-lg transition duration-200 flex items-center justify-between">
+            <div>
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Active Missions</span>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-2xl font-black text-gray-800">{{ $activeDeliveriesCount }}</span>
+                    <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">In Progress</span>
+                </div>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 text-xl shadow-sm">
+                <i class="fa-solid fa-route"></i>
+            </div>
+        </div>
+
+        <!-- Card 3: Completed Today -->
+        <div class="bg-white border border-gray-200 p-5 rounded-2xl shadow-md hover:shadow-lg transition duration-200 flex items-center justify-between">
+            <div>
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Completed Today</span>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-2xl font-black text-gray-800">{{ $deliveriesTodayCount }}</span>
+                    <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">{{ $successRate }}% Success</span>
+                </div>
+            </div>
+            <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 text-xl shadow-sm">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+        </div>
+
+        <!-- Card 4: System Alerts -->
+        <div class="bg-white border border-gray-200 p-5 rounded-2xl shadow-md hover:shadow-lg transition duration-200 flex items-center justify-between">
+            <div>
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">System Alerts</span>
+                <div class="flex items-baseline gap-2">
+                    <span class="text-2xl font-black {{ $activeAlertsCount > 0 ? 'text-rose-600' : 'text-gray-800' }}">{{ $activeAlertsCount }}</span>
+                    <span class="text-xs font-bold {{ $activeAlertsCount > 0 ? 'text-rose-600 bg-rose-50 border-rose-200' : 'text-gray-500 bg-gray-100 border-gray-200' }} px-2 py-0.5 rounded-full border">
+                        {{ $activeAlertsCount > 0 ? 'Needs Attention' : 'Optimal' }}
+                    </span>
+                </div>
+            </div>
+            <div class="w-12 h-12 rounded-xl {{ $activeAlertsCount > 0 ? 'bg-rose-50 border border-rose-100 text-rose-600' : 'bg-gray-100 border border-gray-200 text-gray-400' }} flex items-center justify-center text-xl shadow-sm">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
         </div>
     </div>
 
-    <!-- Card 2: Active Missions -->
-    <div class="bg-white border border-gray-200 p-5 rounded-2xl shadow-md hover:shadow-lg transition duration-200 flex items-center justify-between">
-        <div>
-            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Active Missions</span>
-            <div class="flex items-baseline gap-2">
-                <span class="text-2xl font-black text-gray-800">{{ $activeDeliveriesCount }}</span>
-                <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">In Progress</span>
-            </div>
-        </div>
-        <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 text-xl shadow-sm">
-            <i class="fa-solid fa-route"></i>
-        </div>
-    </div>
+    <!-- Main Section: 2-Floor Stacked Live Tracking & Robot Roster -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-    <!-- Card 3: Completed Today -->
-    <div class="bg-white border border-gray-200 p-5 rounded-2xl shadow-md hover:shadow-lg transition duration-200 flex items-center justify-between">
-        <div>
-            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Completed Today</span>
-            <div class="flex items-baseline gap-2">
-                <span class="text-2xl font-black text-gray-800">{{ $deliveriesTodayCount }}</span>
-                <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">{{ $successRate }}% Success</span>
-            </div>
-        </div>
-        <div class="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 text-xl shadow-sm">
-            <i class="fa-solid fa-circle-check"></i>
-        </div>
-    </div>
+        <!-- Left / Main Column: Dual Floor Stacked Live Tracking (2/3 width) -->
+        <div class="lg:col-span-2 space-y-6 lg:sticky lg:top-6 self-start">
+            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl space-y-6">
+                <div class="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-gray-100">
+                    <div>
+                        <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> Multi-Floor Active Tracking
+                        </h3>
+                        <p class="text-xs text-gray-500">Live 60 FPS interior floor layout tracking for Lantai 1 and Lantai 2</p>
+                    </div>
+                    
+                    <!-- Full View Button -->
+                    <button onclick="toggleFullView(true)" class="bg-[#3b4cb8] hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md hover:shadow-lg transition duration-200">
+                        <i class="fa-solid fa-expand"></i> Full View 2 Lantai
+                    </button>
+                </div>
 
-    <!-- Card 4: System Alerts -->
-    <div class="bg-white border border-gray-200 p-5 rounded-2xl shadow-md hover:shadow-lg transition duration-200 flex items-center justify-between">
-        <div>
-            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">System Alerts</span>
-            <div class="flex items-baseline gap-2">
-                <span class="text-2xl font-black {{ $activeAlertsCount > 0 ? 'text-rose-600' : 'text-gray-800' }}">{{ $activeAlertsCount }}</span>
-                <span class="text-xs font-bold {{ $activeAlertsCount > 0 ? 'text-rose-600 bg-rose-50 border-rose-200' : 'text-gray-500 bg-gray-100 border-gray-200' }} px-2 py-0.5 rounded-full border">
-                    {{ $activeAlertsCount > 0 ? 'Needs Attention' : 'Optimal' }}
-                </span>
+                <!-- Floor 2 (Lantai 2 - Upper Floor) -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-gray-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold text-[#3b4cb8] flex items-center gap-1.5">
+                            <i class="fa-solid fa-building-user"></i> Lantai 2 (Upper Floor - Direksi, Lounge &amp; Meeting Rooms)
+                        </span>
+                        <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
+                            Floor 2
+                        </span>
+                    </div>
+                    <div class="floor-map-card overflow-hidden" id="map-container-f2" style="background-image: url('{{ asset('images/floor2.jpeg') }}');">
+                        <svg class="path-svg" id="path-svg-f2"></svg>
+                        <div id="robots-overlay-f2"></div>
+                    </div>
+                </div>
+
+                <!-- Floor 1 (Lantai 1 - Ground Floor) -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-gray-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-bold text-[#3b4cb8] flex items-center gap-1.5">
+                            <i class="fa-solid fa-building-user"></i> Lantai 1 (Ground Floor - Lobby, Office &amp; Receptionist)
+                        </span>
+                        <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
+                            Floor 1
+                        </span>
+                    </div>
+                    <div class="floor-map-card overflow-hidden" id="map-container-f1" style="background-image: url('{{ asset('images/floor1.jpeg') }}');">
+                        <svg class="path-svg" id="path-svg-f1"></svg>
+                        <div id="robots-overlay-f1"></div>
+                    </div>
+                </div>
+
+                <!-- Status Indicator Legends -->
+                <div class="flex flex-wrap gap-4 pt-4 border-t border-gray-200 text-xs text-gray-600 font-semibold">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span>
+                        <span>Idle / Standby</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-sky-500 shadow-sm"></span>
+                        <span>Delivering</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-orange-500 shadow-sm"></span>
+                        <span>Charging</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-rose-500 shadow-sm"></span>
+                        <span>Maintenance</span>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="w-12 h-12 rounded-xl {{ $activeAlertsCount > 0 ? 'bg-rose-50 border border-rose-100 text-rose-600' : 'bg-gray-100 border border-gray-200 text-gray-400' }} flex items-center justify-center text-xl shadow-sm">
-            <i class="fa-solid fa-triangle-exclamation"></i>
+
+        <!-- Right Column: Active Robots Roster (1/3 width) -->
+        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col">
+            <h3 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2 pb-3 border-b border-gray-200">
+                <i class="fa-solid fa-robot text-[#3b4cb8]"></i> Active Robot Roster
+            </h3>
+
+            <div class="space-y-4 flex-1" id="robot-cards-container">
+                @foreach($robots as $robot)
+                <div class="bg-blue-50/40 border border-gray-200 p-4 rounded-xl flex flex-col justify-between hover:border-[#3b4cb8] transition duration-200" id="robot-card-{{ $robot->id }}">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-lg bg-white border border-blue-200 flex items-center justify-center text-[#3b4cb8] text-sm shadow-sm">
+                                <i class="fa-solid fa-robot"></i>
+                            </div>
+                            <span class="font-bold text-sm text-gray-800">{{ $robot->name }}</span>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" id="robot-status-badge-{{ $robot->id }}">
+                            {{ $robot->status }}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-2">
+                        <div>
+                            <span class="text-[10px] text-gray-400 block uppercase font-bold">Battery</span>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                                <div class="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                    <div class="h-1.5 rounded-full" id="robot-battery-bar-{{ $robot->id }}" style="width: {{ $robot->battery_level }}%"></div>
+                                </div>
+                                <span class="font-mono font-bold text-gray-700 text-[11px]" id="robot-battery-text-{{ $robot->id }}">{{ $robot->battery_level }}%</span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-gray-400 block uppercase font-bold">Location</span>
+                            <span class="font-semibold text-gray-700 text-[11px]" id="robot-location-text-{{ $robot->id }}">
+                                Blank Room 2
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="text-[11px] text-gray-500 pt-2 border-t border-gray-200/60" id="robot-task-text-{{ $robot->id }}">
+                        Standby at home base
+                    </div>
+                </div>
+                @endforeach
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Main Section: 2-Floor Stacked Live Tracking & Robot Roster -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-    <!-- Left / Main Column: Dual Floor Stacked Live Tracking (2/3 width) -->
-    <div class="lg:col-span-2 space-y-6 lg:sticky lg:top-6 self-start">
-        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl space-y-6">
-            <div class="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-gray-100">
-                <div>
-                    <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                        <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> Multi-Floor Active Tracking
-                    </h3>
-                    <p class="text-xs text-gray-500">Live 60 FPS interior floor layout tracking for Lantai 1 and Lantai 2</p>
-                </div>
-                <div class="flex items-center gap-2 text-xs font-bold text-[#3b4cb8] bg-blue-50 px-3.5 py-1.5 rounded-full border border-blue-200 shadow-sm">
-                    <i class="fa-solid fa-building"></i> Office 2 Floors Stacked
-                </div>
+<!-- Container 2: Full View 2 Lantai Tanpa Sekat (Seamless Stacked View) -->
+<div id="fullview-mode" class="hidden space-y-4">
+    <!-- Floating Fullview Header Bar with Back Button -->
+    <div class="bg-white/95 backdrop-blur-md border border-gray-200 p-4 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4 sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <button onclick="toggleFullView(false)" class="bg-[#3b4cb8] hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md hover:shadow-lg transition duration-200">
+                <i class="fa-solid fa-arrow-left"></i> Kembali ke Dashboard
+            </button>
+            <div>
+                <h3 class="text-sm font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> Full View Gedung 2 Lantai (Seamless Overview)
+                </h3>
+                <p class="text-[11px] text-gray-500">Lantai 2 (Atas) dan Lantai 1 (Bawah) tersambung utuh tanpa sekat</p>
             </div>
+        </div>
 
-            <!-- Floor 2 (Lantai 2 - Upper Floor) -->
-            <div class="bg-slate-50 p-4 rounded-2xl border border-gray-200">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-bold text-[#3b4cb8] flex items-center gap-1.5">
-                        <i class="fa-solid fa-building-user"></i> Lantai 2 (Upper Floor - Direksi, Lounge &amp; Meeting Rooms)
-                    </span>
-                    <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
-                        Floor 2
-                    </span>
-                </div>
-                <div class="floor-map-card overflow-hidden" id="map-container-f2" style="background-image: url('{{ asset('images/floor2.jpeg') }}');">
-                    <svg class="path-svg" id="path-svg-f2"></svg>
-                    <div id="robots-overlay-f2"></div>
-                </div>
-            </div>
-
-            <!-- Floor 1 (Lantai 1 - Ground Floor) -->
-            <div class="bg-slate-50 p-4 rounded-2xl border border-gray-200">
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-bold text-[#3b4cb8] flex items-center gap-1.5">
-                        <i class="fa-solid fa-building-user"></i> Lantai 1 (Ground Floor - Lobby, Office &amp; Receptionist)
-                    </span>
-                    <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
-                        Floor 1
-                    </span>
-                </div>
-                <div class="floor-map-card overflow-hidden" id="map-container-f1" style="background-image: url('{{ asset('images/floor1.jpeg') }}');">
-                    <svg class="path-svg" id="path-svg-f1"></svg>
-                    <div id="robots-overlay-f1"></div>
-                </div>
-            </div>
-
-            <!-- Status Indicator Legends -->
-            <div class="flex flex-wrap gap-4 pt-4 border-t border-gray-200 text-xs text-gray-600 font-semibold">
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span>
-                    <span>Idle / Standby</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-sky-500 shadow-sm"></span>
-                    <span>Delivering</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-orange-500 shadow-sm"></span>
-                    <span>Charging</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-rose-500 shadow-sm"></span>
-                    <span>Maintenance</span>
-                </div>
-            </div>
+        <!-- Robot Status Legend in Fullview -->
+        <div class="flex items-center gap-4 text-xs font-semibold text-gray-600 bg-gray-50 px-4 py-2 rounded-xl border border-gray-200">
+            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span>Idle</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span><span>Delivering</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span><span>Charging</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span><span>Maintenance</span></div>
         </div>
     </div>
 
-    <!-- Right Column: Active Robots Roster (1/3 width) -->
-    <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col">
-        <h3 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2 pb-3 border-b border-gray-200">
-            <i class="fa-solid fa-robot text-[#3b4cb8]"></i> Active Robot Roster
-        </h3>
-
-        <div class="space-y-4 flex-1" id="robot-cards-container">
-            @foreach($robots as $robot)
-            <div class="bg-blue-50/40 border border-gray-200 p-4 rounded-xl flex flex-col justify-between hover:border-[#3b4cb8] transition duration-200" id="robot-card-{{ $robot->id }}">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-lg bg-white border border-blue-200 flex items-center justify-center text-[#3b4cb8] text-sm shadow-sm">
-                            <i class="fa-solid fa-robot"></i>
-                        </div>
-                        <span class="font-bold text-sm text-gray-800">{{ $robot->name }}</span>
-                    </div>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" id="robot-status-badge-{{ $robot->id }}">
-                        {{ $robot->status }}
-                    </span>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-2">
-                    <div>
-                        <span class="text-[10px] text-gray-400 block uppercase font-bold">Battery</span>
-                        <div class="flex items-center gap-1.5 mt-0.5">
-                            <div class="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                                <div class="h-1.5 rounded-full" id="robot-battery-bar-{{ $robot->id }}" style="width: {{ $robot->battery_level }}%"></div>
-                            </div>
-                            <span class="font-mono font-bold text-gray-700 text-[11px]" id="robot-battery-text-{{ $robot->id }}">{{ $robot->battery_level }}%</span>
-                        </div>
-                    </div>
-                    <div>
-                        <span class="text-[10px] text-gray-400 block uppercase font-bold">Location</span>
-                        <span class="font-semibold text-gray-700 text-[11px]" id="robot-location-text-{{ $robot->id }}">
-                            Blank Room 2
-                        </span>
-                    </div>
-                </div>
-
-                <div class="text-[11px] text-gray-500 pt-2 border-t border-gray-200/60" id="robot-task-text-{{ $robot->id }}">
-                    Standby at home base
-                </div>
+    <!-- Seamless Stacked 2 Floors Canvas (Tanpa Sekat) -->
+    <div class="bg-white border border-gray-200 rounded-3xl shadow-2xl overflow-hidden divide-y divide-gray-200">
+        <!-- Floor 2 (Atas) -->
+        <div class="relative">
+            <div class="absolute top-4 left-4 z-20 bg-black/70 backdrop-blur-md text-white font-bold text-xs px-3 py-1.5 rounded-xl border border-white/10 shadow-lg flex items-center gap-2">
+                <i class="fa-solid fa-building-user text-sky-400"></i> LANTAI 2 (Upper Floor - Direksi &amp; Meeting Rooms)
             </div>
-            @endforeach
+            <div class="fullview-floor overflow-hidden" id="fullview-container-f2" style="background-image: url('{{ asset('images/floor2.jpeg') }}');">
+                <svg class="path-svg" id="fullview-path-svg-f2"></svg>
+                <div id="fullview-robots-overlay-f2"></div>
+            </div>
+        </div>
+
+        <!-- Floor 1 (Bawah) -->
+        <div class="relative">
+            <div class="absolute top-4 left-4 z-20 bg-black/70 backdrop-blur-md text-white font-bold text-xs px-3 py-1.5 rounded-xl border border-white/10 shadow-lg flex items-center gap-2">
+                <i class="fa-solid fa-building-user text-emerald-400"></i> LANTAI 1 (Ground Floor - Lobby, Office &amp; Receptionist)
+            </div>
+            <div class="fullview-floor overflow-hidden" id="fullview-container-f1" style="background-image: url('{{ asset('images/floor1.jpeg') }}');">
+                <svg class="path-svg" id="fullview-path-svg-f1"></svg>
+                <div id="fullview-robots-overlay-f1"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -240,6 +304,24 @@
     let robots = @json($robots);
     let activeDeliveries = @json($activeDeliveries);
     let serverClientOffset = 0;
+    let isFullViewMode = false;
+
+    function toggleFullView(showFull) {
+        isFullViewMode = showFull;
+        const stdView = document.getElementById('standard-view');
+        const fullView = document.getElementById('fullview-mode');
+
+        if (showFull) {
+            stdView.classList.add('hidden');
+            fullView.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            fullView.classList.add('hidden');
+            stdView.classList.remove('hidden');
+        }
+
+        setTimeout(runSimulationStep, 50);
+    }
 
     function getDeliveryPath(delivery, robot) {
         if (delivery._cachedPath && delivery._cachedPath.length >= 2) {
@@ -318,10 +400,17 @@
     }
 
     function drawRobotPaths() {
+        // Standard View SVGs
         const svgF1 = document.getElementById('path-svg-f1');
         const svgF2 = document.getElementById('path-svg-f2');
         if (svgF1) svgF1.innerHTML = '';
         if (svgF2) svgF2.innerHTML = '';
+
+        // Fullview Mode SVGs
+        const fullSvgF1 = document.getElementById('fullview-path-svg-f1');
+        const fullSvgF2 = document.getElementById('fullview-path-svg-f2');
+        if (fullSvgF1) fullSvgF1.innerHTML = '';
+        if (fullSvgF2) fullSvgF2.innerHTML = '';
         
         activeDeliveries.forEach(delivery => {
             const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
@@ -330,12 +419,16 @@
             const path = getDeliveryPath(delivery, robot);
             if (path.length < 2) return;
 
+            // Render on active container (Standard or Fullview)
+            const targetContainerF1 = isFullViewMode ? document.getElementById('fullview-container-f1') : document.getElementById('map-container-f1');
+            const targetContainerF2 = isFullViewMode ? document.getElementById('fullview-container-f2') : document.getElementById('map-container-f2');
+            
             let ptsF1 = '', ptsF2 = '';
             path.forEach((nodeName) => {
                 const node = locations[nodeName];
                 if (!node) return;
                 
-                const container = document.getElementById(node.floor === 2 ? 'map-container-f2' : 'map-container-f1');
+                const container = node.floor === 2 ? targetContainerF2 : targetContainerF1;
                 if (!container) return;
                 const w = container.clientWidth;
                 const h = container.clientHeight;
@@ -347,23 +440,27 @@
                 else ptsF1 += `${px},${py} `;
             });
 
-            if (ptsF1.trim() && svgF1) {
+            // Target SVGs
+            const targetSvgF1 = isFullViewMode ? fullSvgF1 : svgF1;
+            const targetSvgF2 = isFullViewMode ? fullSvgF2 : svgF2;
+
+            if (ptsF1.trim() && targetSvgF1) {
                 const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                 poly.setAttribute('points', ptsF1.trim());
                 poly.setAttribute('stroke', '#38bdf8');
-                poly.setAttribute('stroke-width', '2');
-                poly.setAttribute('stroke-dasharray', '5,5');
+                poly.setAttribute('stroke-width', '2.5');
+                poly.setAttribute('stroke-dasharray', '6,6');
                 poly.setAttribute('fill', 'none');
-                svgF1.appendChild(poly);
+                targetSvgF1.appendChild(poly);
             }
-            if (ptsF2.trim() && svgF2) {
+            if (ptsF2.trim() && targetSvgF2) {
                 const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                 poly.setAttribute('points', ptsF2.trim());
                 poly.setAttribute('stroke', '#38bdf8');
-                poly.setAttribute('stroke-width', '2');
-                poly.setAttribute('stroke-dasharray', '5,5');
+                poly.setAttribute('stroke-width', '2.5');
+                poly.setAttribute('stroke-dasharray', '6,6');
                 poly.setAttribute('fill', 'none');
-                svgF2.appendChild(poly);
+                targetSvgF2.appendChild(poly);
             }
         });
     }
@@ -372,10 +469,17 @@
         const now = new Date(new Date().getTime() + serverClientOffset);
         drawRobotPaths();
         
+        // Standard view overlays
         const overlayF1 = document.getElementById('robots-overlay-f1');
         const overlayF2 = document.getElementById('robots-overlay-f2');
         if (overlayF1) overlayF1.innerHTML = '';
         if (overlayF2) overlayF2.innerHTML = '';
+
+        // Fullview overlays
+        const fullOverlayF1 = document.getElementById('fullview-robots-overlay-f1');
+        const fullOverlayF2 = document.getElementById('fullview-robots-overlay-f2');
+        if (fullOverlayF1) fullOverlayF1.innerHTML = '';
+        if (fullOverlayF2) fullOverlayF2.innerHTML = '';
         
         robots.forEach(robot => {
             const delivery = activeDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && d.status === 'In Progress');
@@ -438,9 +542,8 @@
                 }
             }
 
-            // Render marker on designated floor overlay
-            const targetOverlay = floorNum === 2 ? overlayF2 : overlayF1;
-            if (targetOverlay) {
+            // Create Robot marker element
+            function createRobotMarker() {
                 const marker = document.createElement('div');
                 marker.className = 'robot-marker z-30';
                 marker.style.left = `${coords.x}%`;
@@ -457,10 +560,19 @@
                         </div>
                     </div>
                 `;
-                targetOverlay.appendChild(marker);
+                return marker;
             }
 
-            // Update Robot Card info
+            // Render on active overlays
+            if (isFullViewMode) {
+                const targetOverlay = floorNum === 2 ? fullOverlayF2 : fullOverlayF1;
+                if (targetOverlay) targetOverlay.appendChild(createRobotMarker());
+            } else {
+                const targetOverlay = floorNum === 2 ? overlayF2 : overlayF1;
+                if (targetOverlay) targetOverlay.appendChild(createRobotMarker());
+            }
+
+            // Update Robot Cards in standard view
             const badge = document.getElementById(`robot-status-badge-${robot.id}`);
             const batBar = document.getElementById(`robot-battery-bar-${robot.id}`);
             const batText = document.getElementById(`robot-battery-text-${robot.id}`);
