@@ -1,6 +1,6 @@
 @extends('layouts.layout')
 
-@section('title', 'ROBOPATH - 2-Floor Real-Time Fleet Tracking')
+@section('title', 'ROBOPATH - Live Fleet Tracking')
 @section('page_title', 'System Overview')
 @section('page_subtitle', 'Real-time Multi-Floor Robot Tracking & System Metrics')
 
@@ -18,26 +18,17 @@
     }
     
     /* Full View 1-Screen Fit (Zero Scroll) */
-    #fullview-mode {
-        height: calc(100vh - 120px);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-    }
     .fullview-wrapper {
-        flex: 1;
         display: flex;
         flex-direction: column;
-        justify-content: space-evenly;
+        justify-content: center;
         align-items: center;
-        gap: 0.5rem;
-        overflow: hidden;
-        padding: 0.25rem 0;
+        gap: 0.75rem;
     }
     .fullview-floor-box {
         position: relative;
         height: calc((100vh - 210px) / 2);
-        max-height: 42vh;
+        max-height: 40vh;
         aspect-ratio: 16/9;
         max-width: 100%;
         background-size: 100% 100%;
@@ -47,11 +38,6 @@
         box-shadow: 0 4px 15px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(0,0,0,0.05);
     }
 
-    .location-pin {
-        position: absolute;
-        transform: translate(-50%, -50%);
-        cursor: pointer;
-    }
     .robot-marker {
         position: absolute;
         transform: translate(-50%, -50%);
@@ -71,7 +57,7 @@
 @endsection
 
 @section('content')
-<!-- Container 1: Standard Dashboard View (Stat Cards + 2-Floor Map + Roster) -->
+<!-- Container 1: Standard Dashboard View (Stat Cards + Active Floor Map + Robot Roster) -->
 <div id="standard-view" class="space-y-8">
     <!-- Top Stat Cards (4 Columns) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -135,60 +121,56 @@
         </div>
     </div>
 
-    <!-- Main Section: 2-Floor Stacked Live Tracking & Robot Roster -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Main Section: Balanced 2/3 Map View & 1/3 Robot Roster -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
-        <!-- Left / Main Column: Dual Floor Stacked Live Tracking (2/3 width) -->
-        <div class="lg:col-span-2 space-y-6 lg:sticky lg:top-6 self-start">
-            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl space-y-6">
-                <div class="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-gray-100">
+        <!-- Left Column: Interactive Floor Map View (2/3 width) -->
+        <div class="lg:col-span-2 space-y-4">
+            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
+                <!-- Header with Floor Switch Tabs & Full View Button -->
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-3 border-b border-gray-100">
                     <div>
                         <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                            <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> Multi-Floor Active Tracking
+                            <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> Live Floor Tracking
                         </h3>
-                        <p class="text-xs text-gray-500">Live 60 FPS interior floor layout tracking for Lantai 1 and Lantai 2</p>
+                        <p class="text-xs text-gray-500">Real-time robot telemetry &amp; delivery route visualization</p>
                     </div>
-                    
-                    <!-- Full View Button -->
-                    <button onclick="toggleFullView(true)" class="bg-[#3b4cb8] hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md hover:shadow-lg transition duration-200">
-                        <i class="fa-solid fa-expand"></i> Full View 2 Lantai
-                    </button>
-                </div>
 
-                <!-- Floor 2 (Lantai 2 - Upper Floor) -->
-                <div class="bg-slate-50 p-4 rounded-2xl border border-gray-200">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-bold text-[#3b4cb8] flex items-center gap-1.5">
-                            <i class="fa-solid fa-building-user"></i> Lantai 2 (Upper Floor - Direksi, Lounge &amp; Meeting Rooms)
-                        </span>
-                        <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
-                            Floor 2
-                        </span>
-                    </div>
-                    <div class="floor-map-card overflow-hidden" id="map-container-f2" style="background-image: url('{{ asset('images/floor2.jpeg') }}');">
-                        <svg class="path-svg" id="path-svg-f2"></svg>
-                        <div id="robots-overlay-f2"></div>
+                    <!-- Floor Switcher & Full View Action -->
+                    <div class="flex items-center gap-2.5">
+                        <div class="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
+                            <button onclick="switchDashboardFloor(1)" id="std-tab-f1" class="px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition">
+                                Lantai 1
+                            </button>
+                            <button onclick="switchDashboardFloor(2)" id="std-tab-f2" class="px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">
+                                Lantai 2
+                            </button>
+                        </div>
+
+                        <button onclick="toggleFullView(true)" class="bg-[#3b4cb8] hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md hover:shadow-lg transition duration-200">
+                            <i class="fa-solid fa-expand"></i> Full View 2 Lantai
+                        </button>
                     </div>
                 </div>
 
-                <!-- Floor 1 (Lantai 1 - Ground Floor) -->
-                <div class="bg-slate-50 p-4 rounded-2xl border border-gray-200">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-bold text-[#3b4cb8] flex items-center gap-1.5">
-                            <i class="fa-solid fa-building-user"></i> Lantai 1 (Ground Floor - Lobby, Office &amp; Receptionist)
-                        </span>
-                        <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200">
-                            Floor 1
-                        </span>
-                    </div>
-                    <div class="floor-map-card overflow-hidden" id="map-container-f1" style="background-image: url('{{ asset('images/floor1.jpeg') }}');">
-                        <svg class="path-svg" id="path-svg-f1"></svg>
-                        <div id="robots-overlay-f1"></div>
-                    </div>
+                <!-- Active Floor Title Badge -->
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-[#3b4cb8] flex items-center gap-1.5" id="std-floor-title">
+                        <i class="fa-solid fa-building-user"></i> Lantai 1 (Ground Floor - Lobby, Office &amp; Receptionist)
+                    </span>
+                    <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200" id="std-floor-badge">
+                        Showing Floor 1
+                    </span>
+                </div>
+
+                <!-- Map Canvas Container (Proporsional 16:9) -->
+                <div class="floor-map-card overflow-hidden shadow-inner border border-gray-200" id="std-map-container" style="background-image: url('{{ asset('images/floor1.jpeg') }}');">
+                    <svg class="path-svg" id="std-path-svg"></svg>
+                    <div id="std-robots-overlay"></div>
                 </div>
 
                 <!-- Status Indicator Legends -->
-                <div class="flex flex-wrap gap-4 pt-4 border-t border-gray-200 text-xs text-gray-600 font-semibold">
+                <div class="flex flex-wrap gap-4 pt-4 mt-4 border-t border-gray-200 text-xs text-gray-600 font-semibold">
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span>
                         <span>Idle / Standby</span>
@@ -209,15 +191,15 @@
             </div>
         </div>
 
-        <!-- Right Column: Active Robots Roster (1/3 width) -->
+        <!-- Right Column: Active Robots Roster (1/3 width, Matches Left Height) -->
         <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col">
             <h3 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2 pb-3 border-b border-gray-200">
                 <i class="fa-solid fa-robot text-[#3b4cb8]"></i> Active Robot Roster
             </h3>
 
-            <div class="space-y-4 flex-1" id="robot-cards-container">
+            <div class="space-y-3.5 flex-1" id="robot-cards-container">
                 @foreach($robots as $robot)
-                <div class="bg-blue-50/40 border border-gray-200 p-4 rounded-xl flex flex-col justify-between hover:border-[#3b4cb8] transition duration-200" id="robot-card-{{ $robot->id }}">
+                <div class="bg-slate-50 border border-gray-200 p-4 rounded-xl flex flex-col justify-between hover:border-[#3b4cb8] transition duration-200" id="robot-card-{{ $robot->id }}">
                     <div class="flex items-center justify-between mb-2">
                         <div class="flex items-center gap-2">
                             <div class="w-8 h-8 rounded-lg bg-white border border-blue-200 flex items-center justify-center text-[#3b4cb8] text-sm shadow-sm">
@@ -243,7 +225,7 @@
                         <div>
                             <span class="text-[10px] text-gray-400 block uppercase font-bold">Location</span>
                             <span class="font-semibold text-gray-700 text-[11px]" id="robot-location-text-{{ $robot->id }}">
-                                Blank Room 2
+                                Blank Room 2 (Floor 1)
                             </span>
                         </div>
                     </div>
@@ -258,10 +240,10 @@
     </div>
 </div>
 
-<!-- Container 2: Full View 2 Lantai 1-Screen Fit (Tanpa Scroll) -->
-<div id="fullview-mode" class="hidden">
+<!-- Container 2: Full View 2 Lantai (Single Screen Overview) -->
+<div id="fullview-mode" class="hidden space-y-3">
     <!-- Header Bar with Back Button & Legend -->
-    <div class="bg-white border border-gray-200 px-5 py-3 rounded-2xl shadow-md flex items-center justify-between gap-4 shrink-0 mb-2">
+    <div class="bg-white border border-gray-200 px-5 py-3 rounded-2xl shadow-md flex items-center justify-between gap-4 shrink-0">
         <div class="flex items-center gap-3">
             <button onclick="toggleFullView(false)" class="bg-[#3b4cb8] hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow transition duration-200">
                 <i class="fa-solid fa-arrow-left"></i> Kembali ke Dashboard
@@ -282,12 +264,12 @@
         </div>
     </div>
 
-    <!-- Scaled Wrapper (Both floors fit entirely on 1 screen) -->
+    <!-- Scaled Dual Floor Canvas (Both floors fit in 1 view) -->
     <div class="fullview-wrapper">
         <!-- Floor 2 (Atas) -->
         <div class="fullview-floor-box" id="fullview-container-f2" style="background-image: url('{{ asset('images/floor2.jpeg') }}');">
             <div class="absolute top-2 left-2 z-20 bg-black/75 backdrop-blur-sm text-white font-bold text-[10px] px-2.5 py-1 rounded-lg border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
-                <i class="fa-solid fa-building-user text-sky-400"></i> LANTAI 2 (Upper Floor)
+                <i class="fa-solid fa-building-user text-sky-400"></i> LANTAI 2 (Upper Floor - Direksi &amp; Meeting Rooms)
             </div>
             <svg class="path-svg" id="fullview-path-svg-f2"></svg>
             <div id="fullview-robots-overlay-f2"></div>
@@ -296,7 +278,7 @@
         <!-- Floor 1 (Bawah) -->
         <div class="fullview-floor-box" id="fullview-container-f1" style="background-image: url('{{ asset('images/floor1.jpeg') }}');">
             <div class="absolute top-2 left-2 z-20 bg-black/75 backdrop-blur-sm text-white font-bold text-[10px] px-2.5 py-1 rounded-lg border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
-                <i class="fa-solid fa-building-user text-emerald-400"></i> LANTAI 1 (Ground Floor)
+                <i class="fa-solid fa-building-user text-emerald-400"></i> LANTAI 1 (Ground Floor - Lobby &amp; Office)
             </div>
             <svg class="path-svg" id="fullview-path-svg-f1"></svg>
             <div id="fullview-robots-overlay-f1"></div>
@@ -307,6 +289,9 @@
 
 @section('scripts')
 <script>
+    const floor1Img = "{{ asset('images/floor1.jpeg') }}";
+    const floor2Img = "{{ asset('images/floor2.jpeg') }}";
+
     const locations = {
         @foreach($locations as $name => $coords)
         '{{ $name }}': { x: {{ $coords['x'] }}, y: {{ $coords['y'] }}, floor: {{ $coords['floor'] ?? 1 }} },
@@ -322,19 +307,51 @@
     let robots = @json($robots);
     let activeDeliveries = @json($activeDeliveries);
     let serverClientOffset = 0;
+    let currentDashboardFloor = 1;
     let isFullViewMode = false;
+
+    function switchDashboardFloor(floorNum) {
+        currentDashboardFloor = floorNum;
+        
+        const tabF1 = document.getElementById('std-tab-f1');
+        const tabF2 = document.getElementById('std-tab-f2');
+        const container = document.getElementById('std-map-container');
+        const title = document.getElementById('std-floor-title');
+        const badge = document.getElementById('std-floor-badge');
+
+        if (floorNum === 1) {
+            tabF1.className = "px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition";
+            tabF2.className = "px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
+            container.style.backgroundImage = `url('${floor1Img}')`;
+            title.innerHTML = '<i class="fa-solid fa-building-user"></i> Lantai 1 (Ground Floor - Lobby, Office & Receptionist)';
+            badge.textContent = 'Showing Floor 1';
+        } else {
+            tabF2.className = "px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition";
+            tabF1.className = "px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
+            container.style.backgroundImage = `url('${floor2Img}')`;
+            title.innerHTML = '<i class="fa-solid fa-building-user"></i> Lantai 2 (Upper Floor - Direksi, Lounge & Meeting Rooms)';
+            badge.textContent = 'Showing Floor 2';
+        }
+
+        runSimulationStep();
+    }
 
     function toggleFullView(showFull) {
         isFullViewMode = showFull;
         const stdView = document.getElementById('standard-view');
         const fullView = document.getElementById('fullview-mode');
+        const mainScroll = document.querySelector('main > div');
 
         if (showFull) {
             stdView.classList.add('hidden');
             fullView.classList.remove('hidden');
+            if (mainScroll) mainScroll.scrollTop = 0;
+            window.scrollTo(0, 0);
         } else {
             fullView.classList.add('hidden');
             stdView.classList.remove('hidden');
+            if (mainScroll) mainScroll.scrollTop = 0;
+            window.scrollTo(0, 0);
         }
 
         setTimeout(runSimulationStep, 50);
@@ -417,11 +434,9 @@
     }
 
     function drawRobotPaths() {
-        // Standard View SVGs
-        const svgF1 = document.getElementById('path-svg-f1');
-        const svgF2 = document.getElementById('path-svg-f2');
-        if (svgF1) svgF1.innerHTML = '';
-        if (svgF2) svgF2.innerHTML = '';
+        // Standard View SVG
+        const stdSvg = document.getElementById('std-path-svg');
+        if (stdSvg) stdSvg.innerHTML = '';
 
         // Fullview Mode SVGs
         const fullSvgF1 = document.getElementById('fullview-path-svg-f1');
@@ -436,46 +451,62 @@
             const path = getDeliveryPath(delivery, robot);
             if (path.length < 2) return;
 
-            const targetContainerF1 = isFullViewMode ? document.getElementById('fullview-container-f1') : document.getElementById('map-container-f1');
-            const targetContainerF2 = isFullViewMode ? document.getElementById('fullview-container-f2') : document.getElementById('map-container-f2');
-            
-            let ptsF1 = '', ptsF2 = '';
-            path.forEach((nodeName) => {
-                const node = locations[nodeName];
-                if (!node) return;
-                
-                const container = node.floor === 2 ? targetContainerF2 : targetContainerF1;
-                if (!container) return;
-                const w = container.clientWidth;
-                const h = container.clientHeight;
-                
-                const px = (node.x / 100) * w;
-                const py = (node.y / 100) * h;
-                
-                if (node.floor === 2) ptsF2 += `${px},${py} `;
-                else ptsF1 += `${px},${py} `;
-            });
+            if (isFullViewMode) {
+                const containerF1 = document.getElementById('fullview-container-f1');
+                const containerF2 = document.getElementById('fullview-container-f2');
+                let ptsF1 = '', ptsF2 = '';
 
-            const targetSvgF1 = isFullViewMode ? fullSvgF1 : svgF1;
-            const targetSvgF2 = isFullViewMode ? fullSvgF2 : svgF2;
+                path.forEach(nodeName => {
+                    const node = locations[nodeName];
+                    if (!node) return;
+                    const container = node.floor === 2 ? containerF2 : containerF1;
+                    if (!container) return;
+                    const px = (node.x / 100) * container.clientWidth;
+                    const py = (node.y / 100) * container.clientHeight;
+                    if (node.floor === 2) ptsF2 += `${px},${py} `;
+                    else ptsF1 += `${px},${py} `;
+                });
 
-            if (ptsF1.trim() && targetSvgF1) {
-                const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-                poly.setAttribute('points', ptsF1.trim());
-                poly.setAttribute('stroke', '#38bdf8');
-                poly.setAttribute('stroke-width', isFullViewMode ? '2' : '2.5');
-                poly.setAttribute('stroke-dasharray', '5,5');
-                poly.setAttribute('fill', 'none');
-                targetSvgF1.appendChild(poly);
-            }
-            if (ptsF2.trim() && targetSvgF2) {
-                const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-                poly.setAttribute('points', ptsF2.trim());
-                poly.setAttribute('stroke', '#38bdf8');
-                poly.setAttribute('stroke-width', isFullViewMode ? '2' : '2.5');
-                poly.setAttribute('stroke-dasharray', '5,5');
-                poly.setAttribute('fill', 'none');
-                targetSvgF2.appendChild(poly);
+                if (ptsF1.trim() && fullSvgF1) {
+                    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                    poly.setAttribute('points', ptsF1.trim());
+                    poly.setAttribute('stroke', '#38bdf8');
+                    poly.setAttribute('stroke-width', '2');
+                    poly.setAttribute('stroke-dasharray', '5,5');
+                    poly.setAttribute('fill', 'none');
+                    fullSvgF1.appendChild(poly);
+                }
+                if (ptsF2.trim() && fullSvgF2) {
+                    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                    poly.setAttribute('points', ptsF2.trim());
+                    poly.setAttribute('stroke', '#38bdf8');
+                    poly.setAttribute('stroke-width', '2');
+                    poly.setAttribute('stroke-dasharray', '5,5');
+                    poly.setAttribute('fill', 'none');
+                    fullSvgF2.appendChild(poly);
+                }
+            } else {
+                const stdContainer = document.getElementById('std-map-container');
+                if (!stdContainer || !stdSvg) return;
+                let pts = '';
+
+                path.forEach(nodeName => {
+                    const node = locations[nodeName];
+                    if (!node || Number(node.floor) !== Number(currentDashboardFloor)) return;
+                    const px = (node.x / 100) * stdContainer.clientWidth;
+                    const py = (node.y / 100) * stdContainer.clientHeight;
+                    pts += `${px},${py} `;
+                });
+
+                if (pts.trim()) {
+                    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                    poly.setAttribute('points', pts.trim());
+                    poly.setAttribute('stroke', '#38bdf8');
+                    poly.setAttribute('stroke-width', '2.5');
+                    poly.setAttribute('stroke-dasharray', '6,6');
+                    poly.setAttribute('fill', 'none');
+                    stdSvg.appendChild(poly);
+                }
             }
         });
     }
@@ -484,11 +515,9 @@
         const now = new Date(new Date().getTime() + serverClientOffset);
         drawRobotPaths();
         
-        // Standard view overlays
-        const overlayF1 = document.getElementById('robots-overlay-f1');
-        const overlayF2 = document.getElementById('robots-overlay-f2');
-        if (overlayF1) overlayF1.innerHTML = '';
-        if (overlayF2) overlayF2.innerHTML = '';
+        // Standard view overlay
+        const stdOverlay = document.getElementById('std-robots-overlay');
+        if (stdOverlay) stdOverlay.innerHTML = '';
 
         // Fullview overlays
         const fullOverlayF1 = document.getElementById('fullview-robots-overlay-f1');
@@ -587,8 +616,9 @@
                 const targetOverlay = floorNum === 2 ? fullOverlayF2 : fullOverlayF1;
                 if (targetOverlay) targetOverlay.appendChild(createRobotMarker(true));
             } else {
-                const targetOverlay = floorNum === 2 ? overlayF2 : overlayF1;
-                if (targetOverlay) targetOverlay.appendChild(createRobotMarker(false));
+                if (Number(floorNum) === Number(currentDashboardFloor)) {
+                    if (stdOverlay) stdOverlay.appendChild(createRobotMarker(false));
+                }
             }
 
             // Update Robot Cards in standard view
