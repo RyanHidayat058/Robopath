@@ -14,6 +14,7 @@
         aspect-ratio: 16/9;
         border-radius: 1rem;
         user-select: none;
+        box-shadow: 0 4px 20px rgba(59, 76, 184, 0.08), inset 0 0 0 1px rgba(0,0,0,0.06);
     }
     .editor-node {
         position: absolute;
@@ -24,10 +25,10 @@
     .editor-node:active {
         cursor: grabbing;
     }
-    .editor-node.selected {
-        outline: 3px solid #3b4cb8;
-        outline-offset: 3px;
-        border-radius: 9999px;
+    .editor-node.selected > div > div:first-child {
+        outline: 3px solid #f59e0b !important;
+        outline-offset: 3px !important;
+        transform: scale(1.3) !important;
     }
     .editor-svg {
         position: absolute;
@@ -59,23 +60,23 @@
         <!-- Tool Action Buttons -->
         <div class="flex flex-wrap items-center gap-3">
             <div class="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
-                <button onclick="setEditorTool('move')" id="tool-move" class="px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5">
+                <button onclick="setEditorTool('move')" id="tool-move" class="px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition">
                     <i class="fa-solid fa-up-down-left-right"></i> Move Node
                 </button>
-                <button onclick="setEditorTool('add')" id="tool-add" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5">
+                <button onclick="setEditorTool('add')" id="tool-add" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition">
                     <i class="fa-solid fa-plus-circle"></i> Add Node
                 </button>
-                <button onclick="setEditorTool('connect')" id="tool-connect" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5">
+                <button onclick="setEditorTool('connect')" id="tool-connect" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition">
                     <i class="fa-solid fa-diagram-project"></i> Connect Edges
                 </button>
-                <button onclick="setEditorTool('delete')" id="tool-delete" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5">
+                <button onclick="setEditorTool('delete')" id="tool-delete" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition">
                     <i class="fa-solid fa-trash-can"></i> Delete
                 </button>
             </div>
 
             <!-- Show/Hide Transit Dots Toggle -->
-            <button onclick="toggleShowHiddenDots()" id="btn-toggle-hidden" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-eye-slash" id="icon-toggle-hidden"></i> <span id="text-toggle-hidden">Show Hidden Transit Nodes</span>
+            <button onclick="toggleShowHiddenDots()" id="btn-toggle-hidden" class="bg-blue-50 border border-blue-300 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-eye text-[#3b4cb8]" id="icon-toggle-hidden"></i> <span id="text-toggle-hidden">Showing All Nodes</span>
             </button>
 
             <button onclick="saveGraphToServer()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md hover:shadow-lg transition">
@@ -103,7 +104,7 @@
                 </div>
 
                 <!-- Editor Canvas Container -->
-                <div class="editor-map-container shadow-inner border border-gray-300 overflow-hidden" id="editor-map-container" onclick="handleMapClick(event)">
+                <div class="editor-map-container shadow-inner border border-gray-300 overflow-hidden" id="editor-map-container" style="background-image: url('{{ asset('images/floor1.jpeg') }}');" onclick="handleMapClick(event)">
                     <svg class="editor-svg" id="editor-svg"></svg>
                     <div id="editor-nodes-layer"></div>
                 </div>
@@ -114,69 +115,63 @@
         <div class="space-y-6">
             <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col">
                 <h3 class="text-base font-bold text-gray-800 mb-4 pb-3 border-b border-gray-200 flex items-center gap-2">
-                    <i class="fa-solid fa-[#3b4cb8] fa-pen-to-square text-[#3b4cb8]"></i> Node Properties Inspector
+                    <i class="fa-solid fa-pen-to-square text-[#3b4cb8]"></i> Node Properties Inspector
                 </h3>
 
                 <div class="space-y-4 flex-1 text-xs text-gray-700">
-                    <!-- Node ID / Name Edit Field -->
                     <div>
-                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                            Node Name / Room Title <span class="text-blue-600 lowercase font-normal">(e.g. Hall, Lobby)</span>
-                        </label>
-                        <input type="text" id="inspect-node-name" onchange="handleRenameNode(this.value)" placeholder="Click a node to edit name..." class="w-full bg-blue-50/50 border border-blue-200 rounded-xl p-3 font-bold text-[#3b4cb8] text-sm focus:outline-none focus:border-[#3b4cb8]">
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Node Name / Room Title <span class="text-gray-400 font-normal lowercase">(e.g. Hall, Lobby)</span></label>
+                        <input type="text" id="inspect-node-name" onchange="handleRenameNode(this.value)" placeholder="Click a node to edit name..." class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm font-bold text-gray-800 focus:bg-white focus:border-[#3b4cb8] focus:outline-none transition">
                     </div>
 
-                    <!-- Floor Selection & Coordinates -->
                     <div class="grid grid-cols-3 gap-2">
                         <div>
-                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Floor Level</label>
-                            <select id="inspect-floor" onchange="handleFloorChange(this.value)" class="w-full bg-gray-50 border border-gray-300 rounded-lg p-2 font-bold text-gray-800 text-xs">
+                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Floor</label>
+                            <select id="inspect-floor" onchange="handleFloorChange(this.value)" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-2 py-2 font-bold text-gray-800 focus:outline-none">
                                 <option value="1">Lantai 1</option>
                                 <option value="2">Lantai 2</option>
                             </select>
                         </div>
                         <div>
-                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">X (%)</label>
-                            <input type="number" step="0.01" id="inspect-x" readonly class="w-full bg-gray-100 border border-gray-200 rounded-lg p-2 font-mono font-bold text-gray-800 text-xs">
+                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">X (%)</label>
+                            <input type="text" id="inspect-x" readonly class="w-full bg-gray-100 border border-gray-200 rounded-xl px-2 py-2 font-mono text-gray-600">
                         </div>
                         <div>
-                            <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Y (%)</label>
-                            <input type="number" step="0.01" id="inspect-y" readonly class="w-full bg-gray-100 border border-gray-200 rounded-lg p-2 font-mono font-bold text-gray-800 text-xs">
+                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Y (%)</label>
+                            <input type="text" id="inspect-y" readonly class="w-full bg-gray-100 border border-gray-200 rounded-xl px-2 py-2 font-mono text-gray-600">
                         </div>
                     </div>
 
-                    <!-- Node Checkboxes: Hidden Node & Destination Room -->
-                    <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-200 space-y-3">
-                        <label class="flex items-center gap-2.5 cursor-pointer">
-                            <input type="checkbox" id="inspect-is-destination" onchange="handleIsDestinationChange(this.checked)" class="w-4 h-4 text-[#3b4cb8] rounded border-gray-300 focus:ring-[#3b4cb8]">
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3">
+                        <label class="flex items-start gap-2.5 cursor-pointer">
+                            <input type="checkbox" id="inspect-is-destination" onchange="handleIsDestinationChange(this.checked)" class="mt-0.5 rounded border-gray-300 text-[#3b4cb8] focus:ring-[#3b4cb8]">
                             <div>
-                                <span class="font-bold text-gray-800 text-xs block">Use as Pickup / Destination Room</span>
-                                <span class="text-[10px] text-gray-500 block">Available in delivery room selection dropdowns</span>
+                                <span class="font-bold text-gray-800 block">Use as Pickup / Destination Room</span>
+                                <span class="text-[11px] text-gray-500 block">Available in delivery room selection dropdowns</span>
                             </div>
                         </label>
 
-                        <label class="flex items-center gap-2.5 cursor-pointer pt-2 border-t border-gray-200">
-                            <input type="checkbox" id="inspect-hidden" onchange="handleHiddenChange(this.checked)" class="w-4 h-4 text-amber-500 rounded border-gray-300 focus:ring-amber-500">
+                        <label class="flex items-start gap-2.5 cursor-pointer">
+                            <input type="checkbox" id="inspect-hidden" onchange="handleHiddenChange(this.checked)" class="mt-0.5 rounded border-gray-300 text-[#3b4cb8] focus:ring-[#3b4cb8]">
                             <div>
-                                <span class="font-bold text-gray-800 text-xs block">Hide Marker on Floor Map</span>
-                                <span class="text-[10px] text-gray-500 block">Functions for routing but hidden on map view</span>
+                                <span class="font-bold text-gray-800 block">Hide Marker on Dashboard Map</span>
+                                <span class="text-[11px] text-gray-500 block">Functions for routing but hidden on map view</span>
                             </div>
                         </label>
                     </div>
 
-                    <!-- Connected Neighbors list -->
                     <div>
-                        <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1">Connected Neighbors (Edges)</label>
-                        <div class="p-3 bg-gray-50 border border-gray-200 rounded-xl max-h-[100px] overflow-y-auto space-y-1 font-mono text-[11px]" id="inspect-neighbors">
-                            <span class="text-gray-400 italic">No neighbors connected</span>
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Connected Neighbors (Edges)</label>
+                        <div id="inspect-neighbors" class="bg-gray-50 border border-gray-200 rounded-xl p-3 min-h-[60px] max-h-[140px] overflow-y-auto space-y-1 font-mono text-xs">
+                            <span class="text-gray-400 italic">No node selected</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Fleet Reset Card -->
+            <!-- Fleet Reset Action Card -->
             <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
-                <h3 class="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <h3 class="text-base font-bold text-gray-800 mb-2 flex items-center gap-2">
                     <i class="fa-solid fa-sliders text-amber-500"></i> Fleet System Controls
                 </h3>
                 <p class="text-xs text-gray-500 mb-4">Emergency reset all robot units to home base and restore idle status.</p>
@@ -196,28 +191,13 @@
 
     let currentFloor = 1;
     let currentTool = 'move';
-    let showHiddenDots = false;
+    let showHiddenDots = true; // Show all nodes in editor by default
     let selectedNodeId = null;
     let connectStartNodeId = null;
     let draggedNodeId = null;
 
-    let locationsData = {
-        @foreach($locations as $id => $coords)
-        '{{ $id }}': { 
-            x: {{ $coords['x'] }}, 
-            y: {{ $coords['y'] }}, 
-            floor: {{ $coords['floor'] ?? 1 }},
-            hidden: {{ ($coords['hidden'] ?? false) ? 'true' : 'false' }},
-            is_destination: {{ ($coords['is_destination'] ?? false) ? 'true' : 'false' }}
-        },
-        @endforeach
-    };
-
-    let adjData = {
-        @foreach($adj as $node => $neighbors)
-        '{{ $node }}': [ @foreach($neighbors as $nbr) '{{ $nbr }}', @endforeach ],
-        @endforeach
-    };
+    let locationsData = @json($locations);
+    let adjData = @json($adj);
 
     function toggleShowHiddenDots() {
         showHiddenDots = !showHiddenDots;
@@ -227,10 +207,10 @@
 
         if (showHiddenDots) {
             icon.className = "fa-solid fa-eye text-[#3b4cb8]";
-            text.textContent = "Showing All Transit Nodes";
+            text.textContent = "Showing All Nodes";
             btn.className = "bg-blue-50 border border-blue-300 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
         } else {
-            icon.className = "fa-solid fa-eye-slash";
+            icon.className = "fa-solid fa-eye-slash text-gray-600";
             text.textContent = "Show Hidden Transit Nodes";
             btn.className = "bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
         }
@@ -250,6 +230,8 @@
         document.getElementById('editor-map-container').style.backgroundImage = `url('${floorNum === 1 ? floor1Img : floor2Img}')`;
         document.getElementById('floor-badge').textContent = `Showing Floor ${floorNum}`;
 
+        selectedNodeId = null;
+        clearInspector();
         renderEditorMap();
     }
 
@@ -258,9 +240,9 @@
         ['move', 'add', 'connect', 'delete'].forEach(t => {
             const btn = document.getElementById(`tool-${t}`);
             if (t === tool) {
-                btn.className = "px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 font-bold";
+                btn.className = "px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 font-bold transition";
             } else {
-                btn.className = "px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5";
+                btn.className = "px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition";
             }
         });
 
@@ -279,23 +261,23 @@
         const nodesLayer = document.getElementById('editor-nodes-layer');
         const container = document.getElementById('editor-map-container');
         
+        if (!svg || !nodesLayer || !container) return;
         svg.innerHTML = '';
         nodesLayer.innerHTML = '';
 
-        if (!container) return;
-        const w = container.clientWidth;
-        const h = container.clientHeight;
+        const w = container.clientWidth || 800;
+        const h = container.clientHeight || 450;
 
         // Render Edges for current floor
         const drawnEdges = new Set();
         for (let nodeA in adjData) {
             const locA = locationsData[nodeA];
-            if (!locA || locA.floor !== currentFloor) continue;
+            if (!locA || Number(locA.floor) !== Number(currentFloor)) continue;
 
             const neighbors = adjData[nodeA] || [];
             neighbors.forEach(nodeB => {
                 const locB = locationsData[nodeB];
-                if (!locB || locB.floor !== currentFloor) continue;
+                if (!locB || Number(locB.floor) !== Number(currentFloor)) continue;
 
                 const edgeKey = [nodeA, nodeB].sort().join('--');
                 if (drawnEdges.has(edgeKey)) return;
@@ -321,7 +303,7 @@
         // Render Nodes for current floor
         for (let nodeId in locationsData) {
             const loc = locationsData[nodeId];
-            if (loc.floor !== currentFloor) continue;
+            if (Number(loc.floor) !== Number(currentFloor)) continue;
             if (loc.hidden && !showHiddenDots && selectedNodeId !== nodeId) continue;
 
             const isNamed = loc.is_destination || (!nodeId.startsWith('N') || nodeId === 'N');
@@ -333,14 +315,19 @@
             el.style.left = `${loc.x}%`;
             el.style.top = `${loc.y}%`;
 
-            let dotBg = loc.hidden ? 'bg-gray-400 opacity-60' : (isNamed ? 'bg-[#3b4cb8]' : (isConnectStart ? 'bg-amber-500 animate-bounce' : 'bg-sky-500'));
+            let dotBg = loc.hidden ? 'bg-gray-400 opacity-70' : (isNamed ? 'bg-[#3b4cb8]' : (isConnectStart ? 'bg-amber-500 animate-bounce' : 'bg-sky-500'));
+            let dotSize = isNamed ? 'w-5 h-5' : 'w-3.5 h-3.5';
 
             el.innerHTML = `
-                <div class="relative flex items-center justify-center group" onclick="handleNodeClick(event, '${nodeId}')" onmousedown="handleNodeMouseDown(event, '${nodeId}')">
-                    <div class="w-4 h-4 rounded-full ${dotBg} border-2 border-white shadow-md transition transform group-hover:scale-125"></div>
-                    ${isNamed ? `<div class="absolute -top-5 bg-[#3b4cb8] text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow pointer-events-none whitespace-nowrap">${nodeId}</div>` : ''}
+                <div class="relative flex items-center justify-center group">
+                    <div class="${dotSize} rounded-full ${dotBg} border-2 border-white shadow-md transition transform group-hover:scale-125"></div>
+                    ${isNamed ? `<div class="absolute -top-6 bg-[#3b4cb8] text-white text-[9px] font-bold px-2 py-0.5 rounded shadow pointer-events-none whitespace-nowrap">${nodeId}</div>` : ''}
                 </div>
             `;
+
+            el.addEventListener('click', (e) => handleNodeClick(e, nodeId));
+            el.addEventListener('mousedown', (e) => handleNodeMouseDown(e, nodeId));
+
             nodesLayer.appendChild(el);
         }
     }
@@ -416,7 +403,7 @@
             let xPct = parseFloat((((e.clientX - rect.left) / rect.width) * 100).toFixed(2));
             let yPct = parseFloat((((e.clientY - rect.top) / rect.height) * 100).toFixed(2));
 
-            const name = prompt("Enter new room / location name (e.g. Hall):", `Hall_${Math.floor(Math.random() * 100)}`);
+            const name = prompt("Enter new room / location name (e.g. Hall, Meeting Room):", `Hall_${Math.floor(Math.random() * 100)}`);
             if (name && name.trim()) {
                 const nodeKey = name.trim();
                 locationsData[nodeKey] = { 
@@ -450,7 +437,7 @@
         if (neighbors.length === 0) {
             nbrsContainer.innerHTML = '<span class="text-gray-400 italic">No neighbors connected</span>';
         } else {
-            nbrsContainer.innerHTML = neighbors.map(nbr => `<div class="text-gray-800 font-bold">• ${nbr}</div>`).join('');
+            nbrsContainer.innerHTML = neighbors.map(nbr => `<div class="text-gray-800 font-bold flex items-center gap-1"><span class="text-sky-500">?</span> ${nbr}</div>`).join('');
         }
     }
 
@@ -563,8 +550,11 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('load', () => {
         switchFloor(1);
+    });
+    window.addEventListener('resize', () => {
+        renderEditorMap();
     });
 </script>
 @endsection
