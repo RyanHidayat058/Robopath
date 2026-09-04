@@ -338,7 +338,7 @@
                 <i class="fa-solid fa-building-user text-sky-400"></i> LANTAI 2 (Upper Floor - Direksi &amp; Meeting Rooms)
             </div>
             <svg class="path-svg" id="fullview-path-svg-f2"></svg>
-            <div id="fullview-robots-overlay-f2"></div>
+            <div id="fullview-robots-overlay-f2" class="absolute inset-0 pointer-events-none"></div>
         </div>
 
         <!-- Floor 1 (Bawah) -->
@@ -347,7 +347,7 @@
                 <i class="fa-solid fa-building-user text-emerald-400"></i> LANTAI 1 (Ground Floor - Lobby &amp; Office)
             </div>
             <svg class="path-svg" id="fullview-path-svg-f1"></svg>
-            <div id="fullview-robots-overlay-f1"></div>
+            <div id="fullview-robots-overlay-f1" class="absolute inset-0 pointer-events-none"></div>
         </div>
     </div>
 </div>
@@ -365,7 +365,9 @@
             name: '{{ addslashes($loc['name'] ?? $id) }}',
             x: {{ $loc['x'] }}, 
             y: {{ $loc['y'] }}, 
-            floor: {{ $loc['floor'] ?? 1 }} 
+            floor: {{ $loc['floor'] ?? 1 }},
+            hidden: {{ ($loc['hidden'] ?? false) ? 'true' : 'false' }},
+            is_destination: {{ ($loc['is_destination'] ?? false) ? 'true' : 'false' }}
         },
         @endforeach
     };
@@ -379,6 +381,7 @@
     let robots = @json($robots);
     let activeDeliveries = @json($activeDeliveries);
     let activeAlerts = @json($activeAlerts ?? []);
+    let isAutopilotEnabled = {{ Illuminate\Support\Facades\Cache::get('autopilot_enabled', false) ? 'true' : 'false' }};
     let serverClientOffset = 0;
     let currentDashboardFloor = 1;
     let isFullViewMode = false;
@@ -936,6 +939,7 @@
                         }
                         taskText = `Delivered ${delivery.item_name} to ${locations[mission.destId]?.name || delivery.destination_location}`;
                         currentLocName = locations[mission.destId]?.name || delivery.destination_location;
+                        completeDeliveryAPI(delivery.id, coords.x, coords.y);
                     } else {
                         let activeStage = null;
                         for (let st of mission.stages) {
@@ -1094,8 +1098,18 @@
             function createRobotMarker(compact = false) {
                 const marker = document.createElement('div');
                 marker.className = 'robot-marker z-30';
-                marker.style.left = `${coords.x}%`;
-                marker.style.top = `${coords.y}%`;
+                
+                let displayX = coords.x;
+                let displayY = coords.y;
+                if (robot.status === 'Idle' && !robot.isReturning && !hasIssue && Number(floorNum) === 1) {
+                    const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
+                    if (Math.hypot(coords.x - baseLoc.x, coords.y - baseLoc.y) < 1.5) {
+                        displayX = baseLoc.x + (Number(robot.id) - 2) * 2.2;
+                    }
+                }
+
+                marker.style.left = `${displayX}%`;
+                marker.style.top = `${displayY}%`;
                 
                 const sizeClass = compact ? 'w-6 h-6' : 'w-8 h-8';
                 const pingClass = compact ? 'h-8 w-8' : 'h-10 w-10';
@@ -1269,43 +1283,86 @@
         issueRobots.forEach(r => fixRobotAction(r.id));
     }
 
-    // Autopilot Management
+    // Delivery Completion API
+    function completeDeliveryAPI(deliveryId, finalX, finalY) {
+        const delivery = activeDeliveries.find(d => d.id === deliveryId);
+        if (!delivery || delivery.isCompleting) return;
+        delivery.isCompleting = true;
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        fetch(`/api/deliveries/${deliveryId}/complete`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ current_x: finalX, current_y: finalY })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
+                if (robot && data.robot) {
+                    robot.status = data.robot.status;
+                }
+                fetchData();
+            }
+        })
+        .catch(err => {
+            console.error('Error completing delivery:', err);
+            delivery.isCompleting = false;
+        });
+    }
+
+    // Autopilot Management (System-Wide via Backend & Client Sync)
     function toggleAutopilot() {
         if (!window.isAdmin) {
             alert('Akses Terbatas: Hanya Admin / Bot Control yang dapat mengontrol Autopilot.');
             return;
         }
 
-        const isCurrentlyActive = localStorage.getItem('autopilot_enabled') === 'true';
-        const nextState = !isCurrentlyActive;
-        localStorage.setItem('autopilot_enabled', nextState ? 'true' : 'false');
-
+        const nextState = !isAutopilotEnabled;
+        isAutopilotEnabled = nextState;
         updateAutopilotUI();
 
-        if (nextState) {
-            // "nah auto pilot ini kita simulasiin dia bekerja semua serentak"
-            dispatchAllRobotsSerentak();
-        } else {
-            // "dan bisain juga cancel auto pilotnya kalo di cancel semua berenti bekerja tapi kelarin dulu baru balik ke markas"
-            console.log('Autopilot cancelled. Active deliveries will complete then return to N7 base station.');
-        }
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        fetch('/api/system/autopilot', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ enabled: nextState })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                isAutopilotEnabled = !!data.autopilot_enabled;
+                updateAutopilotUI();
+                fetchData();
+            }
+        })
+        .catch(err => console.error('Error toggling autopilot:', err));
     }
 
     function updateAutopilotUI() {
-        const isAutopilotActive = localStorage.getItem('autopilot_enabled') === 'true';
         const btn = document.getElementById('autopilot-btn');
         const text = document.getElementById('autopilot-text');
         const icon = document.getElementById('autopilot-icon');
 
         if (!btn || !text) return;
 
-        if (isAutopilotActive) {
+        if (isAutopilotEnabled) {
             btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30";
             text.innerHTML = '<span class="relative flex h-2 w-2 mr-1"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span></span> Autopilot: ON (SERENTAK)';
             if (icon) icon.className = "fa-solid fa-robot animate-bounce";
         } else {
             if (window.isAdmin) {
                 btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300";
+            } else {
+                btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed";
             }
             text.textContent = 'Autopilot: OFF (MANUAL)';
             if (icon) icon.className = "fa-solid fa-wand-magic-sparkles";
@@ -1313,9 +1370,12 @@
     }
 
     function dispatchAllRobotsSerentak() {
-        if (localStorage.getItem('autopilot_enabled') !== 'true') return;
+        if (!isAutopilotEnabled) return;
 
-        const destinationNodeIds = Object.keys(locations).filter(id => locations[id].is_destination);
+        let destinationNodeIds = Object.keys(locations).filter(id => locations[id].is_destination);
+        if (destinationNodeIds.length < 2) {
+            destinationNodeIds = Object.keys(locations).filter(id => !id.includes('_N') && !id.includes('_Stairs'));
+        }
         if (destinationNodeIds.length < 2) return;
 
         const items = ['Handuk', 'Makanan', 'Dokumen', 'Kopi', 'Paket', 'Botol Air', 'Sparepart'];
@@ -1376,14 +1436,13 @@
 
     let lastAutopilotCheck = 0;
     function runAutopilotManager() {
-        const isAutopilotActive = localStorage.getItem('autopilot_enabled') === 'true';
-        if (!isAutopilotActive) return;
+        if (!isAutopilotEnabled) return;
 
         const now = Date.now();
         if (now - lastAutopilotCheck < 3000) return;
         lastAutopilotCheck = now;
 
-        // Check if any robot is Idle at N7 and ready to be dispatched
+        // Check if any robot is Idle and ready to be dispatched
         const readyRobots = robots.filter(r => 
             r.status === 'Idle' && 
             !r.isReturning && 
@@ -1405,6 +1464,13 @@
                 const serverTime = new Date(data.server_time);
                 const clientTime = new Date();
                 serverClientOffset = serverTime.getTime() - clientTime.getTime();
+            }
+
+            if (typeof data.autopilot_enabled !== 'undefined') {
+                if (isAutopilotEnabled !== data.autopilot_enabled) {
+                    isAutopilotEnabled = !!data.autopilot_enabled;
+                    updateAutopilotUI();
+                }
             }
             
             if (window.activeDeliveries && Array.isArray(window.activeDeliveries)) {
