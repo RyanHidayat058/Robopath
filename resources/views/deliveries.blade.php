@@ -495,6 +495,92 @@
         };
     }
 
+    function planRouteBetween(fromId, toId) {
+        if (!locations[fromId] || !locations[toId]) return [];
+        const f1 = Number(locations[fromId].floor || 1);
+        const f2 = Number(locations[toId].floor || 1);
+        
+        if (f1 === f2) {
+            const p = findShortestPath(fromId, toId);
+            return [{ type: 'travel', floor: f1, path: p }];
+        } else {
+            const stairsFrom = f1 === 1 ? '1_Stairs' : '2_Stairs';
+            const stairsTo = f2 === 1 ? '1_Stairs' : '2_Stairs';
+            const p1 = findShortestPath(fromId, stairsFrom);
+            const p2 = findShortestPath(stairsTo, toId);
+            return [
+                { type: 'travel', floor: f1, path: p1 },
+                { type: 'stairs', fromFloor: f1, toFloor: f2, fromNode: stairsFrom, toNode: stairsTo, durationMs: 5500 },
+                { type: 'travel', floor: f2, path: p2 }
+            ];
+        }
+    }
+
+    function buildReturnMission(robot, now) {
+        const currentLocId = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1);
+        const targetId = '1_N7';
+        if (!currentLocId || currentLocId === targetId) return null;
+
+        const rawStages = planRouteBetween(currentLocId, targetId);
+        if (!rawStages || rawStages.length === 0) return null;
+
+        const consolidatedStages = [];
+        for (let st of rawStages) {
+            if (consolidatedStages.length > 0) {
+                const prev = consolidatedStages[consolidatedStages.length - 1];
+                if (prev.type === 'travel' && st.type === 'travel' && prev.floor === st.floor) {
+                    if (st.path && st.path.length > 0) {
+                        prev.path = [...prev.path, ...st.path.slice(1)];
+                    }
+                    continue;
+                }
+            }
+            consolidatedStages.push(st);
+        }
+
+        let totalTravelSegments = 0;
+        consolidatedStages.forEach(st => {
+            if (st.type === 'travel') totalTravelSegments += Math.max(1, (st.path?.length || 1) - 1);
+        });
+
+        const baseTravelTimeMs = 24000;
+        let accumulatedMs = 0;
+        consolidatedStages.forEach(st => {
+            st.startMs = accumulatedMs;
+            if (st.type === 'stairs') {
+                st.durationMs = 5500;
+            } else {
+                const segCount = Math.max(1, (st.path?.length || 1) - 1);
+                st.durationMs = Math.max(5000, Math.round(baseTravelTimeMs * (segCount / Math.max(1, totalTravelSegments))));
+            }
+            accumulatedMs += st.durationMs;
+        });
+
+        return {
+            originId: currentLocId,
+            destId: targetId,
+            stages: consolidatedStages,
+            totalDurationMs: accumulatedMs,
+            startedAt: now.getTime() + 1500
+        };
+    }
+
+    function syncRobotBaseLocation(robotId, bx, by) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        fetch(`/api/robots/${robotId}/telemetry`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf || '',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                current_x: bx,
+                current_y: by
+            })
+        }).catch(err => console.error('Error syncing base station location:', err));
+    }
+
     function getDeliveryMission(delivery, robot) {
         if (delivery._cachedMission) return delivery._cachedMission;
 
@@ -509,27 +595,6 @@
 
         const validStart = (startNodeId && locations[startNodeId]) ? startNodeId : '1_N7';
         const validDest = (destNodeId && locations[destNodeId]) ? destNodeId : '2_Ruang Direktur';
-
-        function planRouteBetween(fromId, toId) {
-            if (!locations[fromId] || !locations[toId]) return [];
-            const f1 = Number(locations[fromId].floor || 1);
-            const f2 = Number(locations[toId].floor || 1);
-            
-            if (f1 === f2) {
-                const p = findShortestPath(fromId, toId);
-                return [{ type: 'travel', floor: f1, path: p }];
-            } else {
-                const stairsFrom = f1 === 1 ? '1_Stairs' : '2_Stairs';
-                const stairsTo = f2 === 1 ? '1_Stairs' : '2_Stairs';
-                const p1 = findShortestPath(fromId, stairsFrom);
-                const p2 = findShortestPath(stairsTo, toId);
-                return [
-                    { type: 'travel', floor: f1, path: p1 },
-                    { type: 'stairs', fromFloor: f1, toFloor: f2, fromNode: stairsFrom, toNode: stairsTo, durationMs: 5500 },
-                    { type: 'travel', floor: f2, path: p2 }
-                ];
-            }
-        }
 
         let rawStages = (originNodeId !== validStart) ? [...planRouteBetween(originNodeId, validStart), ...planRouteBetween(validStart, validDest)] : planRouteBetween(validStart, validDest);
         const consolidatedStages = [];
@@ -570,6 +635,7 @@
         if (!svg) return;
         svg.innerHTML = '';
         
+        // 1. Draw delivery paths
         activeDeliveries.forEach(delivery => {
             const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
             if (!robot || robot.status !== 'Delivering') return;
@@ -605,6 +671,39 @@
                 }
             });
         });
+
+        // 2. Draw return paths for returning idle robots
+        robots.forEach(robot => {
+            if (robot.status === 'Idle' && robot.returnMission && robot.returnMission.stages) {
+                robot.returnMission.stages.forEach(st => {
+                    if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
+                    if (Number(st.floor) !== Number(liveCurrentFloor)) return;
+                    
+                    const container = document.getElementById('map-container');
+                    if (!container) return;
+                    
+                    let pointsStr = '';
+                    st.path.forEach(nodeId => {
+                        const node = locations[nodeId];
+                        if (!node) return;
+                        const px = (node.x / 100) * container.clientWidth;
+                        const py = (node.y / 100) * container.clientHeight;
+                        pointsStr += `${px},${py} `;
+                    });
+                    
+                    if (pointsStr.trim()) {
+                        const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                        polyline.setAttribute('points', pointsStr.trim());
+                        polyline.setAttribute('stroke', '#6366f1');
+                        polyline.setAttribute('stroke-width', '2');
+                        polyline.setAttribute('stroke-dasharray', '4,4');
+                        polyline.setAttribute('fill', 'none');
+                        polyline.setAttribute('opacity', '0.85');
+                        svg.appendChild(polyline);
+                    }
+                });
+            }
+        });
     }
 
     function runSimulationStep() {
@@ -630,6 +729,8 @@
             }
             
             if (robot.status === 'Delivering' && delivery) {
+                robot.isReturning = false;
+                robot.returnMission = null;
                 statusColor = 'bg-sky-500';
                 const mission = getDeliveryMission(delivery, robot);
                 
@@ -697,12 +798,94 @@
                 }
             } else if (robot.status === 'Idle') {
                 const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
-                coords = { x: robot.current_x || baseLoc.x, y: robot.current_y || baseLoc.y };
-                floorNum = robot.floor || 1;
+                const distToBase = (Number(robot.floor || 1) === 1) 
+                    ? Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) 
+                    : 999;
+
+                if (distToBase > 0.8) {
+                    if (!robot.returnMission) {
+                        robot.returnMission = buildReturnMission(robot, now);
+                    }
+                }
+
+                if (robot.returnMission) {
+                    robot.isReturning = true;
+                    statusColor = 'bg-indigo-500';
+                    const mission = robot.returnMission;
+                    const elapsedMs = now.getTime() - mission.startedAt;
+                    let angle = 0;
+
+                    if (elapsedMs < 0) {
+                        taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-box-open mr-1"></i> Selesai antar, persiapan balik ke N7...</span>`;
+                        coords = { x: robot.current_x, y: robot.current_y };
+                        floorNum = robot.floor || 1;
+                    } else if (elapsedMs >= mission.totalDurationMs) {
+                        coords = { x: baseLoc.x, y: baseLoc.y };
+                        floorNum = 1;
+                        robot.current_x = baseLoc.x;
+                        robot.current_y = baseLoc.y;
+                        robot.floor = 1;
+                        robot.returnMission = null;
+                        robot.isReturning = false;
+                        taskText = 'Standby at base station (N7)';
+                        syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
+                    } else {
+                        let activeStage = null;
+                        for (let st of mission.stages) {
+                            if (elapsedMs >= st.startMs && elapsedMs < st.startMs + st.durationMs) {
+                                activeStage = st;
+                                break;
+                            }
+                        }
+                        if (!activeStage) activeStage = mission.stages[mission.stages.length - 1];
+
+                        const stageElapsed = Math.max(0, elapsedMs - activeStage.startMs);
+                        const stageRatio = Math.max(0, Math.min(stageElapsed / activeStage.durationMs, 1.0));
+
+                        if (activeStage.type === 'stairs') {
+                            const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
+                            const isSecondHalf = stageRatio >= 0.5;
+                            floorNum = isSecondHalf ? activeStage.toFloor : activeStage.fromFloor;
+                            const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
+                            coords = locations[currentNodeId] || coords;
+                            taskText = `Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...`;
+                            statusColor = 'bg-amber-500';
+                        } else {
+                            floorNum = activeStage.floor || 1;
+                            const path = activeStage.path || [];
+                            if (path.length >= 2) {
+                                const floatIdx = stageRatio * (path.length - 1);
+                                const currentSegIdx = Math.max(0, Math.min(Math.floor(floatIdx), path.length - 2));
+                                const ratioInSegment = floatIdx - currentSegIdx;
+                                const p1 = locations[path[currentSegIdx]];
+                                const p2 = locations[path[currentSegIdx + 1]];
+                                if (p1 && p2) {
+                                    coords = interpolate(p1, p2, ratioInSegment);
+                                    const dx = p2.x - p1.x;
+                                    const dy = p2.y - p1.y;
+                                    if (dx !== 0 || dy !== 0) angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+                                }
+                            } else if (path.length === 1 && locations[path[0]]) {
+                                coords = locations[path[0]];
+                            }
+                            taskText = `Kembali ke Markas (N7)...`;
+                        }
+
+                        robot.current_x = coords.x;
+                        robot.current_y = coords.y;
+                        robot.floor = floorNum;
+                        robot.rotation = angle;
+                    }
+                } else {
+                    robot.isReturning = false;
+                    coords = { x: robot.current_x || baseLoc.x, y: robot.current_y || baseLoc.y };
+                    floorNum = robot.floor || 1;
+                }
             }
             
             if (overlay && Number(floorNum) === Number(liveCurrentFloor)) {
                 const isTransit = taskText.includes('Transit Tangga');
+                const isReturning = taskText.includes('Kembali ke Markas') || taskText.includes('Selesai antar');
                 const marker = document.createElement('div');
                 marker.className = 'robot-marker z-30';
                 marker.style.left = `${coords.x}%`;
@@ -711,8 +894,8 @@
                 marker.innerHTML = `
                     <div class="relative flex items-center justify-center">
                         <span class="animate-ping absolute inline-flex h-10 w-10 rounded-full ${statusColor} opacity-40"></span>
-                        <div class="relative w-8 h-8 rounded-xl bg-white border ${isTransit ? 'border-amber-400 ring-2 ring-amber-300' : 'border-gray-300'} flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
-                            <i class="fa-solid ${isTransit ? 'fa-stairs text-amber-500 animate-bounce' : 'fa-robot'} text-xs ${robot.status === 'Delivering' && !isTransit ? 'text-[#3b4cb8]' : (robot.status === 'Charging' ? 'text-orange-400' : (robot.status === 'Maintenance' ? 'text-red-500' : (isTransit ? 'text-amber-500' : 'text-green-600')))}"></i>
+                        <div class="relative w-8 h-8 rounded-xl bg-white border ${isTransit ? 'border-amber-400 ring-2 ring-amber-300' : (isReturning ? 'border-indigo-400 ring-2 ring-indigo-300' : 'border-gray-300')} flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
+                            <i class="fa-solid ${isTransit ? 'fa-stairs text-amber-500 animate-bounce' : (isReturning ? 'fa-arrow-rotate-left text-indigo-600' : 'fa-robot')} text-xs ${robot.status === 'Delivering' && !isTransit ? 'text-[#3b4cb8]' : (robot.status === 'Charging' ? 'text-orange-400' : (robot.status === 'Maintenance' ? 'text-red-500' : (isTransit ? 'text-amber-500' : (isReturning ? 'text-indigo-600' : 'text-green-600'))))}"></i>
                         </div>
                         <div class="absolute -top-6 bg-white/95 text-gray-700 border border-gray-200 text-[8px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
                             ${robot.name.split(' ')[1]} (${robot.battery_level}%)
@@ -757,10 +940,10 @@
         const currentValue = select.value;
         select.innerHTML = '<option value="" disabled>Choose a robot...</option>';
         robots.forEach(robot => {
-            const isBusy = robot.status !== 'Idle' || robot.battery_level <= 20;
+            const isBusy = robot.status !== 'Idle' || robot.battery_level <= 20 || robot.isReturning;
             const option = document.createElement('option');
             option.value = robot.id;
-            option.textContent = `${robot.name} (${robot.status} - Bat: ${robot.battery_level}%) ${isBusy ? (robot.status !== 'Idle' ? '[Busy]' : '[Low Battery]') : ''}`;
+            option.textContent = `${robot.name} (${robot.isReturning ? 'Returning' : robot.status} - Bat: ${robot.battery_level}%) ${isBusy ? (robot.isReturning ? '[Returning to N7]' : (robot.status !== 'Idle' ? '[Busy]' : '[Low Battery]')) : ''}`;
             if (isBusy) option.disabled = true;
             if (robot.id.toString() === currentValue) option.selected = true;
             select.appendChild(option);
@@ -772,13 +955,13 @@
         const stored = localStorage.getItem('autopilot_enabled');
         if (stored !== null && stored === 'false') return;
         
-        const idleRobots = robots.filter(r => r.status === 'Idle' && r.battery_level > 20);
+        const idleRobots = robots.filter(r => r.status === 'Idle' && r.battery_level > 20 && !r.isReturning);
         idleRobots.forEach(robot => {
-            if (robot.isDispatching) return;
+            if (robot.isDispatching || robot.isReturning) return;
             robot.isDispatching = true;
             
             setTimeout(() => {
-                if (robot.status !== 'Idle') { robot.isDispatching = false; return; }
+                if (robot.status !== 'Idle' || robot.isReturning) { robot.isDispatching = false; return; }
                 const items = ['Handuk', 'Makanan', 'Dokumen', 'Kopi', 'Paket', 'Botol Air', 'Sparepart'];
                 const destinationNodeIds = Object.keys(locations).filter(id => locations[id].is_destination);
                 
@@ -925,10 +1108,13 @@
                 if (existing) {
                     if (existing.status !== newRobot.status) {
                         existing.status = newRobot.status;
+                        if (!existing.isReturning) {
+                            existing.current_x = newRobot.current_x;
+                            existing.current_y = newRobot.current_y;
+                        }
+                    } else if (!existing.isReturning && existing.status !== 'Delivering') {
                         existing.current_x = newRobot.current_x;
                         existing.current_y = newRobot.current_y;
-                        existing.returnPath = null;
-                        existing.returnStartedAt = null;
                     }
                     existing.battery_level = newRobot.battery_level;
                 } else {
