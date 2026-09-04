@@ -7,6 +7,7 @@ use App\Models\Report;
 use App\Models\Robot;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class TelemetryController extends Controller
 {
@@ -25,6 +26,11 @@ class TelemetryController extends Controller
             }
         }
 
+        $isAutopilot = (bool) Cache::get('autopilot_enabled', false);
+        if ($isAutopilot) {
+            $this->dispatchAutopilotDeliveries();
+        }
+
         $robots = Robot::all();
         $activeDeliveries = Delivery::with('robot')->whereIn('status', ['In Progress', 'Pending'])->get();
         $activeAlerts = Report::with('robot')->where('status', 'Active')->get();
@@ -41,6 +47,7 @@ class TelemetryController extends Controller
             'active_deliveries' => $activeDeliveries,
             'active_alerts' => $activeAlerts,
             'recent_deliveries' => $recentDeliveries,
+            'autopilot_enabled' => $isAutopilot,
             'server_time' => Carbon::now()->toIso8601String(),
         ]);
     }
@@ -380,5 +387,95 @@ class TelemetryController extends Controller
             'message' => 'Graph map data updated and saved successfully!',
             'total_nodes' => count($request->locations),
         ]);
+    }
+
+    public function toggleAutopilot(Request $request)
+    {
+        $enabled = (bool) $request->input('enabled');
+        Cache::forever('autopilot_enabled', $enabled);
+
+        if ($enabled) {
+            $this->dispatchAutopilotDeliveries();
+        }
+
+        return response()->json([
+            'success' => true,
+            'autopilot_enabled' => $enabled,
+            'message' => $enabled ? 'Autopilot diaktifkan: semua bot idle akan diberangkatkan serentak.' : 'Autopilot dinonaktifkan: pengantaran aktif akan diselesaikan lalu bot kembali ke markas.',
+        ]);
+    }
+
+    public function dispatchAutopilotDeliveries()
+    {
+        $graphPath = base_path('graph.json');
+        if (! file_exists($graphPath)) {
+            return;
+        }
+
+        $graph = json_decode(file_get_contents($graphPath), true);
+        $destinations = [];
+        if (! empty($graph['locations'])) {
+            foreach ($graph['locations'] as $loc) {
+                if (! empty($loc['is_destination'])) {
+                    $destinations[] = $loc['id'];
+                }
+            }
+        }
+
+        // Fallback destination list if is_destination is empty
+        if (count($destinations) < 2 && ! empty($graph['locations'])) {
+            foreach ($graph['locations'] as $loc) {
+                if (empty($loc['hidden']) && ! str_contains($loc['id'], '_N') && ! str_contains($loc['id'], '_Stairs')) {
+                    $destinations[] = $loc['id'];
+                }
+            }
+        }
+
+        if (count($destinations) < 2) {
+            return;
+        }
+
+        $items = ['Handuk', 'Makanan', 'Dokumen', 'Kopi', 'Paket', 'Botol Air', 'Sparepart'];
+
+        // Find idle healthy robots without active alerts
+        $idleRobots = Robot::where('status', 'Idle')
+            ->where('battery_level', '>', 20)
+            ->whereNotIn('id', function ($query) {
+                $query->select('robot_id')
+                    ->from('reports')
+                    ->where('status', 'Active');
+            })
+            ->get();
+
+        foreach ($idleRobots as $robot) {
+            $hasActive = Delivery::where('robot_id', $robot->id)
+                ->whereIn('status', ['In Progress', 'Pending'])
+                ->exists();
+
+            if ($hasActive) {
+                continue;
+            }
+
+            // Pick start and destination
+            $startLoc = $destinations[array_rand($destinations)];
+            $destLoc = $destinations[array_rand($destinations)];
+            while ($destLoc === $startLoc) {
+                $destLoc = $destinations[array_rand($destinations)];
+            }
+
+            $item = $items[array_rand($items)];
+
+            $robot->update(['status' => 'Delivering']);
+
+            Delivery::create([
+                'robot_id' => $robot->id,
+                'item_name' => $item,
+                'origin_location' => '1_N7',
+                'start_location' => $startLoc,
+                'destination_location' => $destLoc,
+                'status' => 'In Progress',
+                'started_at' => Carbon::now(),
+            ]);
+        }
     }
 }

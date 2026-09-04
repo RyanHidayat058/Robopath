@@ -265,7 +265,7 @@
     
     let simulationInterval = null;
     let syncInterval = null;
-    let autopilotEnabled = true;
+    let autopilotEnabled = {{ Illuminate\Support\Facades\Cache::get('autopilot_enabled', false) ? 'true' : 'false' }};
 
     function switchLiveFloor(floorNum) {
         liveCurrentFloor = floorNum;
@@ -1025,7 +1025,7 @@
     }
 
     function runAutopilotManager() {
-        const isEnabled = localStorage.getItem('autopilot_enabled') === 'true';
+        const isEnabled = autopilotEnabled || localStorage.getItem('autopilot_enabled') === 'true';
         if (!isEnabled) return;
         
         const idleRobots = robots.filter(r => r.status === 'Idle' && r.battery_level > 20 && !r.isReturning);
@@ -1174,6 +1174,9 @@
             }
             activeDeliveries = data.active_deliveries;
             activeAlerts = data.active_alerts;
+            if (typeof data.autopilot_enabled !== 'undefined') {
+                autopilotEnabled = !!data.autopilot_enabled;
+            }
             
             // Merge robots data keeping local animation properties
             data.robots.forEach(newRobot => {

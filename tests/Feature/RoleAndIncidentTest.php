@@ -104,4 +104,44 @@ class RoleAndIncidentTest extends TestCase
         $delivery->delete();
         $robot->update(['status' => 'Idle', 'battery_level' => 100]);
     }
+
+    public function test_autopilot_toggle_and_auto_dispatch(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $karyawan = User::factory()->create(['role' => 'karyawan']);
+
+        $robot = Robot::create([
+            'name' => 'Robot Alpha',
+            'status' => 'Idle',
+            'battery_level' => 100,
+            'current_x' => 80.6,
+            'current_y' => 68.48,
+            'floor' => 1,
+        ]);
+
+        // 1. Enable Autopilot
+        $resp = $this->actingAs($admin)->postJson('/api/system/autopilot', ['enabled' => true]);
+        $resp->assertStatus(200);
+        $resp->assertJson(['success' => true, 'autopilot_enabled' => true]);
+
+        // 2. Both Admin and Karyawan see autopilot_enabled in telemetry and robot should be dispatched
+        $telemetry = $this->actingAs($karyawan)->getJson('/api/telemetry');
+        $telemetry->assertStatus(200);
+        $telemetry->assertJson(['autopilot_enabled' => true]);
+
+        $robot->refresh();
+        $this->assertEquals('Delivering', $robot->status);
+        $this->assertDatabaseHas('deliveries', [
+            'robot_id' => $robot->id,
+            'status' => 'In Progress',
+        ]);
+
+        // 3. Disable Autopilot
+        $respOff = $this->actingAs($admin)->postJson('/api/system/autopilot', ['enabled' => false]);
+        $respOff->assertStatus(200);
+        $respOff->assertJson(['success' => true, 'autopilot_enabled' => false]);
+
+        $telemetryOff = $this->actingAs($karyawan)->getJson('/api/telemetry');
+        $telemetryOff->assertJson(['autopilot_enabled' => false]);
+    }
 }
