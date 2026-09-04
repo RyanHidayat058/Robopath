@@ -15,10 +15,14 @@ npm-debug.log
 yarn-error.log
 /.idea
 /.vscode
+*.py
 *.pyc
 __pycache__/
-fix_*.py
-inject*.py
-prune_*.py
-inspect_*.py
-remove_*.py
+
+# AI Agent metadata & guidelines
+.agents/
+.ai/
+AGENTS.md
+CLAUDE.md
+boost.json
+
