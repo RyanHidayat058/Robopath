@@ -630,71 +630,130 @@
         return mission;
     }
 
+    function getRobotColor(robotId) {
+        const id = Number(robotId);
+        if (id === 1) return '#0284c7'; // Sky blue for Alpha
+        if (id === 2) return '#8b5cf6'; // Purple for Beta
+        if (id === 3) return '#f59e0b'; // Amber for Gamma
+        return '#10b981';
+    }
+
     function drawRobotPaths() {
         const svg = document.getElementById('path-svg');
         if (!svg) return;
         svg.innerHTML = '';
         
-        // 1. Draw delivery paths
+        const now = new Date(new Date().getTime() + serverClientOffset);
+        
+        // 1. Draw delivery paths (with trimming)
         activeDeliveries.forEach(delivery => {
             const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
-            if (!robot || robot.status !== 'Delivering') return;
+            if (!robot || (robot.status !== 'Delivering' && delivery.status !== 'Pending')) return;
             
             const mission = getDeliveryMission(delivery, robot);
             if (!mission || !mission.stages) return;
+
+            const robotColor = getRobotColor(robot.id);
+            const startedTime = parseServerDate(delivery.started_at);
+            const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
 
             mission.stages.forEach(st => {
                 if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
                 if (Number(st.floor) !== Number(liveCurrentFloor)) return;
                 
+                const stageEndMs = st.startMs + st.durationMs;
+                if (elapsedMs >= stageEndMs && delivery.status !== 'Pending') return;
+
+                const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs) || delivery.status === 'Pending';
+                const isFutureStage = (elapsedMs < st.startMs);
+
+                const remainingPts = [];
+                if (isCurrentActive) {
+                    remainingPts.push({ x: robot.current_x, y: robot.current_y });
+                    const segIdx = robot.currentSegIdx || 0;
+                    for (let i = segIdx + 1; i < st.path.length; i++) {
+                        if (locations[st.path[i]]) remainingPts.push(locations[st.path[i]]);
+                    }
+                } else if (isFutureStage) {
+                    st.path.forEach(nodeId => {
+                        if (locations[nodeId]) remainingPts.push(locations[nodeId]);
+                    });
+                } else {
+                    return;
+                }
+
+                if (remainingPts.length < 2) return;
+
                 const container = document.getElementById('map-container');
                 if (!container) return;
                 
                 let pointsStr = '';
-                st.path.forEach(nodeId => {
-                    const node = locations[nodeId];
-                    if (!node) return;
-                    const px = (node.x / 100) * container.clientWidth;
-                    const py = (node.y / 100) * container.clientHeight;
+                remainingPts.forEach(pt => {
+                    const px = (pt.x / 100) * container.clientWidth;
+                    const py = (pt.y / 100) * container.clientHeight;
                     pointsStr += `${px},${py} `;
                 });
                 
                 if (pointsStr.trim()) {
                     const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                     polyline.setAttribute('points', pointsStr.trim());
-                    polyline.setAttribute('stroke', '#38bdf8');
+                    polyline.setAttribute('stroke', robotColor);
                     polyline.setAttribute('stroke-width', '2.5');
-                    polyline.setAttribute('stroke-dasharray', '6,6');
+                    polyline.setAttribute('stroke-dasharray', delivery.status === 'Pending' ? '3,3' : '6,6');
                     polyline.setAttribute('fill', 'none');
-                    polyline.setAttribute('opacity', '0.8');
+                    polyline.setAttribute('opacity', delivery.status === 'Pending' ? '0.5' : '0.85');
                     svg.appendChild(polyline);
                 }
             });
         });
 
-        // 2. Draw return paths for returning idle robots
+        // 2. Draw return paths for returning idle robots (with trimming)
         robots.forEach(robot => {
             if (robot.status === 'Idle' && robot.returnMission && robot.returnMission.stages) {
+                const robotColor = getRobotColor(robot.id);
+                const elapsedMs = now.getTime() - robot.returnMission.startedAt;
+
                 robot.returnMission.stages.forEach(st => {
                     if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
                     if (Number(st.floor) !== Number(liveCurrentFloor)) return;
+                    
+                    const stageEndMs = st.startMs + st.durationMs;
+                    if (elapsedMs >= stageEndMs) return;
+
+                    const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
+                    const isFutureStage = (elapsedMs < st.startMs);
+
+                    const remainingPts = [];
+                    if (isCurrentActive) {
+                        remainingPts.push({ x: robot.current_x, y: robot.current_y });
+                        const segIdx = robot.returnSegIdx || 0;
+                        for (let i = segIdx + 1; i < st.path.length; i++) {
+                            if (locations[st.path[i]]) remainingPts.push(locations[st.path[i]]);
+                        }
+                    } else if (isFutureStage) {
+                        st.path.forEach(nodeId => {
+                            if (locations[nodeId]) remainingPts.push(locations[nodeId]);
+                        });
+                    } else {
+                        return;
+                    }
+
+                    if (remainingPts.length < 2) return;
                     
                     const container = document.getElementById('map-container');
                     if (!container) return;
                     
                     let pointsStr = '';
-                    st.path.forEach(nodeId => {
-                        const node = locations[nodeId];
-                        if (!node) return;
-                        const px = (node.x / 100) * container.clientWidth;
-                        const py = (node.y / 100) * container.clientHeight;
+                    remainingPts.forEach(pt => {
+                        const px = (pt.x / 100) * container.clientWidth;
+                        const py = (pt.y / 100) * container.clientHeight;
                         pointsStr += `${px},${py} `;
                     });
                     
                     if (pointsStr.trim()) {
                         const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                         polyline.setAttribute('points', pointsStr.trim());
-                        polyline.setAttribute('stroke', '#6366f1');
+                        polyline.setAttribute('stroke', robotColor);
                         polyline.setAttribute('stroke-width', '2');
                         polyline.setAttribute('stroke-dasharray', '4,4');
                         polyline.setAttribute('fill', 'none');
@@ -714,12 +773,14 @@
         if (overlay) overlay.innerHTML = '';
         
         robots.forEach(robot => {
-            const delivery = activeDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && d.status === 'In Progress');
+            const delivery = activeDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending'));
             let coords = { x: robot.current_x, y: robot.current_y };
             let floorNum = robot.floor || 1;
             let statusColor = 'bg-emerald-500';
             let taskText = 'Standby at base station (N7)';
             
+            const hasIssue = (robot.status === 'Maintenance' || (robot.status === 'Charging' && robot.battery_level <= 10) || delivery?.status === 'Pending');
+
             if (robot.status === 'Charging') {
                 statusColor = 'bg-orange-500';
                 taskText = 'Battery charging';
@@ -728,7 +789,17 @@
                 taskText = 'Maintenance required';
             }
             
-            if (robot.status === 'Delivering' && delivery) {
+            if (hasIssue) {
+                // Freezes in place while issue is unresolved
+                statusColor = 'bg-rose-600';
+                if (robot.status === 'Maintenance') {
+                    taskText = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Terjadi Masalah / Perlu Diperbaiki</span>';
+                } else if (robot.status === 'Charging' && robot.battery_level <= 10) {
+                    taskText = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-battery-empty mr-1"></i> Baterai Habis! Pengiriman Tertunda</span>';
+                } else {
+                    taskText = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-circle-pause mr-1"></i> Tertunda: Masalah Operasional</span>';
+                }
+            } else if (robot.status === 'Delivering' && delivery && delivery.status === 'In Progress') {
                 robot.isReturning = false;
                 robot.returnMission = null;
                 statusColor = 'bg-sky-500';
@@ -776,6 +847,7 @@
                             if (path.length >= 2) {
                                 const floatIdx = stageRatio * (path.length - 1);
                                 const currentSegIdx = Math.max(0, Math.min(Math.floor(floatIdx), path.length - 2));
+                                robot.currentSegIdx = currentSegIdx;
                                 const ratioInSegment = floatIdx - currentSegIdx;
                                 const p1 = locations[path[currentSegIdx]];
                                 const p2 = locations[path[currentSegIdx + 1]];
@@ -856,6 +928,7 @@
                             if (path.length >= 2) {
                                 const floatIdx = stageRatio * (path.length - 1);
                                 const currentSegIdx = Math.max(0, Math.min(Math.floor(floatIdx), path.length - 2));
+                                robot.returnSegIdx = currentSegIdx;
                                 const ratioInSegment = floatIdx - currentSegIdx;
                                 const p1 = locations[path[currentSegIdx]];
                                 const p2 = locations[path[currentSegIdx + 1]];
@@ -893,12 +966,12 @@
                 
                 marker.innerHTML = `
                     <div class="relative flex items-center justify-center">
-                        <span class="animate-ping absolute inline-flex h-10 w-10 rounded-full ${statusColor} opacity-40"></span>
-                        <div class="relative w-8 h-8 rounded-xl bg-white border ${isTransit ? 'border-amber-400 ring-2 ring-amber-300' : (isReturning ? 'border-indigo-400 ring-2 ring-indigo-300' : 'border-gray-300')} flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
-                            <i class="fa-solid ${isTransit ? 'fa-stairs text-amber-500 animate-bounce' : (isReturning ? 'fa-arrow-rotate-left text-indigo-600' : 'fa-robot')} text-xs ${robot.status === 'Delivering' && !isTransit ? 'text-[#3b4cb8]' : (robot.status === 'Charging' ? 'text-orange-400' : (robot.status === 'Maintenance' ? 'text-red-500' : (isTransit ? 'text-amber-500' : (isReturning ? 'text-indigo-600' : 'text-green-600'))))}"></i>
+                        <span class="animate-ping absolute inline-flex h-10 w-10 rounded-full ${hasIssue ? 'bg-red-500 ring-4 ring-red-400' : statusColor} opacity-40"></span>
+                        <div class="relative w-8 h-8 rounded-xl bg-white border ${hasIssue ? 'border-red-500 ring-4 ring-red-400 animate-bounce' : (isTransit ? 'border-amber-400 ring-2 ring-amber-300' : (isReturning ? 'border-indigo-400 ring-2 ring-indigo-300' : 'border-gray-300'))} flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
+                            <i class="fa-solid ${hasIssue ? 'fa-triangle-exclamation text-red-600' : (isTransit ? 'fa-stairs text-amber-500 animate-bounce' : (isReturning ? 'fa-arrow-rotate-left text-indigo-600' : 'fa-robot'))} text-xs ${hasIssue ? 'text-red-600' : (robot.status === 'Delivering' && !isTransit ? 'text-[#3b4cb8]' : (robot.status === 'Charging' ? 'text-orange-400' : (robot.status === 'Maintenance' ? 'text-red-500' : (isTransit ? 'text-amber-500' : (isReturning ? 'text-indigo-600' : 'text-green-600')))))}"></i>
                         </div>
-                        <div class="absolute -top-6 bg-white/95 text-gray-700 border border-gray-200 text-[8px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
-                            ${robot.name.split(' ')[1]} (${robot.battery_level}%)
+                        <div class="absolute -top-6 ${hasIssue ? 'bg-red-600 text-white border-red-700' : 'bg-white/95 text-gray-700 border-gray-200'} border text-[8px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
+                            ${robot.name.split(' ')[1]} (${robot.battery_level}%)${hasIssue ? ' [PROBLEM]' : ''}
                         </div>
                     </div>
                 `;
@@ -952,8 +1025,8 @@
     }
 
     function runAutopilotManager() {
-        const stored = localStorage.getItem('autopilot_enabled');
-        if (stored !== null && stored === 'false') return;
+        const isEnabled = localStorage.getItem('autopilot_enabled') === 'true';
+        if (!isEnabled) return;
         
         const idleRobots = robots.filter(r => r.status === 'Idle' && r.battery_level > 20 && !r.isReturning);
         idleRobots.forEach(robot => {

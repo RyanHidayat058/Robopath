@@ -61,6 +61,7 @@
                     <span class="text-sm">Dashboard</span>
                 </a>
 
+                @if(auth()->check() && auth()->user()->isAdmin())
                 <a href="{{ route('deliveries') }}" 
                    class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('deliveries') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-route text-lg {{ Route::is('deliveries') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
@@ -84,6 +85,7 @@
                     <i class="fa-solid fa-sliders text-lg {{ Route::is('bot-control') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
                     <span class="text-sm">Bot Control</span>
                 </a>
+                @endif
             </nav>
         </div>
 
@@ -113,12 +115,24 @@
             
             <div class="flex items-center gap-4">
                 <div class="text-right hidden md:block">
-                    <p class="text-sm font-semibold text-gray-800">Admin Supervisor</p>
-                    <p class="text-xs text-gray-500">Warehouse &amp; Delivery</p>
+                    <p class="text-sm font-semibold text-gray-800">{{ auth()->user()->name ?? 'User' }}</p>
+                    <div class="flex items-center justify-end gap-1.5 mt-0.5">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider {{ (auth()->check() && auth()->user()->isAdmin()) ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200' }}">
+                            {{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin Supervisor' : 'Karyawan Staff' }}
+                        </span>
+                    </div>
                 </div>
-                <div class="w-10 h-10 rounded-full bg-brand-light border border-brand-blue/30 flex items-center justify-center text-brand-blue">
-                    <i class="fa-solid fa-user"></i>
+                <div class="w-10 h-10 rounded-full {{ (auth()->check() && auth()->user()->isAdmin()) ? 'bg-brand-light text-brand-blue border-brand-blue/30' : 'bg-emerald-100 text-emerald-700 border-emerald-300' }} border flex items-center justify-center font-bold text-sm">
+                    <i class="fa-solid {{ (auth()->check() && auth()->user()->isAdmin()) ? 'fa-user-shield' : 'fa-user' }}"></i>
                 </div>
+                <form action="{{ route('logout') }}" method="POST" class="inline">
+                    @csrf
+                    <button type="submit" title="Logout" 
+                            class="w-9 h-9 rounded-xl bg-gray-100 hover:bg-rose-50 text-gray-500 hover:text-rose-600 border border-gray-200 hover:border-rose-200 flex items-center justify-center transition"
+                            onclick="return confirm('Apakah Anda yakin ingin logout?');">
+                        <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+                    </button>
+                </form>
             </div>
         </header>
 
@@ -144,6 +158,10 @@
         }
     </style>
 
+    <script>
+        window.currentUserRole = "{{ auth()->user()->role ?? 'karyawan' }}";
+        window.isAdmin = {{ (auth()->check() && auth()->user()->isAdmin()) ? 'true' : 'false' }};
+    </script>
     @yield('scripts')
 </body>
 </html>

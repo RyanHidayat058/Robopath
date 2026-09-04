@@ -15,7 +15,7 @@ class TelemetryController extends Controller
         // Auto Sanity Check: Reset any orphaned 'Delivering' status robots back to 'Idle'
         $deliveringRobots = Robot::where('status', 'Delivering')->get();
         foreach ($deliveringRobots as $robot) {
-            $hasActiveDelivery = Delivery::where('robot_id', $robot->id)->where('status', 'In Progress')->exists();
+            $hasActiveDelivery = Delivery::where('robot_id', $robot->id)->whereIn('status', ['In Progress', 'Pending'])->exists();
             if (! $hasActiveDelivery) {
                 $robot->update([
                     'status' => 'Idle',
@@ -26,7 +26,7 @@ class TelemetryController extends Controller
         }
 
         $robots = Robot::all();
-        $activeDeliveries = Delivery::with('robot')->where('status', 'In Progress')->get();
+        $activeDeliveries = Delivery::with('robot')->whereIn('status', ['In Progress', 'Pending'])->get();
         $activeAlerts = Report::with('robot')->where('status', 'Active')->get();
 
         // Return recent completed deliveries for live update lists
@@ -224,6 +224,101 @@ class TelemetryController extends Controller
             'success' => true,
             'report' => $report,
             'robot' => $robot,
+        ]);
+    }
+
+    public function simulateIssue(Request $request, Robot $robot)
+    {
+        $request->validate([
+            'issue_type' => 'required|string|in:Collision,Low Battery,Sensor Error',
+            'description' => 'nullable|string',
+        ]);
+
+        $issueType = $request->input('issue_type', 'Collision');
+        $defaultDesc = $issueType === 'Collision'
+            ? "Robot {$robot->name} mengalami tabrakan dengan hambatan di jalur! Pengantaran mandek (pending)."
+            : ($issueType === 'Low Battery'
+                ? "Baterai Robot {$robot->name} habis kritis (5%) di tengah jalan! Pengantaran mandek (pending)."
+                : "Sensor Lidar Robot {$robot->name} mengalami disfungsi hardware! Pengantaran mandek (pending).");
+
+        $description = $request->input('description') ?: $defaultDesc;
+
+        // 1. Create incident report with empty image (gambar kosong/opsional)
+        $report = Report::create([
+            'robot_id' => $robot->id,
+            'issue_type' => $issueType,
+            'description' => $description,
+            'image_path' => null,
+            'status' => 'Active',
+        ]);
+
+        // 2. Pause active delivery if in progress
+        $activeDelivery = Delivery::where('robot_id', $robot->id)
+            ->where('status', 'In Progress')
+            ->first();
+
+        if ($activeDelivery) {
+            $activeDelivery->update([
+                'status' => 'Pending',
+            ]);
+        }
+
+        // 3. Update robot status and battery
+        $newStatus = ($issueType === 'Low Battery') ? 'Charging' : 'Maintenance';
+        $newBattery = ($issueType === 'Low Battery') ? 5 : $robot->battery_level;
+
+        $robot->update([
+            'status' => $newStatus,
+            'battery_level' => $newBattery,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Issue {$issueType} simulated for {$robot->name}.",
+            'report' => $report,
+            'robot' => $robot,
+            'delivery' => $activeDelivery,
+        ]);
+    }
+
+    public function fixRobot(Request $request, Robot $robot)
+    {
+        // 1. Resolve all active reports for this robot
+        Report::where('robot_id', $robot->id)
+            ->where('status', 'Active')
+            ->update([
+                'status' => 'Resolved',
+            ]);
+
+        // 2. Restore battery if critical
+        $battery = max(80, $robot->battery_level);
+        if ($robot->battery_level < 20) {
+            $battery = 100;
+        }
+
+        // 3. Resume pending delivery if any, otherwise Idle
+        $pendingDelivery = Delivery::where('robot_id', $robot->id)
+            ->where('status', 'Pending')
+            ->first();
+
+        $newStatus = 'Idle';
+        if ($pendingDelivery) {
+            $pendingDelivery->update([
+                'status' => 'In Progress',
+            ]);
+            $newStatus = 'Delivering';
+        }
+
+        $robot->update([
+            'status' => $newStatus,
+            'battery_level' => $battery,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Robot {$robot->name} has been fixed and resumed working.",
+            'robot' => $robot,
+            'delivery' => $pendingDelivery,
         ]);
     }
 

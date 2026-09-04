@@ -58,7 +58,37 @@
 
 @section('content')
 <!-- Container 1: Standard Dashboard View (Stat Cards + Active Floor Map + Robot Roster) -->
-<div id="standard-view" class="space-y-8">
+<div id="standard-view" class="space-y-6">
+
+    <!-- Emergency Alert Banner (Shown when any robot has an incident / paused task) -->
+    <div id="emergency-alert-banner" class="hidden p-4 bg-gradient-to-r from-rose-600 to-red-700 rounded-2xl shadow-xl text-white flex flex-wrap items-center justify-between gap-4 border border-rose-400 animate-pulse">
+        <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-2xl shrink-0 shadow">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[11px] font-black uppercase tracking-wider bg-white text-rose-700 px-2 py-0.5 rounded-full shadow-sm">Peringatan Darurat</span>
+                    <span class="text-xs font-bold text-rose-100">Pengantaran Mandek / Terhenti</span>
+                </div>
+                <p class="text-sm font-bold mt-1 text-white" id="emergency-banner-text">Robot terhenti akibat kendala di jalur. Cepat benerin!</p>
+            </div>
+        </div>
+        <div id="emergency-banner-actions" class="flex items-center gap-2">
+            @if(auth()->check() && auth()->user()->isAdmin())
+            <button id="emergency-fix-btn" onclick="fixActiveIssueRobot()" 
+                    class="px-4 py-2.5 bg-white hover:bg-rose-50 text-rose-700 font-extrabold text-xs rounded-xl shadow-lg transition duration-200 flex items-center gap-2">
+                <i class="fa-solid fa-wrench"></i>
+                <span>Benerin Sekarang (Fix &amp; Resume)</span>
+            </button>
+            @else
+            <span class="text-xs bg-black/25 text-white px-3 py-1.5 rounded-xl font-semibold flex items-center gap-1.5">
+                <i class="fa-solid fa-lock text-rose-200"></i> Menunggu Supervisor/Admin Memperbaiki
+            </span>
+            @endif
+        </div>
+    </div>
+
     <!-- Top Stat Cards (4 Columns) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 
@@ -136,8 +166,9 @@
                         <p class="text-xs text-gray-500">Real-time robot telemetry &amp; delivery route visualization</p>
                     </div>
 
-                    <!-- Floor Switcher & Full View Action -->
-                    <div class="flex items-center gap-2.5">
+                    <!-- Floor Switcher & Actions -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Floor Switcher -->
                         <div class="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
                             <button onclick="switchDashboardFloor(1)" id="std-tab-f1" class="px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition">
                                 Lantai 1
@@ -147,8 +178,43 @@
                             </button>
                         </div>
 
-                        <button onclick="toggleFullView(true)" class="bg-[#3b4cb8] hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md hover:shadow-lg transition duration-200">
-                            <i class="fa-solid fa-expand"></i> Full View 2 Lantai
+                        <!-- Autopilot Button (Role-Gated) -->
+                        <button id="autopilot-btn" onclick="toggleAutopilot()" 
+                                class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 {{ (auth()->check() && auth()->user()->isAdmin()) ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300' : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70' }}"
+                                {{ (auth()->check() && auth()->user()->isAdmin()) ? '' : 'disabled title="Akses Terbatas: Hanya Admin/Bot Control yang dapat mengontrol Autopilot"' }}>
+                            <i class="fa-solid fa-wand-magic-sparkles" id="autopilot-icon"></i>
+                            <span id="autopilot-text">Autopilot: OFF</span>
+                            @if(!auth()->check() || !auth()->user()->isAdmin())
+                            <i class="fa-solid fa-lock text-[10px] text-gray-400"></i>
+                            @endif
+                        </button>
+
+                        @if(auth()->check() && auth()->user()->isAdmin())
+                        <!-- Simulate Issue Dropdown (Admin Only) -->
+                        <div class="relative inline-block text-left" id="simulate-dropdown-container">
+                            <button onclick="toggleSimulateMenu()" class="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition">
+                                <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
+                                <span>Simulasi Masalah</span>
+                                <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                            </button>
+                            <div id="simulate-menu" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-2xl border border-gray-200 py-1.5 z-50">
+                                <div class="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">Simulasikan Insiden Robot</div>
+                                <button onclick="simulateIssueAction(1, 'Collision')" class="w-full text-left px-3 py-2 text-xs hover:bg-rose-50 text-gray-700 flex items-center gap-2">
+                                    <i class="fa-solid fa-car-burst text-rose-500"></i> Tabrakan - Robot Alpha
+                                </button>
+                                <button onclick="simulateIssueAction(2, 'Low Battery')" class="w-full text-left px-3 py-2 text-xs hover:bg-rose-50 text-gray-700 flex items-center gap-2">
+                                    <i class="fa-solid fa-battery-empty text-amber-500"></i> Baterai Habis - Robot Beta
+                                </button>
+                                <button onclick="simulateIssueAction(3, 'Sensor Error')" class="w-full text-left px-3 py-2 text-xs hover:bg-rose-50 text-gray-700 flex items-center gap-2">
+                                    <i class="fa-solid fa-triangle-exclamation text-orange-500"></i> Sensor Rusak - Robot Gamma
+                                </button>
+                            </div>
+                        </div>
+                        @endif
+
+                        <!-- Full View 2 Lantai Button -->
+                        <button onclick="toggleFullView(true)" class="bg-[#3b4cb8] hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md hover:shadow-lg transition duration-200">
+                            <i class="fa-solid fa-expand"></i> Full View
                         </button>
                     </div>
                 </div>
@@ -312,9 +378,21 @@
 
     let robots = @json($robots);
     let activeDeliveries = @json($activeDeliveries);
+    let activeAlerts = @json($activeAlerts ?? []);
     let serverClientOffset = 0;
     let currentDashboardFloor = 1;
     let isFullViewMode = false;
+
+    function getRobotColor(robotId) {
+        const colors = {
+            1: '#0284c7', // Sky Blue (Alpha)
+            2: '#8b5cf6', // Violet / Purple (Beta)
+            3: '#f59e0b', // Amber / Golden Orange (Gamma)
+            4: '#10b981', // Emerald
+            5: '#ec4899'  // Pink
+        };
+        return colors[robotId] || '#3b82f6';
+    }
 
     function switchDashboardFloor(floorNum) {
         currentDashboardFloor = floorNum;
@@ -615,38 +693,72 @@
         if (fullSvgF1) fullSvgF1.innerHTML = '';
         if (fullSvgF2) fullSvgF2.innerHTML = '';
         
-        // 1. Draw paths for active deliveries
+        const now = new Date(new Date().getTime() + serverClientOffset);
+
+        // 1. Draw paths for active deliveries (with past segment trimming)
         activeDeliveries.forEach(delivery => {
             const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
-            if (!robot || robot.status !== 'Delivering') return;
+            if (!robot || (robot.status !== 'Delivering' && delivery.status !== 'Pending')) return;
             
             const mission = getDeliveryMission(delivery, robot);
             if (!mission || !mission.stages) return;
 
+            const robotColor = getRobotColor(robot.id);
+            const startedTime = parseServerDate(delivery.started_at);
+            const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
+
             mission.stages.forEach(st => {
                 if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
                 
+                const stageEndMs = st.startMs + st.durationMs;
+                // If robot has already passed this stage entirely, do not draw it
+                if (elapsedMs >= stageEndMs && delivery.status !== 'Pending') {
+                    return;
+                }
+
+                const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs) || delivery.status === 'Pending';
+                const isFutureStage = (elapsedMs < st.startMs);
+
+                // Build trimmed points ahead of the robot
+                const remainingPts = [];
+                if (isCurrentActive) {
+                    remainingPts.push({ x: robot.current_x, y: robot.current_y });
+                    const segIdx = robot.currentSegIdx || 0;
+                    for (let i = segIdx + 1; i < st.path.length; i++) {
+                        if (locations[st.path[i]]) {
+                            remainingPts.push(locations[st.path[i]]);
+                        }
+                    }
+                } else if (isFutureStage) {
+                    st.path.forEach(nodeId => {
+                        if (locations[nodeId]) remainingPts.push(locations[nodeId]);
+                    });
+                } else {
+                    return;
+                }
+
+                if (remainingPts.length < 2) return;
+
                 if (isFullViewMode) {
                     const targetSvg = st.floor === 2 ? fullSvgF2 : fullSvgF1;
                     const container = document.getElementById(st.floor === 2 ? 'fullview-container-f2' : 'fullview-container-f1');
                     if (!targetSvg || !container) return;
 
                     let pts = '';
-                    st.path.forEach(nodeId => {
-                        const node = locations[nodeId];
-                        if (!node) return;
-                        const px = (node.x / 100) * container.clientWidth;
-                        const py = (node.y / 100) * container.clientHeight;
+                    remainingPts.forEach(pt => {
+                        const px = (pt.x / 100) * container.clientWidth;
+                        const py = (pt.y / 100) * container.clientHeight;
                         pts += `${px},${py} `;
                     });
 
                     if (pts.trim()) {
                         const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                         poly.setAttribute('points', pts.trim());
-                        poly.setAttribute('stroke', '#38bdf8');
-                        poly.setAttribute('stroke-width', '2');
-                        poly.setAttribute('stroke-dasharray', '5,5');
+                        poly.setAttribute('stroke', robotColor);
+                        poly.setAttribute('stroke-width', '2.5');
+                        poly.setAttribute('stroke-dasharray', delivery.status === 'Pending' ? '3,3' : '5,5');
                         poly.setAttribute('fill', 'none');
+                        poly.setAttribute('opacity', delivery.status === 'Pending' ? '0.5' : '0.85');
                         targetSvg.appendChild(poly);
                     }
                 } else {
@@ -655,54 +767,78 @@
                     if (!stdContainer || !stdSvg) return;
 
                     let pts = '';
-                    st.path.forEach(nodeId => {
-                        const node = locations[nodeId];
-                        if (!node) return;
-                        const px = (node.x / 100) * stdContainer.clientWidth;
-                        const py = (node.y / 100) * stdContainer.clientHeight;
+                    remainingPts.forEach(pt => {
+                        const px = (pt.x / 100) * stdContainer.clientWidth;
+                        const py = (pt.y / 100) * stdContainer.clientHeight;
                         pts += `${px},${py} `;
                     });
 
                     if (pts.trim()) {
                         const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                         poly.setAttribute('points', pts.trim());
-                        poly.setAttribute('stroke', '#38bdf8');
-                        poly.setAttribute('stroke-width', '2.5');
-                        poly.setAttribute('stroke-dasharray', '6,6');
+                        poly.setAttribute('stroke', robotColor);
+                        poly.setAttribute('stroke-width', '3');
+                        poly.setAttribute('stroke-dasharray', delivery.status === 'Pending' ? '3,3' : '6,6');
                         poly.setAttribute('fill', 'none');
+                        poly.setAttribute('opacity', delivery.status === 'Pending' ? '0.5' : '0.9');
                         stdSvg.appendChild(poly);
                     }
                 }
             });
         });
 
-        // 2. Draw return paths for returning idle robots
+        // 2. Draw return paths for returning idle robots (with past segment trimming)
         robots.forEach(robot => {
             if (robot.status === 'Idle' && robot.returnMission && robot.returnMission.stages) {
+                const robotColor = getRobotColor(robot.id);
+                const elapsedMs = now.getTime() - robot.returnMission.startedAt;
+
                 robot.returnMission.stages.forEach(st => {
                     if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
-                    
+                    const stageEndMs = st.startMs + st.durationMs;
+
+                    if (elapsedMs >= stageEndMs) return;
+
+                    const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
+                    const isFutureStage = (elapsedMs < st.startMs);
+
+                    const remainingPts = [];
+                    if (isCurrentActive) {
+                        remainingPts.push({ x: robot.current_x, y: robot.current_y });
+                        const segIdx = robot.returnSegIdx || 0;
+                        for (let i = segIdx + 1; i < st.path.length; i++) {
+                            if (locations[st.path[i]]) remainingPts.push(locations[st.path[i]]);
+                        }
+                    } else if (isFutureStage) {
+                        st.path.forEach(nodeId => {
+                            if (locations[nodeId]) remainingPts.push(locations[nodeId]);
+                        });
+                    } else {
+                        return;
+                    }
+
+                    if (remainingPts.length < 2) return;
+
                     if (isFullViewMode) {
                         const targetSvg = st.floor === 2 ? fullSvgF2 : fullSvgF1;
                         const container = document.getElementById(st.floor === 2 ? 'fullview-container-f2' : 'fullview-container-f1');
                         if (!targetSvg || !container) return;
 
                         let pts = '';
-                        st.path.forEach(nodeId => {
-                            const node = locations[nodeId];
-                            if (!node) return;
-                            const px = (node.x / 100) * container.clientWidth;
-                            const py = (node.y / 100) * container.clientHeight;
+                        remainingPts.forEach(pt => {
+                            const px = (pt.x / 100) * container.clientWidth;
+                            const py = (pt.y / 100) * container.clientHeight;
                             pts += `${px},${py} `;
                         });
 
                         if (pts.trim()) {
                             const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                             poly.setAttribute('points', pts.trim());
-                            poly.setAttribute('stroke', '#6366f1');
+                            poly.setAttribute('stroke', robotColor);
                             poly.setAttribute('stroke-width', '2');
                             poly.setAttribute('stroke-dasharray', '4,4');
                             poly.setAttribute('fill', 'none');
+                            poly.setAttribute('opacity', '0.75');
                             targetSvg.appendChild(poly);
                         }
                     } else {
@@ -711,21 +847,20 @@
                         if (!stdContainer || !stdSvg) return;
 
                         let pts = '';
-                        st.path.forEach(nodeId => {
-                            const node = locations[nodeId];
-                            if (!node) return;
-                            const px = (node.x / 100) * stdContainer.clientWidth;
-                            const py = (node.y / 100) * stdContainer.clientHeight;
+                        remainingPts.forEach(pt => {
+                            const px = (pt.x / 100) * stdContainer.clientWidth;
+                            const py = (pt.y / 100) * stdContainer.clientHeight;
                             pts += `${px},${py} `;
                         });
 
                         if (pts.trim()) {
                             const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                             poly.setAttribute('points', pts.trim());
-                            poly.setAttribute('stroke', '#6366f1');
-                            poly.setAttribute('stroke-width', '2');
+                            poly.setAttribute('stroke', robotColor);
+                            poly.setAttribute('stroke-width', '2.5');
                             poly.setAttribute('stroke-dasharray', '4,4');
                             poly.setAttribute('fill', 'none');
+                            poly.setAttribute('opacity', '0.85');
                             stdSvg.appendChild(poly);
                         }
                     }
@@ -736,7 +871,6 @@
 
     function runSimulationStep() {
         const now = new Date(new Date().getTime() + serverClientOffset);
-        drawRobotPaths();
         
         // Standard view overlay
         const stdOverlay = document.getElementById('std-robots-overlay');
@@ -749,14 +883,31 @@
         if (fullOverlayF2) fullOverlayF2.innerHTML = '';
         
         robots.forEach(robot => {
-            const delivery = activeDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && d.status === 'In Progress');
+            const delivery = activeDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending'));
+            
+            // Check if robot has active issue / alert
+            const robotAlert = activeAlerts.find(a => Number(a.robot_id) === Number(robot.id) && a.status === 'Active');
+            const hasIssue = !!robotAlert || robot.status === 'Maintenance' || (robot.status === 'Charging' && robot.battery_level <= 10) || (delivery && delivery.status === 'Pending');
+            robot.hasIssue = hasIssue;
+            robot.activeAlert = robotAlert;
+
             let coords = { x: robot.current_x, y: robot.current_y };
             let floorNum = robot.floor || 1;
             let statusColor = 'bg-emerald-500';
             let taskText = 'Standby at base station (N7)';
             let currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
 
-            if (robot.status === 'Charging') {
+            if (hasIssue) {
+                statusColor = 'bg-rose-600';
+                const issueName = robotAlert ? robotAlert.issue_type : (robot.battery_level <= 10 ? 'Baterai Habis' : 'Maintenance');
+                if (delivery) {
+                    taskText = `<span class="text-rose-600 font-black animate-pulse"><i class="fa-solid fa-triangle-exclamation mr-1"></i> MASALAH: ${issueName} - Pengantaran Mandek!</span>`;
+                    currentLocName = `Mandek di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
+                } else {
+                    taskText = `<span class="text-rose-600 font-black animate-pulse"><i class="fa-solid fa-triangle-exclamation mr-1"></i> MASALAH: ${issueName} (Cepat Benerin!)</span>`;
+                    currentLocName = `Tertahan di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
+                }
+            } else if (robot.status === 'Charging') {
                 statusColor = 'bg-orange-500';
                 taskText = '<i class="fa-solid fa-bolt text-orange-500 mr-1"></i> Battery charging';
             } else if (robot.status === 'Maintenance') {
@@ -764,7 +915,7 @@
                 taskText = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Maintenance required</span>';
             }
             
-            if (robot.status === 'Delivering' && delivery) {
+            if (robot.status === 'Delivering' && delivery && !hasIssue) {
                 statusColor = 'bg-sky-500';
                 robot.returnMission = null;
                 robot.isReturning = false;
@@ -809,6 +960,7 @@
                             taskText = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-stairs animate-bounce mr-1"></i> Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...</span>`;
                             currentLocName = `Tangga (Transit Lantai ${activeStage.toFloor})`;
                             statusColor = 'bg-amber-500';
+                            robot.currentSegIdx = 0;
                         } else {
                             floorNum = activeStage.floor || 1;
                             const path = activeStage.path || [];
@@ -818,6 +970,7 @@
                                 const ratioInSegment = floatIdx - currentSegIdx;
                                 const p1 = locations[path[currentSegIdx]];
                                 const p2 = locations[path[currentSegIdx + 1]];
+                                robot.currentSegIdx = currentSegIdx;
                                 if (p1 && p2) {
                                     coords = interpolate(p1, p2, ratioInSegment);
                                     const dx = p2.x - p1.x;
@@ -828,6 +981,7 @@
                                 }
                             } else if (path.length === 1 && locations[path[0]]) {
                                 coords = locations[path[0]];
+                                robot.currentSegIdx = 0;
                             }
                             taskText = `Delivering ${delivery.item_name} to ${locations[mission.destId]?.name || delivery.destination_location}`;
                             currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
@@ -839,7 +993,7 @@
                     robot.floor = floorNum;
                     robot.rotation = angle;
                 }
-            } else if (robot.status === 'Idle') {
+            } else if (robot.status === 'Idle' && !hasIssue) {
                 const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
                 const distToBase = (Number(robot.floor || 1) === 1) 
                     ? Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) 
@@ -893,6 +1047,7 @@
                             coords = locations[currentNodeId] || coords;
                             taskText = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-stairs animate-bounce mr-1"></i> Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...</span>`;
                             statusColor = 'bg-amber-500';
+                            robot.returnSegIdx = 0;
                         } else {
                             floorNum = activeStage.floor || 1;
                             const path = activeStage.path || [];
@@ -902,6 +1057,7 @@
                                 const ratioInSegment = floatIdx - currentSegIdx;
                                 const p1 = locations[path[currentSegIdx]];
                                 const p2 = locations[path[currentSegIdx + 1]];
+                                robot.returnSegIdx = currentSegIdx;
                                 if (p1 && p2) {
                                     coords = interpolate(p1, p2, ratioInSegment);
                                     const dx = p2.x - p1.x;
@@ -912,6 +1068,7 @@
                                 }
                             } else if (path.length === 1 && locations[path[0]]) {
                                 coords = locations[path[0]];
+                                robot.returnSegIdx = 0;
                             }
                             taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-arrow-rotate-left mr-1"></i> Kembali ke Markas (N7)...</span>`;
                         }
@@ -945,15 +1102,18 @@
                 const iconSize = compact ? 'text-[10px]' : 'text-xs';
                 const isTransit = taskText.includes('Transit Tangga');
                 const isReturning = taskText.includes('Kembali ke Markas');
+                const issueIcon = robot.activeAlert?.issue_type === 'Collision' 
+                    ? 'fa-car-burst' 
+                    : (robot.activeAlert?.issue_type === 'Low Battery' ? 'fa-battery-empty' : 'fa-triangle-exclamation');
 
                 marker.innerHTML = `
                     <div class="relative flex items-center justify-center">
-                        <span class="animate-ping absolute inline-flex ${pingClass} rounded-full ${statusColor} opacity-40"></span>
-                        <div class="relative ${sizeClass} rounded-lg bg-white border ${isTransit ? 'border-amber-400 ring-2 ring-amber-300' : (isReturning ? 'border-indigo-400 ring-2 ring-indigo-300' : 'border-gray-300')} flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
-                            <i class="fa-solid ${isTransit ? 'fa-stairs text-amber-500 animate-bounce' : (isReturning ? 'fa-arrow-rotate-left text-indigo-600' : 'fa-robot')} ${iconSize} ${robot.status === 'Delivering' && !isTransit ? 'text-[#3b4cb8]' : (robot.status === 'Charging' ? 'text-orange-500' : (robot.status === 'Maintenance' ? 'text-rose-600' : (isTransit ? 'text-amber-500' : (isReturning ? 'text-indigo-600' : 'text-emerald-600'))))}"></i>
+                        <span class="animate-ping absolute inline-flex ${pingClass} rounded-full ${hasIssue ? 'bg-rose-600' : statusColor} opacity-50"></span>
+                        <div class="relative ${sizeClass} rounded-lg bg-white border ${hasIssue ? 'border-rose-500 ring-4 ring-rose-400 animate-pulse' : (isTransit ? 'border-amber-400 ring-2 ring-amber-300' : (isReturning ? 'border-indigo-400 ring-2 ring-indigo-300' : 'border-gray-300'))} flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
+                            <i class="fa-solid ${hasIssue ? issueIcon + ' text-rose-600 animate-bounce' : (isTransit ? 'fa-stairs text-amber-500 animate-bounce' : (isReturning ? 'fa-arrow-rotate-left text-indigo-600' : 'fa-robot'))} ${iconSize} ${hasIssue ? 'text-rose-600' : (robot.status === 'Delivering' && !isTransit ? 'text-[#3b4cb8]' : (robot.status === 'Charging' ? 'text-orange-500' : (robot.status === 'Maintenance' ? 'text-rose-600' : (isTransit ? 'text-amber-500' : (isReturning ? 'text-indigo-600' : 'text-emerald-600')))))}"></i>
                         </div>
-                        <div class="absolute -top-5 bg-white/95 text-gray-800 border border-gray-200 text-[8px] font-bold px-1.5 py-0.2 rounded shadow-sm whitespace-nowrap pointer-events-none">
-                            ${robot.name.split(' ')[1]} (${robot.battery_level}%)
+                        <div class="absolute -top-5 ${hasIssue ? 'bg-rose-600 text-white' : 'bg-white/95 text-gray-800'} border ${hasIssue ? 'border-rose-700' : 'border-gray-200'} text-[8px] font-bold px-1.5 py-0.2 rounded shadow-sm whitespace-nowrap pointer-events-none">
+                            ${robot.name.split(' ')[1]} (${robot.battery_level}%) ${hasIssue ? '⚠️' : ''}
                         </div>
                     </div>
                 `;
@@ -978,7 +1138,11 @@
             const taskTextDiv = document.getElementById(`robot-task-text-${robot.id}`);
 
             if (badge) {
-                if (robot.isReturning) {
+                if (hasIssue) {
+                    const issueLabel = robot.activeAlert ? robot.activeAlert.issue_type.toUpperCase() : 'MASALAH';
+                    badge.textContent = issueLabel;
+                    badge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-300 animate-pulse';
+                } else if (robot.isReturning) {
                     badge.textContent = 'Returning';
                     badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-indigo-100 text-indigo-700 border border-indigo-200';
                 } else {
@@ -999,6 +1163,238 @@
             if (locText) locText.textContent = `${currentLocName} (Floor ${floorNum})`;
             if (taskTextDiv) taskTextDiv.innerHTML = taskText;
         });
+
+        // Update Emergency Alert Banner
+        updateEmergencyBanner();
+
+        // Draw path lines dynamically after positions and segments have updated
+        drawRobotPaths();
+
+        // Check autopilot conditions
+        runAutopilotManager();
+    }
+
+    function updateEmergencyBanner() {
+        const banner = document.getElementById('emergency-alert-banner');
+        const bannerText = document.getElementById('emergency-banner-text');
+        const issueRobots = robots.filter(r => r.hasIssue);
+
+        if (!banner || !bannerText) return;
+
+        if (issueRobots.length > 0) {
+            banner.classList.remove('hidden');
+            const descriptions = issueRobots.map(r => {
+                const alertType = r.activeAlert ? r.activeAlert.issue_type : (r.battery_level <= 10 ? 'Baterai Habis' : 'Kendala Teknis');
+                return `${r.name}: ${alertType} (${r.activeAlert?.description || 'Pengantaran mandek'})`;
+            }).join(' | ');
+            bannerText.innerHTML = `⚠️ ${descriptions}. <strong>Cepat benerin agar robot dapat kembali bekerja!</strong>`;
+        } else {
+            banner.classList.add('hidden');
+        }
+    }
+
+    // Toggle Dropdown for Issue Simulation
+    function toggleSimulateMenu() {
+        const menu = document.getElementById('simulate-menu');
+        if (menu) menu.classList.toggle('hidden');
+    }
+
+    // Close dropdown on outside click
+    window.addEventListener('click', function(e) {
+        const container = document.getElementById('simulate-dropdown-container');
+        const menu = document.getElementById('simulate-menu');
+        if (container && menu && !container.contains(e.target)) {
+            menu.classList.add('hidden');
+        }
+    });
+
+    // Simulate robot issue
+    function simulateIssueAction(robotId, issueType) {
+        const menu = document.getElementById('simulate-menu');
+        if (menu) menu.classList.add('hidden');
+
+        if (!window.isAdmin) {
+            alert('Akses Terbatas: Hanya Admin yang dapat mensimulasikan masalah robot.');
+            return;
+        }
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        fetch(`/api/robots/${robotId}/simulate-issue`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ issue_type: issueType })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                fetchData();
+            }
+        })
+        .catch(err => console.error('Error simulating issue:', err));
+    }
+
+    // Fix a specific robot
+    function fixRobotAction(robotId) {
+        if (!window.isAdmin) {
+            alert('Akses Terbatas: Hanya Admin yang dapat memperbaiki robot.');
+            return;
+        }
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        fetch(`/api/robots/${robotId}/fix`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                fetchData();
+            }
+        })
+        .catch(err => console.error('Error fixing robot:', err));
+    }
+
+    // Fix all robots with active issues
+    function fixActiveIssueRobot() {
+        const issueRobots = robots.filter(r => r.hasIssue);
+        if (issueRobots.length === 0) return;
+        issueRobots.forEach(r => fixRobotAction(r.id));
+    }
+
+    // Autopilot Management
+    function toggleAutopilot() {
+        if (!window.isAdmin) {
+            alert('Akses Terbatas: Hanya Admin / Bot Control yang dapat mengontrol Autopilot.');
+            return;
+        }
+
+        const isCurrentlyActive = localStorage.getItem('autopilot_enabled') === 'true';
+        const nextState = !isCurrentlyActive;
+        localStorage.setItem('autopilot_enabled', nextState ? 'true' : 'false');
+
+        updateAutopilotUI();
+
+        if (nextState) {
+            // "nah auto pilot ini kita simulasiin dia bekerja semua serentak"
+            dispatchAllRobotsSerentak();
+        } else {
+            // "dan bisain juga cancel auto pilotnya kalo di cancel semua berenti bekerja tapi kelarin dulu baru balik ke markas"
+            console.log('Autopilot cancelled. Active deliveries will complete then return to N7 base station.');
+        }
+    }
+
+    function updateAutopilotUI() {
+        const isAutopilotActive = localStorage.getItem('autopilot_enabled') === 'true';
+        const btn = document.getElementById('autopilot-btn');
+        const text = document.getElementById('autopilot-text');
+        const icon = document.getElementById('autopilot-icon');
+
+        if (!btn || !text) return;
+
+        if (isAutopilotActive) {
+            btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30";
+            text.innerHTML = '<span class="relative flex h-2 w-2 mr-1"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span></span> Autopilot: ON (SERENTAK)';
+            if (icon) icon.className = "fa-solid fa-robot animate-bounce";
+        } else {
+            if (window.isAdmin) {
+                btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300";
+            }
+            text.textContent = 'Autopilot: OFF (MANUAL)';
+            if (icon) icon.className = "fa-solid fa-wand-magic-sparkles";
+        }
+    }
+
+    function dispatchAllRobotsSerentak() {
+        if (localStorage.getItem('autopilot_enabled') !== 'true') return;
+
+        const destinationNodeIds = Object.keys(locations).filter(id => locations[id].is_destination);
+        if (destinationNodeIds.length < 2) return;
+
+        const items = ['Handuk', 'Makanan', 'Dokumen', 'Kopi', 'Paket', 'Botol Air', 'Sparepart'];
+
+        // Find all idle healthy robots ready for dispatch
+        const eligibleRobots = robots.filter(r => 
+            r.status === 'Idle' && 
+            r.battery_level > 20 && 
+            !r.isReturning && 
+            !r.isDispatching && 
+            !r.hasIssue
+        );
+
+        if (eligibleRobots.length === 0) return;
+
+        eligibleRobots.forEach((robot, idx) => {
+            robot.isDispatching = true;
+            const item = items[(idx + Math.floor(Math.random() * items.length)) % items.length];
+            let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || '1_N7';
+
+            let startLoc = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
+            let dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
+            while (dest === startLoc) {
+                dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
+            }
+
+            setTimeout(() => {
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                fetch('/api/deliveries', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        robot_id: robot.id,
+                        item_name: item,
+                        origin_location: currentLoc,
+                        start_location: startLoc,
+                        destination_location: dest
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        fetchData();
+                    }
+                    robot.isDispatching = false;
+                })
+                .catch(err => {
+                    console.error('Error dispatching robot:', err);
+                    robot.isDispatching = false;
+                });
+            }, idx * 350);
+        });
+    }
+
+    let lastAutopilotCheck = 0;
+    function runAutopilotManager() {
+        const isAutopilotActive = localStorage.getItem('autopilot_enabled') === 'true';
+        if (!isAutopilotActive) return;
+
+        const now = Date.now();
+        if (now - lastAutopilotCheck < 3000) return;
+        lastAutopilotCheck = now;
+
+        // Check if any robot is Idle at N7 and ready to be dispatched
+        const readyRobots = robots.filter(r => 
+            r.status === 'Idle' && 
+            !r.isReturning && 
+            !r.isDispatching && 
+            !r.hasIssue && 
+            r.battery_level > 20
+        );
+
+        if (readyRobots.length > 0) {
+            dispatchAllRobotsSerentak();
+        }
     }
 
     function fetchData() {
@@ -1020,6 +1416,7 @@
                 });
             }
             activeDeliveries = data.active_deliveries;
+            activeAlerts = data.active_alerts || [];
 
             data.robots.forEach(newRobot => {
                 const existing = robots.find(r => Number(r.id) === Number(newRobot.id));
@@ -1044,6 +1441,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        updateAutopilotUI();
         runSimulationStep();
         setInterval(runSimulationStep, 50);
         setInterval(fetchData, 3000);
