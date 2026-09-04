@@ -19,8 +19,8 @@ class TelemetryController extends Controller
             if (! $hasActiveDelivery) {
                 $robot->update([
                     'status' => 'Idle',
-                    'current_x' => 42.67,
-                    'current_y' => 31.57,
+                    'current_x' => 80.6,
+                    'current_y' => 68.48,
                 ]);
             }
         }
@@ -237,26 +237,26 @@ class TelemetryController extends Controller
             Report::query()->delete();
         }
 
-        // Reset robots to initial coordinates
+        // Reset robots to initial coordinates at N7 (Floor 1 Base Station)
         Robot::where('name', 'Robot Alpha')->update([
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 42.78,
-            'current_y' => 31.43,
+            'current_x' => 80.6,
+            'current_y' => 68.48,
         ]);
 
         Robot::where('name', 'Robot Beta')->update([
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 42.78,
-            'current_y' => 31.43,
+            'current_x' => 80.6,
+            'current_y' => 68.48,
         ]);
 
         Robot::where('name', 'Robot Gamma')->update([
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 42.78,
-            'current_y' => 31.43,
+            'current_x' => 80.6,
+            'current_y' => 68.48,
         ]);
 
         return response()->json([

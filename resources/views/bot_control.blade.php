@@ -308,9 +308,8 @@
         for (let nodeId in locationsData) {
             const loc = locationsData[nodeId];
             if (Number(loc.floor) !== Number(currentFloor)) continue;
-            if (loc.hidden && !showHiddenDots && selectedNodeId !== nodeId) continue;
-
-            const isNamed = loc.is_destination || (!nodeId.startsWith('N') || nodeId === 'N');
+            const displayName = loc.name || nodeId;
+            const isNamed = loc.is_destination || (!loc.hidden);
             const isSelected = selectedNodeId === nodeId;
             const isConnectStart = connectStartNodeId === nodeId;
 
@@ -325,7 +324,7 @@
             el.innerHTML = `
                 <div class="relative flex items-center justify-center group">
                     <div class="${dotSize} rounded-full ${dotBg} border-2 border-white shadow-md transition transform group-hover:scale-125"></div>
-                    ${isNamed ? `<div class="absolute -top-6 bg-[#3b4cb8] text-white text-[9px] font-bold px-2 py-0.5 rounded shadow pointer-events-none whitespace-nowrap">${nodeId}</div>` : ''}
+                    ${isNamed ? `<div class="absolute -top-6 bg-[#3b4cb8] text-white text-[9px] font-bold px-2 py-0.5 rounded shadow pointer-events-none whitespace-nowrap">${displayName}</div>` : ''}
                 </div>
             `;
 
@@ -408,10 +407,13 @@
             let xPct = parseFloat((((e.clientX - rect.left) / rect.width) * 100).toFixed(2));
             let yPct = parseFloat((((e.clientY - rect.top) / rect.height) * 100).toFixed(2));
 
-            const name = prompt("Enter new room / location name (e.g. Hall, Meeting Room):", `Hall_${Math.floor(Math.random() * 100)}`);
+            const name = prompt("Enter new room / location name (e.g. Hall, Ruang Meeting 1):", `Hall_${Math.floor(Math.random() * 100)}`);
             if (name && name.trim()) {
-                const nodeKey = name.trim();
+                const cleanName = name.trim();
+                const nodeKey = `${currentFloor}_${cleanName}`;
                 locationsData[nodeKey] = { 
+                    id: nodeKey,
+                    name: cleanName, 
                     x: xPct, 
                     y: yPct, 
                     floor: currentFloor, 
@@ -458,7 +460,7 @@
         const loc = locationsData[nodeId];
         if (!loc) return;
 
-        document.getElementById('inspect-node-name').value = nodeId;
+        document.getElementById('inspect-node-name').value = loc.name || nodeId;
         document.getElementById('inspect-floor').value = loc.floor || 1;
         document.getElementById('inspect-x').value = loc.x;
         document.getElementById('inspect-y').value = loc.y;
@@ -473,16 +475,19 @@
         if (neighbors.length === 0) {
             nbrsContainer.innerHTML = '<span class="text-gray-400 italic">No neighbors connected</span>';
         } else {
-            nbrsContainer.innerHTML = neighbors.map(nbr => `
+            nbrsContainer.innerHTML = neighbors.map(nbr => {
+                const nbrLoc = locationsData[nbr];
+                const nbrLabel = nbrLoc ? `${nbrLoc.name || nbr} (Lt. ${nbrLoc.floor || 1})` : nbr;
+                return `
                 <div class="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs shadow-xs">
-                    <span class="font-bold text-gray-800 font-mono flex items-center gap-1.5">
-                        <i class="fa-solid fa-link text-sky-500 text-[10px]"></i> ${nbr}
+                    <span class="font-bold text-gray-800 font-mono flex items-center gap-1.5 truncate">
+                        <i class="fa-solid fa-link text-sky-500 text-[10px]"></i> ${nbrLabel}
                     </span>
-                    <button onclick="disconnectEdge('${nodeId}', '${nbr}')" class="text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 p-1 rounded transition text-[11px]" title="Putus Garis Edge (${nodeId} <-> ${nbr})">
+                    <button onclick="disconnectEdge('${nodeId}', '${nbr}')" class="text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 p-1 rounded transition text-[11px] shrink-0 ml-2" title="Putus Garis Edge">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
     }
 
@@ -498,33 +503,71 @@
     }
 
     function handleRenameNode(newName) {
-        if (!selectedNodeId || !newName || !newName.trim() || newName === selectedNodeId) return;
+        if (!selectedNodeId || !newName || !newName.trim()) return;
         const cleanName = newName.trim();
-        if (locationsData[cleanName]) {
-            alert(`A node named "${cleanName}" already exists! Please use a unique name.`);
-            document.getElementById('inspect-node-name').value = selectedNodeId;
+        const currentLoc = locationsData[selectedNodeId];
+        if (!currentLoc) return;
+
+        // Check duplicates on the SAME floor only
+        const hasDuplicateOnSameFloor = Object.values(locationsData).some(loc => 
+            loc.id !== selectedNodeId && 
+            Number(loc.floor) === Number(currentLoc.floor) && 
+            (loc.name || '').toLowerCase() === cleanName.toLowerCase()
+        );
+
+        if (hasDuplicateOnSameFloor) {
+            alert(`Ruangan bernama "${cleanName}" sudah ada di Lantai ${currentLoc.floor}! Anda bisa memberi nama yang sama di lantai yang berbeda.`);
+            document.getElementById('inspect-node-name').value = currentLoc.name || selectedNodeId;
+            return;
+        }
+
+        const newId = `${currentLoc.floor}_${cleanName}`;
+        if (newId === selectedNodeId) {
+            currentLoc.name = cleanName;
+            renderEditorMap();
             return;
         }
 
         const oldId = selectedNodeId;
-        locationsData[cleanName] = { ...locationsData[oldId] };
+        currentLoc.id = newId;
+        currentLoc.name = cleanName;
+        locationsData[newId] = currentLoc;
         delete locationsData[oldId];
 
-        adjData[cleanName] = adjData[oldId] || [];
+        adjData[newId] = adjData[oldId] || [];
         delete adjData[oldId];
 
         for (let k in adjData) {
-            adjData[k] = adjData[k].map(n => n === oldId ? cleanName : n);
+            adjData[k] = adjData[k].map(n => n === oldId ? newId : n);
         }
 
-        selectedNodeId = cleanName;
-        inspectNode(cleanName);
+        selectedNodeId = newId;
+        inspectNode(newId);
         renderEditorMap();
     }
 
     function handleFloorChange(val) {
-        if (!selectedNodeId) return;
-        locationsData[selectedNodeId].floor = parseInt(val, 10);
+        if (!selectedNodeId || !locationsData[selectedNodeId]) return;
+        const newFloor = parseInt(val, 10);
+        const loc = locationsData[selectedNodeId];
+        if (Number(loc.floor) === newFloor) return;
+
+        const oldId = selectedNodeId;
+        const newId = `${newFloor}_${loc.name || oldId}`;
+
+        loc.floor = newFloor;
+        loc.id = newId;
+        locationsData[newId] = loc;
+        delete locationsData[oldId];
+
+        adjData[newId] = adjData[oldId] || [];
+        delete adjData[oldId];
+        for (let k in adjData) {
+            adjData[k] = adjData[k].map(n => n === oldId ? newId : n);
+        }
+
+        selectedNodeId = newId;
+        inspectNode(newId);
         renderEditorMap();
     }
 
@@ -545,7 +588,7 @@
         for (let id in locationsData) {
             formattedLocations.push({
                 id: id,
-                name: id,
+                name: locationsData[id].name || id,
                 x: locationsData[id].x,
                 y: locationsData[id].y,
                 floor: locationsData[id].floor || 1,

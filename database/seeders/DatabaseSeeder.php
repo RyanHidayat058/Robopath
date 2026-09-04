@@ -15,14 +15,14 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Seed Robots all ready in Idle state at Blank Room 2
+        // 1. Seed Robots all ready in Idle state at N7 (Floor 1 Base Station)
         $alpha = Robot::create([
             'id' => 1,
             'name' => 'Robot Alpha',
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 42.67,
-            'current_y' => 31.57,
+            'current_x' => 80.6,
+            'current_y' => 68.48,
         ]);
 
         $beta = Robot::create([
@@ -30,8 +30,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Robot Beta',
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 42.67,
-            'current_y' => 31.57,
+            'current_x' => 80.6,
+            'current_y' => 68.48,
         ]);
 
         $gamma = Robot::create([
@@ -39,8 +39,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Robot Gamma',
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 42.67,
-            'current_y' => 31.57,
+            'current_x' => 80.6,
+            'current_y' => 68.48,
         ]);
 
         // Reset sequence in PostgreSQL for robots

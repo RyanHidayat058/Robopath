@@ -111,6 +111,8 @@ class DashboardController extends Controller
         $locations = [];
         foreach ($data['locations'] as $loc) {
             $locations[$loc['id']] = [
+                'id' => $loc['id'],
+                'name' => $loc['name'] ?? $loc['id'],
                 'x' => $loc['x'],
                 'y' => $loc['y'],
                 'floor' => $loc['floor'] ?? 1,
