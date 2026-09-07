@@ -1610,6 +1610,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        try { localStorage.removeItem('autopilot_enabled'); } catch(e) {}
         updateAutopilotUI();
         runSimulationStep();
         setInterval(runSimulationStep, 50);
