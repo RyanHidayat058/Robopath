@@ -937,7 +937,7 @@
                     ? Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) 
                     : 999;
 
-                const isAutopilot = autopilotEnabled || localStorage.getItem('autopilot_enabled') === 'true';
+                const isAutopilot = autopilotEnabled;
                 if (!isAutopilot && distToBase > 0.8) {
                     if (!robot.returnMission) {
                         robot.returnMission = buildReturnMission(robot, now);
@@ -1078,7 +1078,6 @@
                 overlay.appendChild(marker);
             }
         });
-        runAutopilotManager();
     }
 
     function completeDeliveryAPI(deliveryId, finalX, finalY, finalFloor) {
@@ -1131,61 +1130,6 @@
             select.appendChild(option);
         });
         updateStartLocation();
-    }
-
-    function runAutopilotManager() {
-        const isEnabled = autopilotEnabled || localStorage.getItem('autopilot_enabled') === 'true';
-        if (!isEnabled) return;
-        
-        const idleRobots = robots.filter(r => r.status === 'Idle' && r.battery_level > 20 && !r.isReturning);
-        idleRobots.forEach(robot => {
-            if (robot.isDispatching || robot.isReturning) return;
-            robot.isDispatching = true;
-            
-            setTimeout(() => {
-                if (robot.status !== 'Idle' || robot.isReturning) { robot.isDispatching = false; return; }
-                const items = ['Handuk', 'Makanan', 'Dokumen', 'Kopi', 'Paket', 'Botol Air', 'Sparepart'];
-                const destinationNodeIds = Object.keys(locations).filter(id => locations[id].is_destination);
-                
-                if (destinationNodeIds.length < 2) { robot.isDispatching = false; return; }
-                const item = items[Math.floor(Math.random() * items.length)];
-                let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || '1_N7';
-                
-                let dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
-                let attempts = 0;
-                while (dest === currentLoc && attempts < 10) {
-                    dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
-                    attempts++;
-                }
-                
-                fetch('/api/deliveries', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        robot_id: robot.id,
-                        item_name: item,
-                        origin_location: currentLoc,
-                        start_location: currentLoc,
-                        destination_location: dest
-                    })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        fetchData();
-                    }
-                    robot.isDispatching = false;
-                })
-                .catch(err => {
-                    console.error('Error starting autopilot delivery:', err);
-                    robot.isDispatching = false;
-                });
-            }, Math.random() * 2500 + 1500);
-        });
     }
 
     function syncTelemetry() {
@@ -1404,6 +1348,7 @@
     });
 
     document.addEventListener('DOMContentLoaded', () => {
+        try { localStorage.removeItem('autopilot_enabled'); } catch(e) {}
         drawLocationPins();
         fetchData();
         reloadPageDropdowns();
