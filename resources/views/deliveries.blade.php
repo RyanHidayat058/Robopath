@@ -593,10 +593,39 @@
         }
         if (!originNodeId || !locations[originNodeId]) originNodeId = '1_N7';
 
-        const validStart = (startNodeId && locations[startNodeId]) ? startNodeId : '1_N7';
+        const validStart = (startNodeId && locations[startNodeId]) ? startNodeId : '1_Waiting Room';
         const validDest = (destNodeId && locations[destNodeId]) ? destNodeId : '2_Ruang Direktur';
 
-        let rawStages = (originNodeId !== validStart) ? [...planRouteBetween(originNodeId, validStart), ...planRouteBetween(validStart, validDest)] : planRouteBetween(validStart, validDest);
+        const pickupStage = {
+            type: 'pickup',
+            nodeId: validStart,
+            floor: locations[validStart]?.floor || 1,
+            durationMs: 2500
+        };
+
+        const dropoffStage = {
+            type: 'dropoff',
+            nodeId: validDest,
+            floor: locations[validDest]?.floor || 1,
+            durationMs: 2500
+        };
+
+        let rawStages = [];
+        if (originNodeId !== validStart) {
+            rawStages = [
+                ...planRouteBetween(originNodeId, validStart),
+                pickupStage,
+                ...planRouteBetween(validStart, validDest),
+                dropoffStage
+            ];
+        } else {
+            rawStages = [
+                pickupStage,
+                ...planRouteBetween(validStart, validDest),
+                dropoffStage
+            ];
+        }
+
         const consolidatedStages = [];
         for (let st of rawStages) {
             if (consolidatedStages.length > 0) {
@@ -618,6 +647,8 @@
             st.startMs = accumulatedMs;
             if (st.type === 'stairs') {
                 st.durationMs = 5500;
+            } else if (st.type === 'pickup' || st.type === 'dropoff') {
+                st.durationMs = 2500;
             } else {
                 const segCount = Math.max(1, (st.path?.length || 1) - 1);
                 st.durationMs = Math.max(6000, Math.round(baseTravelTimeMs * (segCount / Math.max(1, totalTravelSegments))));
@@ -625,7 +656,14 @@
             accumulatedMs += st.durationMs;
         });
 
-        const mission = { originId: originNodeId, startId: validStart, destId: validDest, stages: consolidatedStages, totalDurationMs: accumulatedMs };
+        const mission = {
+            originId: originNodeId,
+            startId: validStart,
+            destId: validDest,
+            pickupStartMs: pickupStage.startMs,
+            stages: consolidatedStages,
+            totalDurationMs: accumulatedMs
+        };
         delivery._cachedMission = mission;
         return mission;
     }
@@ -841,6 +879,26 @@
                             coords = locations[currentNodeId] || coords;
                             taskText = `Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...`;
                             statusColor = 'bg-amber-500';
+                        } else if (activeStage.type === 'pickup') {
+                            const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
+                            const locNode = locations[activeStage.nodeId] || locations[mission.startId];
+                            if (locNode) {
+                                coords = locNode;
+                                floorNum = locNode.floor || 1;
+                            }
+                            taskText = `Mengambil ${delivery.item_name} di ${locations[mission.startId]?.name || delivery.start_location} (${remainingSec}s)...`;
+                            statusColor = 'bg-blue-500';
+                            robot.currentSegIdx = 0;
+                        } else if (activeStage.type === 'dropoff') {
+                            const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
+                            const locNode = locations[activeStage.nodeId] || locations[mission.destId];
+                            if (locNode) {
+                                coords = locNode;
+                                floorNum = locNode.floor || 1;
+                            }
+                            taskText = `Menyerahkan ${delivery.item_name} di ${locations[mission.destId]?.name || delivery.destination_location} (${remainingSec}s)...`;
+                            statusColor = 'bg-emerald-500';
+                            robot.currentSegIdx = 0;
                         } else {
                             floorNum = activeStage.floor || 1;
                             const path = activeStage.path || [];
@@ -860,7 +918,12 @@
                             } else if (path.length === 1 && locations[path[0]]) {
                                 coords = locations[path[0]];
                             }
-                            taskText = `Delivering ${delivery.item_name} to ${locations[mission.destId]?.name || delivery.destination_location}`;
+                            const isHeadingToPickup = mission.pickupStartMs && activeStage.startMs < mission.pickupStartMs;
+                            if (isHeadingToPickup) {
+                                taskText = `Menuju titik ambil: ${locations[mission.startId]?.name || delivery.start_location}`;
+                            } else {
+                                taskText = `Mengantar ${delivery.item_name} ke ${locations[mission.destId]?.name || delivery.destination_location}`;
+                            }
                         }
                     }
                     robot.current_x = coords.x;
@@ -959,7 +1022,43 @@
             
             if (overlay && Number(floorNum) === Number(liveCurrentFloor)) {
                 const isTransit = taskText.includes('Transit Tangga');
+                const isPickingUp = taskText.includes('Mengambil');
+                const isDroppingOff = taskText.includes('Menyerahkan');
                 const isReturning = taskText.includes('Kembali ke Markas') || taskText.includes('Selesai antar');
+
+                let ringClass = 'border-gray-300';
+                let actionIcon = 'fa-robot';
+                let iconColor = 'text-green-600';
+
+                if (hasIssue) {
+                    ringClass = 'border-red-500 ring-4 ring-red-400 animate-bounce';
+                    actionIcon = 'fa-triangle-exclamation text-red-600';
+                } else if (isTransit) {
+                    ringClass = 'border-amber-400 ring-2 ring-amber-300';
+                    actionIcon = 'fa-stairs text-amber-500 animate-bounce';
+                } else if (isPickingUp) {
+                    ringClass = 'border-blue-400 ring-4 ring-blue-300 animate-pulse';
+                    actionIcon = 'fa-box-open text-blue-600 animate-bounce';
+                } else if (isDroppingOff) {
+                    ringClass = 'border-emerald-400 ring-4 ring-emerald-300 animate-pulse';
+                    actionIcon = 'fa-dolly text-emerald-600 animate-bounce';
+                } else if (isReturning) {
+                    ringClass = 'border-indigo-400 ring-2 ring-indigo-300';
+                    actionIcon = 'fa-arrow-rotate-left text-indigo-600';
+                } else if (robot.status === 'Delivering') {
+                    ringClass = 'border-blue-400 ring-2 ring-blue-200';
+                    actionIcon = 'fa-robot text-[#3b4cb8]';
+                } else if (robot.status === 'Charging') {
+                    ringClass = 'border-orange-400 ring-2 ring-orange-200';
+                    actionIcon = 'fa-bolt text-orange-400 animate-pulse';
+                } else if (robot.status === 'Maintenance') {
+                    ringClass = 'border-red-500 ring-2 ring-red-300';
+                    actionIcon = 'fa-wrench text-red-500';
+                } else {
+                    ringClass = 'border-gray-300';
+                    actionIcon = 'fa-robot text-green-600';
+                }
+
                 const marker = document.createElement('div');
                 marker.className = 'robot-marker z-30';
                 marker.style.left = `${coords.x}%`;
@@ -968,8 +1067,8 @@
                 marker.innerHTML = `
                     <div class="relative flex items-center justify-center">
                         <span class="animate-ping absolute inline-flex h-10 w-10 rounded-full ${hasIssue ? 'bg-red-500 ring-4 ring-red-400' : statusColor} opacity-40"></span>
-                        <div class="relative w-8 h-8 rounded-xl bg-white border ${hasIssue ? 'border-red-500 ring-4 ring-red-400 animate-bounce' : (isTransit ? 'border-amber-400 ring-2 ring-amber-300' : (isReturning ? 'border-indigo-400 ring-2 ring-indigo-300' : 'border-gray-300'))} flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
-                            <i class="fa-solid ${hasIssue ? 'fa-triangle-exclamation text-red-600' : (isTransit ? 'fa-stairs text-amber-500 animate-bounce' : (isReturning ? 'fa-arrow-rotate-left text-indigo-600' : 'fa-robot'))} text-xs ${hasIssue ? 'text-red-600' : (robot.status === 'Delivering' && !isTransit ? 'text-[#3b4cb8]' : (robot.status === 'Charging' ? 'text-orange-400' : (robot.status === 'Maintenance' ? 'text-red-500' : (isTransit ? 'text-amber-500' : (isReturning ? 'text-indigo-600' : 'text-green-600')))))}"></i>
+                        <div class="relative w-8 h-8 rounded-xl bg-white border ${ringClass} flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
+                            <i class="fa-solid ${actionIcon} text-xs"></i>
                         </div>
                         <div class="absolute -top-6 ${hasIssue ? 'bg-red-600 text-white border-red-700' : 'bg-white/95 text-gray-700 border-gray-200'} border text-[8px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
                             ${robot.name.split(' ')[1]} (${robot.battery_level}%)${hasIssue ? ' [PROBLEM]' : ''}
