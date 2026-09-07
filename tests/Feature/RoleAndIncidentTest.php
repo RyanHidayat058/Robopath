@@ -144,4 +144,30 @@ class RoleAndIncidentTest extends TestCase
         $telemetryOff = $this->actingAs($karyawan)->getJson('/api/telemetry');
         $telemetryOff->assertJson(['autopilot_enabled' => false]);
     }
+
+    public function test_autopilot_dispatches_from_current_robot_location(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        // Place robot at Floor 2 location (e.g. 2_Ruang Direktur: x=34.33, y=14.33, floor=2)
+        $robot = Robot::create([
+            'name' => 'Robot Floor2',
+            'status' => 'Idle',
+            'battery_level' => 95,
+            'current_x' => 34.33,
+            'current_y' => 14.33,
+            'floor' => 2,
+        ]);
+
+        $this->actingAs($admin)->postJson('/api/system/autopilot', ['enabled' => true]);
+
+        $robot->refresh();
+        $this->assertEquals('Delivering', $robot->status);
+
+        $delivery = Delivery::where('robot_id', $robot->id)->where('status', 'In Progress')->first();
+        $this->assertNotNull($delivery);
+        // Origin and start location should be the robot's current node on floor 2, NOT 1_N7!
+        $this->assertNotEquals('1_N7', $delivery->origin_location);
+        $this->assertNotEquals('1_N7', $delivery->start_location);
+        $this->assertEquals($delivery->origin_location, $delivery->start_location);
+    }
 }

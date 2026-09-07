@@ -939,7 +939,7 @@
                         }
                         taskText = `Delivered ${delivery.item_name} to ${locations[mission.destId]?.name || delivery.destination_location}`;
                         currentLocName = locations[mission.destId]?.name || delivery.destination_location;
-                        completeDeliveryAPI(delivery.id, coords.x, coords.y);
+                        completeDeliveryAPI(delivery.id, coords.x, coords.y, floorNum);
                     } else {
                         let activeStage = null;
                         for (let st of mission.stages) {
@@ -1003,7 +1003,7 @@
                     ? Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) 
                     : 999;
 
-                if (distToBase > 0.8) {
+                if (!isAutopilotEnabled && distToBase > 0.8) {
                     if (!robot.returnMission) {
                         robot.returnMission = buildReturnMission(robot, now);
                     }
@@ -1284,7 +1284,7 @@
     }
 
     // Delivery Completion API
-    function completeDeliveryAPI(deliveryId, finalX, finalY) {
+    function completeDeliveryAPI(deliveryId, finalX, finalY, finalFloor) {
         const delivery = activeDeliveries.find(d => d.id === deliveryId);
         if (!delivery || delivery.isCompleting) return;
         delivery.isCompleting = true;
@@ -1297,7 +1297,11 @@
                 'X-CSRF-TOKEN': csrf,
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({ current_x: finalX, current_y: finalY })
+            body: JSON.stringify({ 
+                current_x: finalX, 
+                current_y: finalY,
+                floor: finalFloor || 1
+            })
         })
         .then(res => res.json())
         .then(data => {
@@ -1305,6 +1309,9 @@
                 const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
                 if (robot && data.robot) {
                     robot.status = data.robot.status;
+                    robot.current_x = data.robot.current_x;
+                    robot.current_y = data.robot.current_y;
+                    robot.floor = data.robot.floor;
                 }
                 fetchData();
             }
@@ -1324,6 +1331,12 @@
 
         const nextState = !isAutopilotEnabled;
         isAutopilotEnabled = nextState;
+        if (nextState) {
+            robots.forEach(r => {
+                r.returnMission = null;
+                r.isReturning = false;
+            });
+        }
         updateAutopilotUI();
 
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -1396,10 +1409,11 @@
             const item = items[(idx + Math.floor(Math.random() * items.length)) % items.length];
             let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || '1_N7';
 
-            let startLoc = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
             let dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
-            while (dest === startLoc) {
+            let attempts = 0;
+            while (dest === currentLoc && attempts < 10) {
                 dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
+                attempts++;
             }
 
             setTimeout(() => {
@@ -1415,7 +1429,7 @@
                         robot_id: robot.id,
                         item_name: item,
                         origin_location: currentLoc,
-                        start_location: startLoc,
+                        start_location: currentLoc,
                         destination_location: dest
                     })
                 })
@@ -1497,6 +1511,7 @@
                         existing.current_x = newRobot.current_x;
                         existing.current_y = newRobot.current_y;
                     }
+                    existing.floor = newRobot.floor || existing.floor || 1;
                     existing.battery_level = newRobot.battery_level;
                 } else {
                     robots.push(newRobot);
