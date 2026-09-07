@@ -24,6 +24,8 @@
         justify-content: center;
         align-items: center;
         gap: 0.75rem;
+        width: 100%;
+        transition: all 0.3s ease;
     }
     .fullview-floor-box {
         position: relative;
@@ -36,6 +38,29 @@
         background-position: center;
         border-radius: 0.75rem;
         box-shadow: 0 4px 15px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(0,0,0,0.05);
+        transition: all 0.2s ease;
+    }
+
+    /* Horizontal Full View (Side-by-Side / Kanan - Kiri) */
+    .fullview-wrapper.fullview-horizontal {
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 1.25rem;
+    }
+    .fullview-wrapper.fullview-horizontal .fullview-floor-box {
+        flex: 1 1 0%;
+        width: calc((100% - 1.25rem) / 2);
+        max-width: calc((100% - 1.25rem) / 2);
+        height: calc(100vh - 170px);
+        max-height: 78vh;
+        aspect-ratio: 16/9;
+    }
+    .fullview-wrapper.fullview-horizontal #fullview-container-f1 {
+        order: 1;
+    }
+    .fullview-wrapper.fullview-horizontal #fullview-container-f2 {
+        order: 2;
     }
 
     .robot-marker {
@@ -306,16 +331,31 @@
 
 <!-- Container 2: Full View 2 Lantai (Single Screen Overview) -->
 <div id="fullview-mode" class="hidden space-y-3">
-    <!-- Header Bar with Back Button & Legend -->
-    <div class="bg-white border border-gray-200 px-5 py-3 rounded-2xl shadow-md flex items-center justify-between gap-4 shrink-0">
+    <!-- Header Bar with Back Button, Layout Switcher & Legend -->
+    <div class="bg-white border border-gray-200 px-5 py-2.5 rounded-2xl shadow-md flex flex-wrap items-center justify-between gap-4 shrink-0">
         <div class="flex items-center gap-3">
             <button onclick="toggleFullView(false)" class="bg-[#3b4cb8] hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow transition duration-200">
                 <i class="fa-solid fa-arrow-left"></i> Kembali ke Dashboard
             </button>
             <div class="hidden sm:block">
                 <h3 class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                    <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> 2-Floor Full View (Single Screen Overview)
+                    <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> 2-Floor Full View (Overview)
                 </h3>
+            </div>
+        </div>
+
+        <!-- Layout Switcher: Atas-Bawah vs Kanan-Kiri -->
+        <div class="flex items-center gap-2">
+            <span class="text-[11px] font-bold text-gray-500 hidden md:inline"><i class="fa-solid fa-table-cells-large mr-1 text-[#3b4cb8]"></i>Tata Letak:</span>
+            <div class="inline-flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs shadow-inner">
+                <button type="button" id="btn-layout-vertical" onclick="setFullViewLayout('vertical')" title="Tampilan Bertumpuk (Atas - Bawah)" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition duration-200 bg-white text-[#3b4cb8] shadow-sm">
+                    <i class="fa-solid fa-grip-lines"></i>
+                    <span>Atas - Bawah</span>
+                </button>
+                <button type="button" id="btn-layout-horizontal" onclick="setFullViewLayout('horizontal')" title="Tampilan Bersebelahan (Kanan - Kiri)" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition duration-200 text-gray-600 hover:text-gray-900">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <span>Kanan - Kiri</span>
+                </button>
             </div>
         </div>
 
@@ -329,7 +369,7 @@
     </div>
 
     <!-- Scaled Dual Floor Canvas (Both floors fit in 1 view) -->
-    <div class="fullview-wrapper">
+    <div class="fullview-wrapper" id="fullview-wrapper">
         <!-- Floor 2 (Atas) -->
         <div class="fullview-floor-box" id="fullview-container-f2" style="background-image: url('{{ asset('images/floor2.jpeg') }}');">
             <div class="absolute top-2 left-2 z-20 bg-black/75 backdrop-blur-sm text-white font-bold text-[10px] px-2.5 py-1 rounded-lg border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
@@ -421,6 +461,39 @@
         runSimulationStep();
     }
 
+    let currentFullViewLayout = localStorage.getItem('fullview_layout') || 'vertical';
+
+    function setFullViewLayout(layout) {
+        currentFullViewLayout = layout;
+        try {
+            localStorage.setItem('fullview_layout', layout);
+        } catch (e) {}
+
+        const wrapper = document.getElementById('fullview-wrapper');
+        const btnVertical = document.getElementById('btn-layout-vertical');
+        const btnHorizontal = document.getElementById('btn-layout-horizontal');
+
+        if (wrapper) {
+            if (layout === 'horizontal') {
+                wrapper.classList.add('fullview-horizontal');
+            } else {
+                wrapper.classList.remove('fullview-horizontal');
+            }
+        }
+
+        if (btnVertical && btnHorizontal) {
+            if (layout === 'horizontal') {
+                btnHorizontal.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition duration-200 bg-white text-[#3b4cb8] shadow-sm';
+                btnVertical.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition duration-200 text-gray-600 hover:text-gray-900';
+            } else {
+                btnVertical.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition duration-200 bg-white text-[#3b4cb8] shadow-sm';
+                btnHorizontal.className = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition duration-200 text-gray-600 hover:text-gray-900';
+            }
+        }
+
+        setTimeout(runSimulationStep, 60);
+    }
+
     function toggleFullView(showFull) {
         isFullViewMode = showFull;
         const stdView = document.getElementById('standard-view');
@@ -432,6 +505,7 @@
             fullView.classList.remove('hidden');
             if (mainScroll) mainScroll.scrollTop = 0;
             window.scrollTo(0, 0);
+            setFullViewLayout(currentFullViewLayout);
         } else {
             fullView.classList.add('hidden');
             stdView.classList.remove('hidden');
@@ -1609,10 +1683,15 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         try { localStorage.removeItem('autopilot_enabled'); } catch(e) {}
+        setFullViewLayout(currentFullViewLayout);
         updateAutopilotUI();
         runSimulationStep();
         setInterval(runSimulationStep, 50);
         setInterval(fetchData, 3000);
+    });
+
+    window.addEventListener('resize', () => {
+        runSimulationStep();
     });
 </script>
 @endsection

@@ -176,4 +176,28 @@ class RoleAndIncidentTest extends TestCase
         $this->assertNotEquals('1_N7', $delivery->start_location);
         $this->assertEquals($delivery->origin_location, $delivery->start_location);
     }
+
+    public function test_full_view_and_layout_switcher_accessible_to_both_roles(): void
+    {
+        $karyawan = User::factory()->create(['role' => 'karyawan']);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        // Check Karyawan view
+        $karyawanDash = $this->actingAs($karyawan)->get('/');
+        $karyawanDash->assertStatus(200);
+        $karyawanDash->assertSee('toggleFullView(true)', false);
+        $karyawanDash->assertSee('id="fullview-mode"', false);
+        $karyawanDash->assertSee('id="fullview-wrapper"', false);
+        $karyawanDash->assertSee('id="btn-layout-vertical"', false);
+        $karyawanDash->assertSee('id="btn-layout-horizontal"', false);
+
+        // Check Admin view
+        $adminDash = $this->actingAs($admin)->get('/');
+        $adminDash->assertStatus(200);
+        $adminDash->assertSee('toggleFullView(true)', false);
+        $adminDash->assertSee('id="fullview-mode"', false);
+        $adminDash->assertSee('id="fullview-wrapper"', false);
+        $adminDash->assertSee('id="btn-layout-vertical"', false);
+        $adminDash->assertSee('id="btn-layout-horizontal"', false);
+    }
 }
