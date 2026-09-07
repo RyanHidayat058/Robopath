@@ -92,46 +92,6 @@
                 <span>Masuk ke Sistem</span>
             </button>
         </form>
-
-        <!-- Quick Login Demo Buttons -->
-        <div class="mt-6 pt-5 border-t border-gray-200 text-center">
-            <p class="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Pilih Akun Demo (1-Klik)</p>
-            <div class="grid grid-cols-2 gap-2.5">
-                <button type="button" onclick="quickLogin('admin@robopath.com', 'password')"
-                        class="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-left transition group">
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-lg bg-brand-blue text-white flex items-center justify-center text-[10px]">
-                            <i class="fa-solid fa-user-shield"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs font-bold text-brand-blue">Admin</p>
-                            <p class="text-[9px] text-gray-500 font-medium">Akses Penuh</p>
-                        </div>
-                    </div>
-                </button>
-
-                <button type="button" onclick="quickLogin('karyawan@robopath.com', 'password')"
-                        class="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-left transition group">
-                    <div class="flex items-center gap-2">
-                        <div class="w-6 h-6 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[10px]">
-                            <i class="fa-solid fa-user"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs font-bold text-emerald-700">Karyawan</p>
-                            <p class="text-[9px] text-gray-500 font-medium">Dashboard Saja</p>
-                        </div>
-                    </div>
-                </button>
-            </div>
-        </div>
     </div>
-
-    <script>
-        function quickLogin(email, password) {
-            document.getElementById('email').value = email;
-            document.getElementById('password').value = password;
-            document.getElementById('login-form').submit();
-        }
-    </script>
 </body>
 </html>
