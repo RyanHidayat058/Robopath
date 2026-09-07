@@ -13,12 +13,14 @@ class Robot extends Model
         'battery_level',
         'current_x',
         'current_y',
+        'floor',
     ];
 
     protected $casts = [
         'battery_level' => 'integer',
         'current_x' => 'float',
         'current_y' => 'float',
+        'floor' => 'integer',
     ];
 
     public function deliveries(): HasMany

@@ -20,8 +20,6 @@ class TelemetryController extends Controller
             if (! $hasActiveDelivery) {
                 $robot->update([
                     'status' => 'Idle',
-                    'current_x' => 80.6,
-                    'current_y' => 68.48,
                 ]);
             }
         }
@@ -59,9 +57,10 @@ class TelemetryController extends Controller
             'battery_level' => 'sometimes|integer|min:0|max:100',
             'current_x' => 'sometimes|numeric',
             'current_y' => 'sometimes|numeric',
+            'floor' => 'sometimes|integer',
         ]);
 
-        $robot->update($request->only(['status', 'battery_level', 'current_x', 'current_y']));
+        $robot->update($request->only(['status', 'battery_level', 'current_x', 'current_y', 'floor']));
 
         return response()->json([
             'success' => true,
@@ -125,6 +124,7 @@ class TelemetryController extends Controller
             'status' => 'sometimes|string|in:Completed,Failed',
             'current_x' => 'sometimes|numeric',
             'current_y' => 'sometimes|numeric',
+            'floor' => 'sometimes|integer',
         ]);
 
         $status = $request->input('status', 'Completed');
@@ -156,6 +156,7 @@ class TelemetryController extends Controller
             'status' => $nextStatus,
             'current_x' => $request->input('current_x', $robot->current_x),
             'current_y' => $request->input('current_y', $robot->current_y),
+            'floor' => $request->input('floor', $robot->floor ?? 1),
         ]);
 
         return response()->json([
@@ -345,6 +346,7 @@ class TelemetryController extends Controller
             'battery_level' => 100,
             'current_x' => 80.6,
             'current_y' => 68.48,
+            'floor' => 1,
         ]);
 
         Robot::where('name', 'Robot Beta')->update([
@@ -352,6 +354,7 @@ class TelemetryController extends Controller
             'battery_level' => 100,
             'current_x' => 80.6,
             'current_y' => 68.48,
+            'floor' => 1,
         ]);
 
         Robot::where('name', 'Robot Gamma')->update([
@@ -359,6 +362,7 @@ class TelemetryController extends Controller
             'battery_level' => 100,
             'current_x' => 80.6,
             'current_y' => 68.48,
+            'floor' => 1,
         ]);
 
         return response()->json([
@@ -456,11 +460,14 @@ class TelemetryController extends Controller
                 continue;
             }
 
-            // Pick start and destination
-            $startLoc = $destinations[array_rand($destinations)];
+            $currentLoc = $this->getRobotCurrentNodeId($robot, $graph);
+
+            // Pick destination different from current location
             $destLoc = $destinations[array_rand($destinations)];
-            while ($destLoc === $startLoc) {
+            $attempts = 0;
+            while ($destLoc === $currentLoc && $attempts < 10) {
                 $destLoc = $destinations[array_rand($destinations)];
+                $attempts++;
             }
 
             $item = $items[array_rand($items)];
@@ -470,12 +477,39 @@ class TelemetryController extends Controller
             Delivery::create([
                 'robot_id' => $robot->id,
                 'item_name' => $item,
-                'origin_location' => '1_N7',
-                'start_location' => $startLoc,
+                'origin_location' => $currentLoc,
+                'start_location' => $currentLoc,
                 'destination_location' => $destLoc,
                 'status' => 'In Progress',
                 'started_at' => Carbon::now(),
             ]);
         }
+    }
+
+    protected function getRobotCurrentNodeId(Robot $robot, array $graph): string
+    {
+        $rx = (float) ($robot->current_x ?? 80.6);
+        $ry = (float) ($robot->current_y ?? 68.48);
+        $rFloor = (int) ($robot->floor ?? 1);
+
+        $closestId = null;
+        $minDist = INF;
+
+        if (! empty($graph['locations'])) {
+            foreach ($graph['locations'] as $loc) {
+                if (isset($loc['floor']) && (int) $loc['floor'] !== $rFloor) {
+                    continue;
+                }
+                $dx = (float) $loc['x'] - $rx;
+                $dy = (float) $loc['y'] - $ry;
+                $dist = sqrt($dx * $dx + $dy * $dy);
+                if ($dist < $minDist) {
+                    $minDist = $dist;
+                    $closestId = $loc['id'];
+                }
+            }
+        }
+
+        return $closestId ?? ($rFloor === 2 ? '2_Stairs' : '1_N7');
     }
 }
