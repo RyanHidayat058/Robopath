@@ -517,6 +517,12 @@
     }
 
     function buildReturnMission(robot, now) {
+        const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
+        if (Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) < 2.0) {
+            robot.floor = 1;
+            return null;
+        }
+
         const currentLocId = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1);
         const targetId = '1_N7';
         if (!currentLocId || currentLocId === targetId) return null;
@@ -565,7 +571,7 @@
         };
     }
 
-    function syncRobotBaseLocation(robotId, bx, by) {
+    function syncRobotBaseLocation(robotId, bx, by, floor = 1) {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         fetch(`/api/robots/${robotId}/telemetry`, {
             method: 'POST',
@@ -575,8 +581,10 @@
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
+                status: 'Idle',
                 current_x: bx,
-                current_y: by
+                current_y: by,
+                floor: floor
             })
         }).catch(err => console.error('Error syncing base station location:', err));
     }
@@ -933,12 +941,17 @@
                 }
             } else if (robot.status === 'Idle') {
                 const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
+                const isNearBase = Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) < 2.0;
+                if (isNearBase) {
+                    robot.floor = 1;
+                    floorNum = 1;
+                }
                 const distToBase = (Number(robot.floor || 1) === 1) 
                     ? Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) 
                     : 999;
 
                 const isAutopilot = autopilotEnabled;
-                if (!isAutopilot && distToBase > 0.8) {
+                if (!isAutopilot && !isNearBase && distToBase > 0.8) {
                     if (!robot.returnMission) {
                         robot.returnMission = buildReturnMission(robot, now);
                     }
@@ -964,7 +977,7 @@
                         robot.returnMission = null;
                         robot.isReturning = false;
                         taskText = 'Standby at base station (N7)';
-                        syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
+                        syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1);
                     } else {
                         let activeStage = null;
                         for (let st of mission.stages) {
@@ -1237,6 +1250,9 @@
             // Merge robots data keeping local animation properties
             data.robots.forEach(newRobot => {
                 const existing = robots.find(r => Number(r.id) === Number(newRobot.id));
+                if (Math.hypot((newRobot.current_x || 80.6) - 80.6, (newRobot.current_y || 68.48) - 68.48) < 2.0) {
+                    newRobot.floor = 1;
+                }
                 if (existing) {
                     if (existing.status !== newRobot.status) {
                         existing.status = newRobot.status;
