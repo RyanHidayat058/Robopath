@@ -23,7 +23,10 @@ class RoleAndIncidentTest extends TestCase
     {
         $karyawan = User::factory()->create(['role' => 'karyawan']);
 
-        $this->actingAs($karyawan)->get('/')->assertStatus(200);
+        $dashboard = $this->actingAs($karyawan)->get('/');
+        $dashboard->assertStatus(200);
+        $dashboard->assertDontSee('id="autopilot-btn"', false);
+
         $this->actingAs($karyawan)->get('/deliveries')->assertRedirect('/');
         $this->actingAs($karyawan)->get('/bot-control')->assertRedirect('/');
         $this->actingAs($karyawan)->get('/reports')->assertRedirect('/');
@@ -37,7 +40,10 @@ class RoleAndIncidentTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'admin']);
 
-        $this->actingAs($admin)->get('/')->assertStatus(200);
+        $dashboard = $this->actingAs($admin)->get('/');
+        $dashboard->assertStatus(200);
+        $dashboard->assertSee('id="autopilot-btn"', false);
+
         $this->actingAs($admin)->get('/deliveries')->assertStatus(200);
         $this->actingAs($admin)->get('/bot-control')->assertStatus(200);
         $this->actingAs($admin)->get('/reports')->assertStatus(200);

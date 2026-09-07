@@ -178,16 +178,14 @@
                             </button>
                         </div>
 
-                        <!-- Autopilot Button (Role-Gated) -->
+                        @if(auth()->check() && auth()->user()->isAdmin())
+                        <!-- Autopilot Button (Admin Only) -->
                         <button id="autopilot-btn" onclick="toggleAutopilot()" 
-                                class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 {{ (auth()->check() && auth()->user()->isAdmin()) ? 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300' : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70' }}"
-                                {{ (auth()->check() && auth()->user()->isAdmin()) ? '' : 'disabled title="Akses Terbatas: Hanya Admin/Bot Control yang dapat mengontrol Autopilot"' }}>
+                                class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300">
                             <i class="fa-solid fa-wand-magic-sparkles" id="autopilot-icon"></i>
                             <span id="autopilot-text">Autopilot: OFF</span>
-                            @if(!auth()->check() || !auth()->user()->isAdmin())
-                            <i class="fa-solid fa-lock text-[10px] text-gray-400"></i>
-                            @endif
                         </button>
+                        @endif
 
                         @if(auth()->check() && auth()->user()->isAdmin())
                         <!-- Simulate Issue Dropdown (Admin Only) -->
