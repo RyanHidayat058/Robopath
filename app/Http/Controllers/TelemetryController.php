@@ -341,27 +341,41 @@ class TelemetryController extends Controller
         }
 
         // Reset robots to initial coordinates at N7 (Floor 1 Base Station)
+        $baseX = 76.23;
+        $baseY = 64.42;
+        $graphPath = base_path('graph.json');
+        if (file_exists($graphPath)) {
+            $graphData = json_decode(file_get_contents($graphPath), true);
+            foreach ($graphData['locations'] ?? [] as $loc) {
+                if ($loc['id'] === '1_N7') {
+                    $baseX = (float) $loc['x'];
+                    $baseY = (float) $loc['y'];
+                    break;
+                }
+            }
+        }
+
         Robot::where('name', 'Robot Alpha')->update([
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 80.6,
-            'current_y' => 68.48,
+            'current_x' => $baseX,
+            'current_y' => $baseY,
             'floor' => 1,
         ]);
 
         Robot::where('name', 'Robot Beta')->update([
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 80.6,
-            'current_y' => 68.48,
+            'current_x' => $baseX,
+            'current_y' => $baseY,
             'floor' => 1,
         ]);
 
         Robot::where('name', 'Robot Gamma')->update([
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 80.6,
-            'current_y' => 68.48,
+            'current_x' => $baseX,
+            'current_y' => $baseY,
             'floor' => 1,
         ]);
 
@@ -488,8 +502,8 @@ class TelemetryController extends Controller
 
     protected function getRobotCurrentNodeId(Robot $robot, array $graph): string
     {
-        $rx = (float) ($robot->current_x ?? 80.6);
-        $ry = (float) ($robot->current_y ?? 68.48);
+        $rx = (float) ($robot->current_x ?? 76.23);
+        $ry = (float) ($robot->current_y ?? 64.42);
         $rFloor = (int) ($robot->floor ?? 1);
 
         $closestId = null;
@@ -510,6 +524,6 @@ class TelemetryController extends Controller
             }
         }
 
-        return $closestId ?? ($rFloor === 2 ? '2_Stairs' : '1_N7');
+        return $closestId ?? ($rFloor === 2 ? '2_N208' : '1_N7');
     }
 }

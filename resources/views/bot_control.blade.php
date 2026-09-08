@@ -6,15 +6,26 @@
 
 @section('styles')
 <style>
+    .editor-canvas-wrapper {
+        position: relative;
+        width: 100%;
+        max-height: 80vh;
+        overflow: auto;
+        border-radius: 1rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
     .editor-map-container {
         position: relative;
         background-size: 100% 100%;
         background-repeat: no-repeat;
         background-position: center;
-        aspect-ratio: 16/9;
-        border-radius: 1rem;
+        aspect-ratio: 1800 / 1375;
+        border-radius: 0.75rem;
         user-select: none;
-        box-shadow: 0 4px 20px rgba(59, 76, 184, 0.08), inset 0 0 0 1px rgba(0,0,0,0.06);
+        box-shadow: 0 4px 20px rgba(59, 76, 184, 0.08);
+        transition: width 0.15s ease;
+        margin: 0 auto;
     }
     .editor-node {
         position: absolute;
@@ -49,11 +60,14 @@
     <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
         <!-- Floor Selector Tabs -->
         <div class="flex items-center gap-2 bg-gray-100 p-1.5 rounded-xl border border-gray-200">
-            <button onclick="switchFloor(1)" id="tab-floor-1" class="px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white">
-                <i class="fa-solid fa-layer-group mr-1.5"></i> Lantai 1 (Ground Floor)
+            <button onclick="switchFloor('all')" id="tab-floor-all" class="px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white">
+                <i class="fa-solid fa-layer-group mr-1.5"></i> Semua Lantai (Merged)
             </button>
-            <button onclick="switchFloor(2)" id="tab-floor-2" class="px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200">
-                <i class="fa-solid fa-layer-group mr-1.5"></i> Lantai 2 (Second Floor)
+            <button onclick="switchFloor(1)" id="tab-floor-1" class="px-4 py-2 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200">
+                <i class="fa-solid fa-1 mr-1"></i> Lantai 1 (Bawah)
+            </button>
+            <button onclick="switchFloor(2)" id="tab-floor-2" class="px-4 py-2 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200">
+                <i class="fa-solid fa-2 mr-1"></i> Lantai 2 (Atas)
             </button>
         </div>
 
@@ -91,7 +105,7 @@
         <!-- Interactive Map Canvas (2/3 Width) -->
         <div class="lg:col-span-2 space-y-4">
             <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center justify-between mb-3">
                     <div>
                         <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
                             <i class="fa-solid fa-map-location-dot text-[#3b4cb8]"></i> Visual Map Node Editor
@@ -99,14 +113,66 @@
                         <p class="text-xs text-gray-500" id="editor-hint">Tool: Drag nodes to position them. Click a node to rename or configure pickup/hidden flags.</p>
                     </div>
                     <span class="text-xs font-bold text-[#3b4cb8] bg-blue-50 px-3 py-1 rounded-full border border-blue-200" id="floor-badge">
-                        Showing Floor 1
+                        Showing All Floors (Merged)
                     </span>
                 </div>
 
-                <!-- Editor Canvas Container -->
-                <div class="editor-map-container shadow-inner border border-gray-300 overflow-hidden" id="editor-map-container" style="background-image: url('{{ asset('images/floor1.jpeg') }}');" onclick="handleMapClick(event)">
-                    <svg class="editor-svg" id="editor-svg"></svg>
-                    <div id="editor-nodes-layer"></div>
+                <!-- Custom Size & Zoom Controls Bar -->
+                <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <!-- Node Size Slider -->
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-gray-600 flex items-center gap-1" title="Atur diameter titik node (kecilkan untuk gang sempit)">
+                            <i class="fa-solid fa-circle-dot text-[#3b4cb8]"></i> Node:
+                        </span>
+                        <input type="range" min="4" max="24" value="10" id="slider-node-size" oninput="handleNodeSizeChange(this.value)" class="w-20 accent-[#3b4cb8] cursor-pointer">
+                        <span id="badge-node-size" class="font-mono font-bold text-[11px] bg-white px-1.5 py-0.5 rounded border border-gray-300 text-gray-700 min-w-[34px] text-center">10px</span>
+                    </div>
+
+                    <!-- Edge Width Slider -->
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-gray-600 flex items-center gap-1" title="Atur ketebalan garis jalur edge">
+                            <i class="fa-solid fa-route text-sky-500"></i> Edge:
+                        </span>
+                        <input type="range" min="1" max="8" step="0.5" value="2" id="slider-edge-width" oninput="handleEdgeWidthChange(this.value)" class="w-20 accent-sky-500 cursor-pointer">
+                        <span id="badge-edge-width" class="font-mono font-bold text-[11px] bg-white px-1.5 py-0.5 rounded border border-gray-300 text-gray-700 min-w-[34px] text-center">2px</span>
+                    </div>
+
+                    <!-- Label Size Slider -->
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-gray-600 flex items-center gap-1" title="Atur ukuran teks nama ruangan">
+                            <i class="fa-solid fa-font text-amber-500"></i> Teks:
+                        </span>
+                        <input type="range" min="6" max="14" value="9" id="slider-label-size" oninput="handleLabelSizeChange(this.value)" class="w-16 accent-amber-500 cursor-pointer">
+                        <span id="badge-label-size" class="font-mono font-bold text-[11px] bg-white px-1.5 py-0.5 rounded border border-gray-300 text-gray-700 min-w-[30px] text-center">9px</span>
+                    </div>
+
+                    <!-- Toggle Show Labels -->
+                    <label class="flex items-center gap-1 font-bold text-gray-600 cursor-pointer select-none">
+                        <input type="checkbox" id="check-show-labels" checked onchange="handleToggleLabels(this.checked)" class="rounded text-[#3b4cb8] focus:ring-[#3b4cb8]">
+                        <span>Teks Label</span>
+                    </label>
+
+                    <!-- Zoom Controls for Small Corridors -->
+                    <div class="flex items-center gap-1 bg-white p-1 rounded-lg border border-gray-200">
+                        <span class="text-[10px] font-bold text-gray-500 px-1"><i class="fa-solid fa-magnifying-glass"></i> Zoom:</span>
+                        <button onclick="setZoomLevel(1)" id="btn-zoom-1" class="px-2 py-0.5 rounded text-[11px] font-bold bg-[#3b4cb8] text-white transition">100%</button>
+                        <button onclick="setZoomLevel(1.3)" id="btn-zoom-13" class="px-2 py-0.5 rounded text-[11px] font-bold text-gray-600 hover:bg-gray-100 transition">130%</button>
+                        <button onclick="setZoomLevel(1.6)" id="btn-zoom-16" class="px-2 py-0.5 rounded text-[11px] font-bold text-gray-600 hover:bg-gray-100 transition">160%</button>
+                        <button onclick="setZoomLevel(2)" id="btn-zoom-2" class="px-2 py-0.5 rounded text-[11px] font-bold text-gray-600 hover:bg-gray-100 transition">200%</button>
+                    </div>
+
+                    <!-- Reset display settings -->
+                    <button onclick="resetDisplaySizes()" class="text-[11px] text-gray-400 hover:text-gray-700 underline font-semibold" title="Kembalikan ukuran ke default">
+                        Reset
+                    </button>
+                </div>
+
+                <!-- Editor Canvas Scrollable Wrapper for Zoom & Panning -->
+                <div class="editor-canvas-wrapper shadow-inner" id="editor-canvas-wrapper">
+                    <div class="editor-map-container overflow-hidden" id="editor-map-container" style="background-image: url('{{ asset('images/LantaiMerge.jpeg') }}');" onclick="handleMapClick(event)">
+                        <svg class="editor-svg" id="editor-svg"></svg>
+                        <div id="editor-nodes-layer"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -190,18 +256,95 @@
 
 @section('scripts')
 <script>
+    const mergedMapImg = "{{ asset('images/LantaiMerge.jpeg') }}";
     const floor1Img = "{{ asset('images/floor1.jpeg') }}";
     const floor2Img = "{{ asset('images/floor2.jpeg') }}";
 
-    let currentFloor = 1;
+    let currentFloor = 'all';
     let currentTool = 'move';
     let showHiddenDots = true;
     let selectedNodeId = null;
     let connectStartNodeId = null;
     let draggedNodeId = null;
 
+    // Display & Sizing Controls (persisted in localStorage)
+    let nodeSize = parseInt(localStorage.getItem('bot_control_node_size') || '10', 10);
+    let edgeWidth = parseFloat(localStorage.getItem('bot_control_edge_width') || '2');
+    let labelSize = parseInt(localStorage.getItem('bot_control_label_size') || '9', 10);
+    let showLabels = localStorage.getItem('bot_control_show_labels') !== 'false';
+    let zoomLevel = parseFloat(localStorage.getItem('bot_control_zoom') || '1');
+
     let locationsData = @json($locations);
     let adjData = @json($adj);
+
+    function handleNodeSizeChange(val) {
+        nodeSize = parseInt(val, 10);
+        document.getElementById('badge-node-size').textContent = `${nodeSize}px`;
+        localStorage.setItem('bot_control_node_size', nodeSize);
+        renderEditorMap();
+    }
+
+    function handleEdgeWidthChange(val) {
+        edgeWidth = parseFloat(val);
+        document.getElementById('badge-edge-width').textContent = `${edgeWidth}px`;
+        localStorage.setItem('bot_control_edge_width', edgeWidth);
+        renderEditorMap();
+    }
+
+    function handleLabelSizeChange(val) {
+        labelSize = parseInt(val, 10);
+        document.getElementById('badge-label-size').textContent = `${labelSize}px`;
+        localStorage.setItem('bot_control_label_size', labelSize);
+        renderEditorMap();
+    }
+
+    function handleToggleLabels(checked) {
+        showLabels = checked;
+        localStorage.setItem('bot_control_show_labels', checked);
+        renderEditorMap();
+    }
+
+    function setZoomLevel(level) {
+        zoomLevel = level;
+        localStorage.setItem('bot_control_zoom', level);
+        const container = document.getElementById('editor-map-container');
+        if (container) {
+            container.style.width = `${level * 100}%`;
+        }
+        [1, 1.3, 1.6, 2].forEach(lvl => {
+            const btnId = `btn-zoom-${lvl === 1 ? '1' : String(lvl).replace('.', '')}`;
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                if (lvl === level) {
+                    btn.className = "px-2 py-0.5 rounded text-[11px] font-bold bg-[#3b4cb8] text-white transition";
+                } else {
+                    btn.className = "px-2 py-0.5 rounded text-[11px] font-bold text-gray-600 hover:bg-gray-100 transition";
+                }
+            }
+        });
+        setTimeout(() => renderEditorMap(), 60);
+    }
+
+    function resetDisplaySizes() {
+        nodeSize = 10;
+        edgeWidth = 2;
+        labelSize = 9;
+        showLabels = true;
+        zoomLevel = 1;
+        document.getElementById('slider-node-size').value = 10;
+        document.getElementById('badge-node-size').textContent = '10px';
+        document.getElementById('slider-edge-width').value = 2;
+        document.getElementById('badge-edge-width').textContent = '2px';
+        document.getElementById('slider-label-size').value = 9;
+        document.getElementById('badge-label-size').textContent = '9px';
+        document.getElementById('check-show-labels').checked = true;
+        localStorage.setItem('bot_control_node_size', '10');
+        localStorage.setItem('bot_control_edge_width', '2');
+        localStorage.setItem('bot_control_label_size', '9');
+        localStorage.setItem('bot_control_show_labels', 'true');
+        setZoomLevel(1);
+        renderEditorMap();
+    }
 
     function toggleShowHiddenDots() {
         showHiddenDots = !showHiddenDots;
@@ -223,16 +366,24 @@
 
     function switchFloor(floorNum) {
         currentFloor = floorNum;
-        document.getElementById('tab-floor-1').className = floorNum === 1 
-            ? "px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white"
-            : "px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200";
-            
-        document.getElementById('tab-floor-2').className = floorNum === 2 
-            ? "px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white"
-            : "px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200";
 
-        document.getElementById('editor-map-container').style.backgroundImage = `url('${floorNum === 1 ? floor1Img : floor2Img}')`;
-        document.getElementById('floor-badge').textContent = `Showing Floor ${floorNum}`;
+        const tabAll = document.getElementById('tab-floor-all');
+        const tabF1 = document.getElementById('tab-floor-1');
+        const tabF2 = document.getElementById('tab-floor-2');
+        const badge = document.getElementById('floor-badge');
+
+        const activeClass = "px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white";
+        const inactiveClass = "px-4 py-2 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200";
+
+        if (tabAll) tabAll.className = floorNum === 'all' ? activeClass : inactiveClass;
+        if (tabF1) tabF1.className = floorNum === 1 ? activeClass : inactiveClass;
+        if (tabF2) tabF2.className = floorNum === 2 ? activeClass : inactiveClass;
+
+        if (floorNum === 'all') {
+            badge.textContent = 'Showing All Floors (Merged)';
+        } else {
+            badge.textContent = `Showing Floor ${floorNum}`;
+        }
 
         selectedNodeId = null;
         clearInspector();
@@ -272,16 +423,18 @@
         const w = container.clientWidth || 800;
         const h = container.clientHeight || 450;
 
-        // Render Edges for current floor using for...of loops
+        // Render Edges
         const drawnEdges = new Set();
         for (let nodeA in adjData) {
             const locA = locationsData[nodeA];
-            if (!locA || Number(locA.floor) !== Number(currentFloor)) continue;
+            if (!locA) continue;
+            if (currentFloor !== 'all' && Number(locA.floor) !== Number(currentFloor)) continue;
 
             const neighbors = adjData[nodeA] || [];
             for (let nodeB of neighbors) {
                 const locB = locationsData[nodeB];
-                if (!locB || Number(locB.floor) !== Number(currentFloor)) continue;
+                if (!locB) continue;
+                if (currentFloor !== 'all' && Number(locB.floor) !== Number(currentFloor)) continue;
 
                 const edgeKey = [nodeA, nodeB].sort().join('--');
                 if (drawnEdges.has(edgeKey)) continue;
@@ -292,22 +445,26 @@
                 const pxB = (locB.x / 100) * w;
                 const pyB = (locB.y / 100) * h;
 
+                const isInterFloor = Number(locA.floor) !== Number(locB.floor);
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                 line.setAttribute('x1', pxA);
                 line.setAttribute('y1', pyA);
                 line.setAttribute('x2', pxB);
                 line.setAttribute('y2', pyB);
-                line.setAttribute('stroke', '#38bdf8');
-                line.setAttribute('stroke-width', '2');
-                line.setAttribute('stroke-dasharray', '4,4');
+                line.setAttribute('stroke', isInterFloor ? '#a855f7' : '#38bdf8');
+                line.setAttribute('stroke-width', edgeWidth);
+                line.setAttribute('stroke-dasharray', isInterFloor ? '6,3' : '4,4');
                 svg.appendChild(line);
             }
         }
 
-        // Render Nodes for current floor
+        // Render Nodes
         for (let nodeId in locationsData) {
             const loc = locationsData[nodeId];
-            if (Number(loc.floor) !== Number(currentFloor)) continue;
+            if (!loc) continue;
+            if (currentFloor !== 'all' && Number(loc.floor) !== Number(currentFloor)) continue;
+            if (loc.hidden && !showHiddenDots) continue;
+
             const displayName = loc.name || nodeId;
             const isNamed = loc.is_destination || (!loc.hidden);
             const isSelected = selectedNodeId === nodeId;
@@ -318,13 +475,28 @@
             el.style.left = `${loc.x}%`;
             el.style.top = `${loc.y}%`;
 
-            let dotBg = loc.hidden ? 'bg-gray-400 opacity-70' : (isNamed ? 'bg-[#3b4cb8]' : (isConnectStart ? 'bg-amber-500 animate-bounce' : 'bg-sky-500'));
-            let dotSize = isNamed ? 'w-5 h-5' : 'w-3.5 h-3.5';
+            // Dynamic size calculation based on slider
+            const dotD = isNamed ? nodeSize : Math.max(3, Math.round(nodeSize * 0.75));
+            const dotBorder = Math.max(1, Math.round(nodeSize * 0.15));
+
+            let dotBg;
+            if (isConnectStart) {
+                dotBg = 'bg-amber-500 animate-bounce';
+            } else if (loc.hidden) {
+                dotBg = 'bg-gray-400 opacity-75';
+            } else if (Number(loc.floor) === 2) {
+                dotBg = 'bg-violet-600'; // Purple for Floor 2
+            } else {
+                dotBg = 'bg-[#3b4cb8]'; // Blue for Floor 1
+            }
 
             el.innerHTML = `
-                <div class="relative flex items-center justify-center group">
-                    <div class="${dotSize} rounded-full ${dotBg} border-2 border-white shadow-md transition transform group-hover:scale-125"></div>
-                    ${isNamed ? `<div class="absolute -top-6 bg-[#3b4cb8] text-white text-[9px] font-bold px-2 py-0.5 rounded shadow pointer-events-none whitespace-nowrap">${displayName}</div>` : ''}
+                <div class="relative flex items-center justify-center group" style="pointer-events: none;">
+                    <div style="width: ${dotD}px; height: ${dotD}px; border-width: ${dotBorder}px;" class="rounded-full ${dotBg} border-white shadow-md transition transform group-hover:scale-125"></div>
+                    ${isNamed && showLabels ? `
+                        <div style="font-size: ${labelSize}px; bottom: calc(100% + 4px);" class="absolute left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur-sm text-white font-bold px-1.5 py-0.5 rounded shadow pointer-events-none whitespace-nowrap z-40 border border-white/20">
+                            ${displayName}
+                        </div>` : ''}
                 </div>
             `;
 
@@ -407,16 +579,19 @@
             let xPct = parseFloat((((e.clientX - rect.left) / rect.width) * 100).toFixed(2));
             let yPct = parseFloat((((e.clientY - rect.top) / rect.height) * 100).toFixed(2));
 
-            const name = prompt("Enter new room / location name (e.g. Hall, Ruang Meeting 1):", `Hall_${Math.floor(Math.random() * 100)}`);
+            // Determine floor automatically on merged map: top half is Floor 2, bottom half is Floor 1
+            let targetFloor = currentFloor === 'all' ? (yPct < 50 ? 2 : 1) : Number(currentFloor);
+
+            const name = prompt(`Enter new room / location name for Floor ${targetFloor} (e.g. Hall, Ruang Meeting 1):`, `Hall_${Math.floor(Math.random() * 100)}`);
             if (name && name.trim()) {
                 const cleanName = name.trim();
-                const nodeKey = `${currentFloor}_${cleanName}`;
+                const nodeKey = `${targetFloor}_${cleanName}`;
                 locationsData[nodeKey] = { 
                     id: nodeKey,
                     name: cleanName, 
                     x: xPct, 
                     y: yPct, 
-                    floor: currentFloor, 
+                    floor: targetFloor, 
                     hidden: false, 
                     is_destination: true 
                 };
@@ -641,7 +816,15 @@
     }
 
     window.addEventListener('load', () => {
-        switchFloor(1);
+        document.getElementById('slider-node-size').value = nodeSize;
+        document.getElementById('badge-node-size').textContent = `${nodeSize}px`;
+        document.getElementById('slider-edge-width').value = edgeWidth;
+        document.getElementById('badge-edge-width').textContent = `${edgeWidth}px`;
+        document.getElementById('slider-label-size').value = labelSize;
+        document.getElementById('badge-label-size').textContent = `${labelSize}px`;
+        document.getElementById('check-show-labels').checked = showLabels;
+        setZoomLevel(zoomLevel);
+        switchFloor('all');
     });
     window.addEventListener('resize', () => {
         renderEditorMap();

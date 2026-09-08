@@ -8,11 +8,11 @@
 <style>
     .map-container {
         position: relative;
-        background-image: url('{{ asset("images/floor1.jpeg") }}');
+        background-image: url('{{ asset("images/LantaiMerge.jpeg") }}');
         background-size: 100% 100%;
         background-repeat: no-repeat;
         background-position: center;
-        aspect-ratio: 16/9;
+        aspect-ratio: 1800 / 1375;
         border: 1px solid #e5e7eb;
         border-radius: 12px;
         box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
@@ -179,17 +179,25 @@
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h3 class="text-base font-bold text-gray-800" id="live-map-title">
-                        <i class="fa-solid fa-layer-group text-[#3b4cb8] mr-1"></i> Live Active Tracking - Lantai 1
+                        <i class="fa-solid fa-layer-group text-[#3b4cb8] mr-1"></i> Live Active Tracking - Semua Lantai
                     </h3>
-                    <p class="text-xs text-gray-500" id="live-map-subtitle">Lantai 1 (Ground Floor - Lobby, Office & Receptionist)</p>
+                    <p class="text-xs text-gray-500" id="live-map-subtitle">Semua Lantai (Merged View: Lantai 2 di atas, Lantai 1 di bawah)</p>
                 </div>
-                <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
-                    <button onclick="switchLiveFloor(1)" id="btn-deliv-f1" class="px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition">
-                        Lantai 1
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="toggleDeliveriesLabels()" id="btn-toggle-deliv-labels" title="Tampilkan/Sembunyikan Label Nama Ruangan" class="px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-blue-50 text-[#3b4cb8] border border-blue-200 hover:bg-blue-100 shadow-sm">
+                        <i class="fa-solid fa-tags"></i> <span id="deliv-label-text">Label: ON</span>
                     </button>
-                    <button onclick="switchLiveFloor(2)" id="btn-deliv-f2" class="px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">
-                        Lantai 2
-                    </button>
+                    <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
+                        <button onclick="switchLiveFloor('all')" id="btn-deliv-fall" class="px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition">
+                            Semua Lantai
+                        </button>
+                        <button onclick="switchLiveFloor(1)" id="btn-deliv-f1" class="px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">
+                            Lantai 1
+                        </button>
+                        <button onclick="switchLiveFloor(2)" id="btn-deliv-f2" class="px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">
+                            Lantai 2
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -234,6 +242,7 @@
 
 @section('scripts')
 <script>
+    const mergedMapImg = "{{ asset('images/LantaiMerge.jpeg') }}";
     const floor1Img = "{{ asset('images/floor1.jpeg') }}";
     const floor2Img = "{{ asset('images/floor2.jpeg') }}";
 
@@ -261,7 +270,7 @@
     let activeDeliveries = @json($activeDeliveries);
     let activeAlerts = [];
     let serverClientOffset = 0;
-    let liveCurrentFloor = 1;
+    let liveCurrentFloor = 'all';
     
     let simulationInterval = null;
     let syncInterval = null;
@@ -269,22 +278,26 @@
 
     function switchLiveFloor(floorNum) {
         liveCurrentFloor = floorNum;
+        const btnAll = document.getElementById('btn-deliv-fall');
         const btnF1 = document.getElementById('btn-deliv-f1');
         const btnF2 = document.getElementById('btn-deliv-f2');
         const map = document.getElementById('map-container');
         const title = document.getElementById('live-map-title');
         const subtitle = document.getElementById('live-map-subtitle');
         
-        if (floorNum === 1) {
-            btnF1.className = "px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition";
-            btnF2.className = "px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-            map.style.backgroundImage = `url('${floor1Img}')`;
+        if (btnAll) btnAll.className = (floorNum === 'all') ? "px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition" : "px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
+        if (btnF1) btnF1.className = (floorNum === 1 || floorNum === '1') ? "px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition" : "px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
+        if (btnF2) btnF2.className = (floorNum === 2 || floorNum === '2') ? "px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition" : "px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
+
+        map.style.backgroundImage = `url('${mergedMapImg}')`;
+
+        if (floorNum === 'all') {
+            if (title) title.innerHTML = '<i class="fa-solid fa-layer-group text-[#3b4cb8] mr-1"></i> Live Active Tracking - Semua Lantai';
+            if (subtitle) subtitle.textContent = 'Semua Lantai (Merged View: Lantai 2 di atas, Lantai 1 di bawah)';
+        } else if (Number(floorNum) === 1) {
             if (title) title.innerHTML = '<i class="fa-solid fa-layer-group text-[#3b4cb8] mr-1"></i> Live Active Tracking - Lantai 1';
             if (subtitle) subtitle.textContent = 'Lantai 1 (Ground Floor - Lobby, Office & Receptionist)';
         } else {
-            btnF2.className = "px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition";
-            btnF1.className = "px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-            map.style.backgroundImage = `url('${floor2Img}')`;
             if (title) title.innerHTML = '<i class="fa-solid fa-layer-group text-[#3b4cb8] mr-1"></i> Live Active Tracking - Lantai 2';
             if (subtitle) subtitle.textContent = 'Lantai 2 (Upper Floor - Direksi, Lounge & Meeting Rooms)';
         }
@@ -442,6 +455,23 @@
         });
     }
 
+    let showDeliveriesLabels = true;
+
+    function toggleDeliveriesLabels() {
+        showDeliveriesLabels = !showDeliveriesLabels;
+        const btn = document.getElementById('btn-toggle-deliv-labels');
+        const text = document.getElementById('deliv-label-text');
+        if (btn) {
+            btn.className = showDeliveriesLabels 
+                ? 'px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-blue-50 text-[#3b4cb8] border border-blue-200 hover:bg-blue-100 shadow-sm'
+                : 'px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200';
+        }
+        if (text) {
+            text.textContent = showDeliveriesLabels ? 'Label: ON' : 'Label: OFF';
+        }
+        drawLocationPins();
+    }
+
     function drawLocationPins() {
         const overlay = document.getElementById('locations-overlay');
         if (!overlay) return;
@@ -449,30 +479,56 @@
         
         for (let id in locations) {
             const loc = locations[id];
-            if (Number(loc.floor) !== Number(liveCurrentFloor)) continue;
-            if (loc.hidden && !loc.is_destination) continue;
+            if (liveCurrentFloor !== 'all' && Number(loc.floor) !== Number(liveCurrentFloor)) continue;
+            
+            const isBase = (id === '1_N7');
+            const isStairs = id.includes('Stairs');
+            const isDest = (loc.is_destination === true || isBase || isStairs);
+            if (!isDest && loc.hidden) continue;
             
             const pin = document.createElement('div');
-            pin.className = 'location-pin group z-20 cursor-pointer';
+            pin.className = 'location-pin group z-20 cursor-pointer flex flex-col items-center';
             pin.style.left = `${loc.x}%`;
             pin.style.top = `${loc.y}%`;
             
-            const isStairs = id.includes('Stairs');
-            const pinColor = isStairs ? 'bg-amber-500 ring-2 ring-amber-300' : (loc.is_destination ? 'bg-blue-600 ring-2 ring-blue-300' : 'bg-gray-400');
+            let pinColor = 'bg-blue-600 ring-2 ring-blue-300';
+            let iconMarkup = '<i class="fa-solid fa-location-dot text-[7px] text-white"></i>';
+            let labelPrefix = '';
+
+            if (isBase) {
+                pinColor = 'bg-amber-500 ring-2 ring-amber-300';
+                iconMarkup = '<i class="fa-solid fa-charging-station text-[7px] text-white"></i>';
+                labelPrefix = '⚡ ';
+            } else if (isStairs) {
+                pinColor = 'bg-orange-500 ring-2 ring-orange-300';
+                iconMarkup = '<i class="fa-solid fa-stairs text-[7px] text-white"></i>';
+                labelPrefix = '🪜 ';
+            } else if (Number(loc.floor) === 2) {
+                pinColor = 'bg-purple-600 ring-2 ring-purple-300';
+                iconMarkup = '<i class="fa-solid fa-location-dot text-[7px] text-white"></i>';
+            }
             
             pin.innerHTML = `
                 <div class="w-3.5 h-3.5 rounded-full ${pinColor} border border-white shadow transition group-hover:scale-125 flex items-center justify-center">
-                    ${isStairs ? '<i class="fa-solid fa-stairs text-[7px] text-white"></i>' : ''}
+                    ${iconMarkup}
                 </div>
-                <div class="absolute bottom-5 left-1/2 -translate-x-1/2 bg-gray-900/90 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-30">
-                    ${loc.name} ${isStairs ? '(Pindah Lantai)' : ''}
-                </div>
+                ${showDeliveriesLabels && isDest ? `
+                    <div class="mt-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold tracking-tight bg-white/95 backdrop-blur-sm border border-gray-200 shadow-sm text-gray-800 whitespace-nowrap pointer-events-none select-none transition group-hover:bg-gray-900 group-hover:text-white group-hover:border-gray-900 group-hover:z-30">
+                        ${labelPrefix}${loc.name}
+                    </div>
+                ` : `
+                    <div class="absolute bottom-5 left-1/2 -translate-x-1/2 bg-gray-900/90 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-30">
+                        ${labelPrefix}${loc.name} ${isStairs ? '(Pindah Lantai)' : ''}
+                    </div>
+                `}
             `;
             
             pin.addEventListener('click', () => {
                 const destSelect = document.getElementById('dispatch-dest');
                 if (destSelect && destSelect.querySelector(`option[value="${id}"]`)) {
                     destSelect.value = id;
+                    destSelect.classList.add('ring-2', 'ring-[#3b4cb8]');
+                    setTimeout(() => destSelect.classList.remove('ring-2', 'ring-[#3b4cb8]'), 1200);
                 }
             });
             overlay.appendChild(pin);
@@ -517,7 +573,7 @@
     }
 
     function buildReturnMission(robot, now) {
-        const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
+        const baseLoc = locations['1_N7'] || { x: 76.23, y: 64.42, floor: 1 };
         if (Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) < 2.0) {
             robot.floor = 1;
             return null;
@@ -705,7 +761,7 @@
 
             mission.stages.forEach(st => {
                 if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
-                if (Number(st.floor) !== Number(liveCurrentFloor)) return;
+                if (liveCurrentFloor !== 'all' && Number(st.floor) !== Number(liveCurrentFloor)) return;
                 
                 const stageEndMs = st.startMs + st.durationMs;
                 if (elapsedMs >= stageEndMs && delivery.status !== 'Pending') return;
@@ -761,7 +817,7 @@
 
                 robot.returnMission.stages.forEach(st => {
                     if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
-                    if (Number(st.floor) !== Number(liveCurrentFloor)) return;
+                    if (liveCurrentFloor !== 'all' && Number(st.floor) !== Number(liveCurrentFloor)) return;
                     
                     const stageEndMs = st.startMs + st.durationMs;
                     if (elapsedMs >= stageEndMs) return;
@@ -940,7 +996,7 @@
                     robot.rotation = angle;
                 }
             } else if (robot.status === 'Idle') {
-                const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
+                const baseLoc = locations['1_N7'] || { x: 76.23, y: 64.42, floor: 1 };
                 const isNearBase = Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) < 2.0;
                 if (isNearBase) {
                     robot.floor = 1;
@@ -1033,7 +1089,7 @@
                 }
             }
             
-            if (overlay && Number(floorNum) === Number(liveCurrentFloor)) {
+            if (overlay && (liveCurrentFloor === 'all' || Number(floorNum) === Number(liveCurrentFloor))) {
                 const isTransit = taskText.includes('Transit Tangga');
                 const isPickingUp = taskText.includes('Mengambil');
                 const isDroppingOff = taskText.includes('Menyerahkan');
@@ -1250,7 +1306,8 @@
             // Merge robots data keeping local animation properties
             data.robots.forEach(newRobot => {
                 const existing = robots.find(r => Number(r.id) === Number(newRobot.id));
-                if (Math.hypot((newRobot.current_x || 80.6) - 80.6, (newRobot.current_y || 68.48) - 68.48) < 2.0) {
+                const bLoc = locations['1_N7'] || { x: 76.23, y: 64.42, floor: 1 };
+                if (Math.hypot((newRobot.current_x || bLoc.x) - bLoc.x, (newRobot.current_y || bLoc.y) - bLoc.y) < 2.0) {
                     newRobot.floor = 1;
                 }
                 if (existing) {
