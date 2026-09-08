@@ -9,7 +9,7 @@
     .floor-map-card {
         position: relative;
         width: 100%;
-        aspect-ratio: 16/9;
+        aspect-ratio: 1800 / 1375;
         background-size: 100% 100%;
         background-repeat: no-repeat;
         background-position: center;
@@ -20,47 +20,23 @@
     /* Full View 1-Screen Fit (Zero Scroll) */
     .fullview-wrapper {
         display: flex;
-        flex-direction: column;
         justify-content: center;
         align-items: center;
-        gap: 0.75rem;
         width: 100%;
         transition: all 0.3s ease;
     }
     .fullview-floor-box {
         position: relative;
-        height: calc((100vh - 210px) / 2);
-        max-height: 40vh;
-        aspect-ratio: 16/9;
+        height: calc(100vh - 170px);
+        max-height: calc(100vh - 170px);
+        aspect-ratio: 1800 / 1375;
         max-width: 100%;
         background-size: 100% 100%;
         background-repeat: no-repeat;
         background-position: center;
-        border-radius: 0.75rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(0,0,0,0.05);
+        border-radius: 1rem;
+        box-shadow: 0 4px 25px rgba(0,0,0,0.12), inset 0 0 0 1px rgba(0,0,0,0.06);
         transition: all 0.2s ease;
-    }
-
-    /* Horizontal Full View (Side-by-Side / Kanan - Kiri) */
-    .fullview-wrapper.fullview-horizontal {
-        flex-direction: row;
-        align-items: center;
-        justify-content: center;
-        gap: 1.25rem;
-    }
-    .fullview-wrapper.fullview-horizontal .fullview-floor-box {
-        flex: 1 1 0%;
-        width: calc((100% - 1.25rem) / 2);
-        max-width: calc((100% - 1.25rem) / 2);
-        height: auto !important;
-        max-height: calc(100vh - 170px);
-        aspect-ratio: 16/9 !important;
-    }
-    .fullview-wrapper.fullview-horizontal #fullview-container-f1 {
-        order: 1;
-    }
-    .fullview-wrapper.fullview-horizontal #fullview-container-f2 {
-        order: 2;
     }
 
     .robot-marker {
@@ -195,7 +171,10 @@
                     <div class="flex flex-wrap items-center gap-2">
                         <!-- Floor Switcher -->
                         <div class="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
-                            <button onclick="switchDashboardFloor(1)" id="std-tab-f1" class="px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition">
+                            <button onclick="switchDashboardFloor('all')" id="std-tab-all" class="px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition">
+                                Semua Lantai
+                            </button>
+                            <button onclick="switchDashboardFloor(1)" id="std-tab-f1" class="px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">
                                 Lantai 1
                             </button>
                             <button onclick="switchDashboardFloor(2)" id="std-tab-f2" class="px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">
@@ -242,39 +221,42 @@
                     </div>
                 </div>
 
-                <!-- Active Floor Title Badge -->
+                <!-- Active Floor Title Badge & Label Toggle -->
                 <div class="flex items-center justify-between mb-2">
                     <span class="text-xs font-bold text-[#3b4cb8] flex items-center gap-1.5" id="std-floor-title">
-                        <i class="fa-solid fa-building-user"></i> Lantai 1 (Ground Floor - Lobby, Office &amp; Receptionist)
+                        <i class="fa-solid fa-layer-group"></i> Semua Lantai (Merged View: Lantai 2 Atas &amp; Lantai 1 Bawah)
                     </span>
-                    <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200" id="std-floor-badge">
-                        Showing Floor 1
-                    </span>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="toggleDestinationLabels()" id="btn-toggle-dest-labels" title="Tampilkan/Sembunyikan Label Nama Ruangan" class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-blue-50 text-[#3b4cb8] border border-blue-200 hover:bg-blue-100 shadow-sm">
+                            <i class="fa-solid fa-tags"></i> <span id="label-toggle-text">Label Ruangan: ON</span>
+                        </button>
+                        <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200" id="std-floor-badge">
+                            Showing All Floors (Merged)
+                        </span>
+                    </div>
                 </div>
 
-                <!-- Map Canvas Container (Proporsional 16:9) -->
-                <div class="floor-map-card overflow-hidden shadow-inner border border-gray-200" id="std-map-container" style="background-image: url('{{ asset('images/floor1.jpeg') }}');">
+                <!-- Map Canvas Container (Proporsional 1800/1375) -->
+                <div class="floor-map-card overflow-hidden shadow-inner border border-gray-200 relative" id="std-map-container" style="background-image: url('{{ asset('images/LantaiMerge.jpeg') }}');">
                     <svg class="path-svg" id="std-path-svg"></svg>
+                    <div id="std-destinations-overlay" class="absolute inset-0"></div>
                     <div id="std-robots-overlay"></div>
                 </div>
 
-                <!-- Status Indicator Legends -->
-                <div class="flex flex-wrap gap-4 pt-4 mt-4 border-t border-gray-200 text-xs text-gray-600 font-semibold">
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span>
-                        <span>Idle / Standby</span>
+                <!-- Status & Location Indicator Legends -->
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-3 mt-3 border-t border-gray-200 text-xs text-gray-600 font-semibold">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="text-gray-400 uppercase text-[10px] font-bold">Robot:</span>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></span><span>Idle</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-500 shadow-sm"></span><span>Delivering</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-sm"></span><span>Charging</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-sm"></span><span>Maintenance</span></div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full bg-sky-500 shadow-sm"></span>
-                        <span>Delivering</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full bg-orange-500 shadow-sm"></span>
-                        <span>Charging</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="w-3 h-3 rounded-full bg-rose-500 shadow-sm"></span>
-                        <span>Maintenance</span>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <span class="text-gray-400 uppercase text-[10px] font-bold">Tujuan:</span>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-600 ring-2 ring-blue-200"></span><span>Ruangan L1</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-600 ring-2 ring-purple-200"></span><span>Ruangan L2</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-200"></span><span>Markas (N7)</span></div>
                     </div>
                 </div>
             </div>
@@ -344,21 +326,6 @@
             </div>
         </div>
 
-        <!-- Layout Switcher: Atas-Bawah vs Kanan-Kiri -->
-        <div class="flex items-center gap-2">
-            <span class="text-[11px] font-bold text-gray-500 hidden md:inline"><i class="fa-solid fa-table-cells-large mr-1 text-[#3b4cb8]"></i>Tata Letak:</span>
-            <div class="inline-flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs shadow-inner">
-                <button type="button" id="btn-layout-vertical" onclick="setFullViewLayout('vertical')" title="Tampilan Bertumpuk (Atas - Bawah)" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition duration-200 bg-white text-[#3b4cb8] shadow-sm">
-                    <i class="fa-solid fa-grip-lines"></i>
-                    <span>Atas - Bawah</span>
-                </button>
-                <button type="button" id="btn-layout-horizontal" onclick="setFullViewLayout('horizontal')" title="Tampilan Bersebelahan (Kanan - Kiri)" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition duration-200 text-gray-600 hover:text-gray-900">
-                    <i class="fa-solid fa-table-columns"></i>
-                    <span>Kanan - Kiri</span>
-                </button>
-            </div>
-        </div>
-
         <!-- Robot Status Legend in Fullview -->
         <div class="flex items-center gap-3 text-[11px] font-semibold text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
             <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Idle</span></div>
@@ -368,24 +335,15 @@
         </div>
     </div>
 
-    <!-- Scaled Dual Floor Canvas (Both floors fit in 1 view) -->
+    <!-- Scaled Merged Floor Canvas (Both floors fit in 1 view) -->
     <div class="fullview-wrapper" id="fullview-wrapper">
-        <!-- Floor 2 (Atas) -->
-        <div class="fullview-floor-box" id="fullview-container-f2" style="background-image: url('{{ asset('images/floor2.jpeg') }}');">
-            <div class="absolute top-2 left-2 z-20 bg-black/75 backdrop-blur-sm text-white font-bold text-[10px] px-2.5 py-1 rounded-lg border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
-                <i class="fa-solid fa-building-user text-sky-400"></i> LANTAI 2 (Upper Floor - Direksi &amp; Meeting Rooms)
+        <div class="fullview-floor-box" id="fullview-container-merged" style="background-image: url('{{ asset('images/LantaiMerge.jpeg') }}');">
+            <div class="absolute top-2.5 left-2.5 z-20 bg-black/75 backdrop-blur-sm text-white font-bold text-[10px] px-3 py-1.5 rounded-lg border border-white/10 shadow flex items-center gap-2 pointer-events-none">
+                <i class="fa-solid fa-layer-group text-sky-400"></i> OVERVIEW (Lantai 2 di Atas &bull; Lantai 1 di Bawah)
             </div>
-            <svg class="path-svg" id="fullview-path-svg-f2"></svg>
-            <div id="fullview-robots-overlay-f2" class="absolute inset-0 pointer-events-none"></div>
-        </div>
-
-        <!-- Floor 1 (Bawah) -->
-        <div class="fullview-floor-box" id="fullview-container-f1" style="background-image: url('{{ asset('images/floor1.jpeg') }}');">
-            <div class="absolute top-2 left-2 z-20 bg-black/75 backdrop-blur-sm text-white font-bold text-[10px] px-2.5 py-1 rounded-lg border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
-                <i class="fa-solid fa-building-user text-emerald-400"></i> LANTAI 1 (Ground Floor - Lobby &amp; Office)
-            </div>
-            <svg class="path-svg" id="fullview-path-svg-f1"></svg>
-            <div id="fullview-robots-overlay-f1" class="absolute inset-0 pointer-events-none"></div>
+            <svg class="path-svg" id="fullview-path-svg"></svg>
+            <div id="fullview-destinations-overlay" class="absolute inset-0 pointer-events-none"></div>
+            <div id="fullview-robots-overlay" class="absolute inset-0 pointer-events-none"></div>
         </div>
     </div>
 </div>
@@ -393,6 +351,7 @@
 
 @section('scripts')
 <script>
+    const mergedMapImg = "{{ asset('images/LantaiMerge.jpeg') }}";
     const floor1Img = "{{ asset('images/floor1.jpeg') }}";
     const floor2Img = "{{ asset('images/floor2.jpeg') }}";
 
@@ -421,7 +380,7 @@
     let activeAlerts = @json($activeAlerts ?? []);
     let isAutopilotEnabled = {{ Illuminate\Support\Facades\Cache::get('autopilot_enabled', false) ? 'true' : 'false' }};
     let serverClientOffset = 0;
-    let currentDashboardFloor = 1;
+    let currentDashboardFloor = 'all';
     let isFullViewMode = false;
 
     function getRobotColor(robotId) {
@@ -438,27 +397,118 @@
     function switchDashboardFloor(floorNum) {
         currentDashboardFloor = floorNum;
         
+        const tabAll = document.getElementById('std-tab-all');
         const tabF1 = document.getElementById('std-tab-f1');
         const tabF2 = document.getElementById('std-tab-f2');
         const container = document.getElementById('std-map-container');
         const title = document.getElementById('std-floor-title');
         const badge = document.getElementById('std-floor-badge');
 
-        if (floorNum === 1) {
-            tabF1.className = "px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition";
-            tabF2.className = "px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-            container.style.backgroundImage = `url('${floor1Img}')`;
-            title.innerHTML = '<i class="fa-solid fa-building-user"></i> Lantai 1 (Ground Floor - Lobby, Office & Receptionist)';
+        const activeCls = "px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition";
+        const inactiveCls = "px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
+
+        if (tabAll) tabAll.className = floorNum === 'all' ? activeCls : inactiveCls;
+        if (tabF1) tabF1.className = floorNum === 1 ? activeCls : inactiveCls;
+        if (tabF2) tabF2.className = floorNum === 2 ? activeCls : inactiveCls;
+
+        container.style.backgroundImage = `url('${mergedMapImg}')`;
+
+        if (floorNum === 'all') {
+            title.innerHTML = '<i class="fa-solid fa-layer-group"></i> Semua Lantai (Merged View: Lantai 2 Atas &amp; Lantai 1 Bawah)';
+            badge.textContent = 'Showing All Floors (Merged)';
+        } else if (floorNum === 1) {
+            title.innerHTML = '<i class="fa-solid fa-building-user"></i> Lantai 1 (Ground Floor - Lobby, Office &amp; Receptionist)';
             badge.textContent = 'Showing Floor 1';
         } else {
-            tabF2.className = "px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition";
-            tabF1.className = "px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-            container.style.backgroundImage = `url('${floor2Img}')`;
-            title.innerHTML = '<i class="fa-solid fa-building-user"></i> Lantai 2 (Upper Floor - Direksi, Lounge & Meeting Rooms)';
+            title.innerHTML = '<i class="fa-solid fa-building-user"></i> Lantai 2 (Upper Floor - Direksi, Lounge &amp; Meeting Rooms)';
             badge.textContent = 'Showing Floor 2';
         }
 
+        drawDestinations();
         runSimulationStep();
+    }
+
+    let showDestinationLabels = true;
+
+    function toggleDestinationLabels() {
+        showDestinationLabels = !showDestinationLabels;
+        const btn = document.getElementById('btn-toggle-dest-labels');
+        const text = document.getElementById('label-toggle-text');
+        if (btn) {
+            btn.className = showDestinationLabels 
+                ? 'px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-blue-50 text-[#3b4cb8] border border-blue-200 hover:bg-blue-100 shadow-sm'
+                : 'px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200';
+        }
+        if (text) {
+            text.textContent = showDestinationLabels ? 'Label Ruangan: ON' : 'Label Ruangan: OFF';
+        }
+        drawDestinations();
+    }
+
+    function drawDestinations() {
+        const stdOverlay = document.getElementById('std-destinations-overlay');
+        const fullOverlay = document.getElementById('fullview-destinations-overlay');
+        if (stdOverlay) stdOverlay.innerHTML = '';
+        if (fullOverlay) fullOverlay.innerHTML = '';
+
+        for (let id in locations) {
+            const loc = locations[id];
+            const isBase = (id === '1_N7');
+            const isStairs = id.includes('Stairs');
+            const isDest = (loc.is_destination === true || isBase || isStairs);
+            if (!isDest) continue;
+
+            const floorMatch = (currentDashboardFloor === 'all' || Number(loc.floor) === Number(currentDashboardFloor));
+
+            function createPin(isFullview = false) {
+                const pin = document.createElement('div');
+                pin.className = 'absolute -translate-x-1/2 -translate-y-1/2 z-15 pointer-events-auto flex flex-col items-center group cursor-pointer';
+                pin.style.left = `${loc.x}%`;
+                pin.style.top = `${loc.y}%`;
+
+                let dotColor = 'bg-blue-600 ring-2 ring-blue-300';
+                let iconClass = 'fa-location-dot';
+                let labelPrefix = '';
+
+                if (isBase) {
+                    dotColor = 'bg-amber-500 ring-2 ring-amber-300';
+                    iconClass = 'fa-charging-station';
+                    labelPrefix = '⚡ ';
+                } else if (isStairs) {
+                    dotColor = 'bg-orange-500 ring-2 ring-orange-300';
+                    iconClass = 'fa-stairs';
+                    labelPrefix = '🪜 ';
+                } else if (Number(loc.floor) === 2) {
+                    dotColor = 'bg-purple-600 ring-2 ring-purple-300';
+                }
+
+                const dotSize = isFullview ? 'w-3 h-3 text-[6px]' : 'w-3.5 h-3.5 text-[7px]';
+                const labelTextSize = isFullview ? 'text-[7px] px-1 py-0.2' : 'text-[8px] px-1.5 py-0.5';
+
+                pin.innerHTML = `
+                    <div class="${dotSize} rounded-full ${dotColor} text-white flex items-center justify-center shadow-md transition transform group-hover:scale-125">
+                        <i class="fa-solid ${iconClass}"></i>
+                    </div>
+                    ${showDestinationLabels ? `
+                        <div class="mt-0.5 ${labelTextSize} rounded font-bold tracking-tight bg-white/95 backdrop-blur-sm border border-gray-200/90 shadow-sm text-gray-800 whitespace-nowrap pointer-events-none select-none transition group-hover:bg-gray-900 group-hover:text-white group-hover:border-gray-900 group-hover:z-30">
+                            ${labelPrefix}${loc.name}
+                        </div>
+                    ` : `
+                        <div class="absolute bottom-5 left-1/2 -translate-x-1/2 ${labelTextSize} rounded font-bold tracking-tight bg-gray-900/90 text-white shadow-lg whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition z-30">
+                            ${labelPrefix}${loc.name}
+                        </div>
+                    `}
+                `;
+                return pin;
+            }
+
+            if (stdOverlay && floorMatch) {
+                stdOverlay.appendChild(createPin(false));
+            }
+            if (fullOverlay) {
+                fullOverlay.appendChild(createPin(true));
+            }
+        }
     }
 
     let currentFullViewLayout = localStorage.getItem('fullview_layout') || 'vertical';
@@ -513,7 +563,10 @@
             window.scrollTo(0, 0);
         }
 
-        setTimeout(runSimulationStep, 50);
+        setTimeout(() => {
+            drawDestinations();
+            runSimulationStep();
+        }, 50);
     }
 
     function getNode(nameOrId, preferredFloor = null) {
@@ -625,7 +678,7 @@
     }
 
     function buildReturnMission(robot, now) {
-        const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
+        const baseLoc = locations['1_N7'] || { x: 76.23, y: 64.42, floor: 1 };
         if (Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) < 2.0) {
             robot.floor = 1;
             return null;
@@ -797,10 +850,8 @@
         const stdSvg = document.getElementById('std-path-svg');
         if (stdSvg) stdSvg.innerHTML = '';
 
-        const fullSvgF1 = document.getElementById('fullview-path-svg-f1');
-        const fullSvgF2 = document.getElementById('fullview-path-svg-f2');
-        if (fullSvgF1) fullSvgF1.innerHTML = '';
-        if (fullSvgF2) fullSvgF2.innerHTML = '';
+        const fullSvg = document.getElementById('fullview-path-svg');
+        if (fullSvg) fullSvg.innerHTML = '';
         
         const now = new Date(new Date().getTime() + serverClientOffset);
 
@@ -849,9 +900,8 @@
                 if (remainingPts.length < 2) return;
 
                 if (isFullViewMode) {
-                    const targetSvg = st.floor === 2 ? fullSvgF2 : fullSvgF1;
-                    const container = document.getElementById(st.floor === 2 ? 'fullview-container-f2' : 'fullview-container-f1');
-                    if (!targetSvg || !container) return;
+                    const container = document.getElementById('fullview-container-merged');
+                    if (!fullSvg || !container) return;
 
                     let pts = '';
                     remainingPts.forEach(pt => {
@@ -868,10 +918,10 @@
                         poly.setAttribute('stroke-dasharray', delivery.status === 'Pending' ? '3,3' : '5,5');
                         poly.setAttribute('fill', 'none');
                         poly.setAttribute('opacity', delivery.status === 'Pending' ? '0.5' : '0.85');
-                        targetSvg.appendChild(poly);
+                        fullSvg.appendChild(poly);
                     }
                 } else {
-                    if (Number(st.floor) !== Number(currentDashboardFloor)) return;
+                    if (currentDashboardFloor !== 'all' && Number(st.floor) !== Number(currentDashboardFloor)) return;
                     const stdContainer = document.getElementById('std-map-container');
                     if (!stdContainer || !stdSvg) return;
 
@@ -929,9 +979,8 @@
                     if (remainingPts.length < 2) return;
 
                     if (isFullViewMode) {
-                        const targetSvg = st.floor === 2 ? fullSvgF2 : fullSvgF1;
-                        const container = document.getElementById(st.floor === 2 ? 'fullview-container-f2' : 'fullview-container-f1');
-                        if (!targetSvg || !container) return;
+                        const container = document.getElementById('fullview-container-merged');
+                        if (!fullSvg || !container) return;
 
                         let pts = '';
                         remainingPts.forEach(pt => {
@@ -948,10 +997,10 @@
                             poly.setAttribute('stroke-dasharray', '4,4');
                             poly.setAttribute('fill', 'none');
                             poly.setAttribute('opacity', '0.75');
-                            targetSvg.appendChild(poly);
+                            fullSvg.appendChild(poly);
                         }
                     } else {
-                        if (Number(st.floor) !== Number(currentDashboardFloor)) return;
+                        if (currentDashboardFloor !== 'all' && Number(st.floor) !== Number(currentDashboardFloor)) return;
                         const stdContainer = document.getElementById('std-map-container');
                         if (!stdContainer || !stdSvg) return;
 
@@ -985,11 +1034,9 @@
         const stdOverlay = document.getElementById('std-robots-overlay');
         if (stdOverlay) stdOverlay.innerHTML = '';
 
-        // Fullview overlays
-        const fullOverlayF1 = document.getElementById('fullview-robots-overlay-f1');
-        const fullOverlayF2 = document.getElementById('fullview-robots-overlay-f2');
-        if (fullOverlayF1) fullOverlayF1.innerHTML = '';
-        if (fullOverlayF2) fullOverlayF2.innerHTML = '';
+        // Fullview overlay
+        const fullOverlay = document.getElementById('fullview-robots-overlay');
+        if (fullOverlay) fullOverlay.innerHTML = '';
         
         robots.forEach(robot => {
             const delivery = activeDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending'));
@@ -1131,7 +1178,7 @@
                     robot.rotation = angle;
                 }
             } else if (robot.status === 'Idle' && !hasIssue) {
-                const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
+                const baseLoc = locations['1_N7'] || { x: 76.23, y: 64.42, floor: 1 };
                 const isNearBase = Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) < 2.0;
                 if (isNearBase) {
                     robot.floor = 1;
@@ -1240,7 +1287,7 @@
                 let displayX = coords.x;
                 let displayY = coords.y;
                 if (robot.status === 'Idle' && !robot.isReturning && !hasIssue && Number(floorNum) === 1) {
-                    const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
+                    const baseLoc = locations['1_N7'] || { x: 76.23, y: 64.42, floor: 1 };
                     if (Math.hypot(coords.x - baseLoc.x, coords.y - baseLoc.y) < 1.5) {
                         displayX = baseLoc.x + (Number(robot.id) - 2) * 2.2;
                     }
@@ -1309,10 +1356,9 @@
 
             // Render on active overlays
             if (isFullViewMode) {
-                const targetOverlay = Number(floorNum) === 2 ? fullOverlayF2 : fullOverlayF1;
-                if (targetOverlay) targetOverlay.appendChild(createRobotMarker(true));
+                if (fullOverlay) fullOverlay.appendChild(createRobotMarker(true));
             } else {
-                if (Number(floorNum) === Number(currentDashboardFloor)) {
+                if (currentDashboardFloor === 'all' || Number(floorNum) === Number(currentDashboardFloor)) {
                     if (stdOverlay) stdOverlay.appendChild(createRobotMarker(false));
                 }
             }
@@ -1673,7 +1719,8 @@
 
             data.robots.forEach(newRobot => {
                 const existing = robots.find(r => Number(r.id) === Number(newRobot.id));
-                if (Math.hypot((newRobot.current_x || 80.6) - 80.6, (newRobot.current_y || 68.48) - 68.48) < 2.0) {
+                const bLoc = locations['1_N7'] || { x: 76.23, y: 64.42, floor: 1 };
+                if (Math.hypot((newRobot.current_x || bLoc.x) - bLoc.x, (newRobot.current_y || bLoc.y) - bLoc.y) < 2.0) {
                     newRobot.floor = 1;
                 }
                 if (existing) {
@@ -1701,12 +1748,14 @@
         try { localStorage.removeItem('autopilot_enabled'); } catch(e) {}
         setFullViewLayout(currentFullViewLayout);
         updateAutopilotUI();
+        drawDestinations();
         runSimulationStep();
         setInterval(runSimulationStep, 50);
         setInterval(fetchData, 3000);
     });
 
     window.addEventListener('resize', () => {
+        drawDestinations();
         runSimulationStep();
     });
 </script>

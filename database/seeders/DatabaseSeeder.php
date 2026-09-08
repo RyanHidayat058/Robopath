@@ -38,8 +38,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Robot Alpha',
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 80.6,
-            'current_y' => 68.48,
+            'current_x' => 76.23,
+            'current_y' => 64.42,
         ]);
 
         $beta = Robot::create([
@@ -47,8 +47,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Robot Beta',
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 80.6,
-            'current_y' => 68.48,
+            'current_x' => 76.23,
+            'current_y' => 64.42,
         ]);
 
         $gamma = Robot::create([
@@ -56,8 +56,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Robot Gamma',
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 80.6,
-            'current_y' => 68.48,
+            'current_x' => 76.23,
+            'current_y' => 64.42,
         ]);
 
         // Reset sequence in PostgreSQL for robots
