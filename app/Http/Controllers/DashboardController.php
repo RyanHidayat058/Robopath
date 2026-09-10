@@ -6,6 +6,7 @@ use App\Models\Delivery;
 use App\Models\Report;
 use App\Models\Robot;
 use Carbon\Carbon;
+use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
@@ -43,20 +44,20 @@ class DashboardController extends Controller
         $adj = $this->getAdjData();
         $activeDeliveries = Delivery::with('robot')->where('status', 'In Progress')->get();
 
-        return view('dashboard', compact(
-            'robots',
-            'activeRobotsCount',
-            'totalRobotsCount',
-            'deliveriesTodayCount',
-            'activeDeliveriesCount',
-            'successRate',
-            'activeAlertsCount',
-            'recentDeliveries',
-            'recentReports',
-            'locations',
-            'adj',
-            'activeDeliveries'
-        ));
+        return Inertia::render('Dashboard', [
+            'robots' => $robots,
+            'activeRobotsCount' => $activeRobotsCount,
+            'totalRobotsCount' => $totalRobotsCount,
+            'deliveriesTodayCount' => $deliveriesTodayCount,
+            'activeDeliveriesCount' => $activeDeliveriesCount,
+            'successRate' => $successRate,
+            'activeAlertsCount' => $activeAlertsCount,
+            'recentDeliveries' => $recentDeliveries,
+            'recentReports' => $recentReports,
+            'locations' => $locations,
+            'adj' => $adj,
+            'activeDeliveries' => $activeDeliveries,
+        ]);
     }
 
     public function deliveries()
@@ -72,7 +73,13 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
-        return view('deliveries', compact('robots', 'activeDeliveries', 'locations', 'adj', 'recentActivity'));
+        return Inertia::render('Deliveries', [
+            'robots' => $robots,
+            'activeDeliveries' => $activeDeliveries,
+            'locations' => $locations,
+            'adj' => $adj,
+            'recentActivity' => $recentActivity,
+        ]);
     }
 
     public function botControl()
@@ -81,7 +88,11 @@ class DashboardController extends Controller
         $locations = $this->getLocationsData();
         $adj = $this->getAdjData();
 
-        return view('bot_control', compact('robots', 'locations', 'adj'));
+        return Inertia::render('BotControl', [
+            'robots' => $robots,
+            'locations' => $locations,
+            'adj' => $adj,
+        ]);
     }
 
     public function history()
@@ -90,7 +101,9 @@ class DashboardController extends Controller
             ->orderBy('started_at', 'desc')
             ->paginate(10);
 
-        return view('history', compact('deliveries'));
+        return Inertia::render('History', [
+            'deliveries' => $deliveries,
+        ]);
     }
 
     public function reports()
@@ -98,7 +111,10 @@ class DashboardController extends Controller
         $reports = Report::with('robot')->orderBy('created_at', 'desc')->paginate(10);
         $robots = Robot::all();
 
-        return view('reports', compact('reports', 'robots'));
+        return Inertia::render('Reports', [
+            'reports' => $reports,
+            'robots' => $robots,
+        ]);
     }
 
     private function getLocationsData()
