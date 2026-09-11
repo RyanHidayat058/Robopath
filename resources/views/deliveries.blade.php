@@ -406,11 +406,10 @@
             return;
         }
 
-        const select = document.getElementById('dispatch-robot');
-        const selectedOpt = select.options[select.selectedIndex];
-        const rx = parseFloat(selectedOpt.getAttribute('data-x'));
-        const ry = parseFloat(selectedOpt.getAttribute('data-y'));
-        const origin = resolveLocationNodeId(rx, ry);
+        const bot = robots.find(r => Number(r.id) === Number(robotId));
+        const origin = (bot && bot.current_x != null && bot.current_y != null)
+            ? resolveLocationNodeId(bot.current_x, bot.current_y, bot.floor || 1)
+            : '1_N7';
 
         fetch('/api/deliveries', {
             method: 'POST',
@@ -555,6 +554,61 @@
         return Math.max(1.0, dist);
     }
 
+    function interpolateAlongPath(path, ratio) {
+        if (!path || path.length === 0) return null;
+        if (path.length === 1) {
+            const p = locations[path[0]] || { x: 0, y: 0 };
+            return { coords: { x: p.x, y: p.y }, angle: 0, segIdx: 0 };
+        }
+
+        const clampedRatio = Math.max(0, Math.min(1.0, ratio));
+        const segDistances = [];
+        let totalDistance = 0;
+
+        for (let i = 0; i < path.length - 1; i++) {
+            const p1 = locations[path[i]];
+            const p2 = locations[path[i + 1]];
+            const dist = (p1 && p2) ? Math.hypot(p2.x - p1.x, p2.y - p1.y) : 0.001;
+            segDistances.push(dist);
+            totalDistance += dist;
+        }
+
+        if (totalDistance <= 0.0001) {
+            const p = locations[path[0]] || { x: 0, y: 0 };
+            return { coords: { x: p.x, y: p.y }, angle: 0, segIdx: 0 };
+        }
+
+        const targetDist = clampedRatio * totalDistance;
+        let accumulated = 0;
+        let currentSegIdx = path.length - 2;
+        let ratioInSeg = 1.0;
+
+        for (let i = 0; i < segDistances.length; i++) {
+            const nextAcc = accumulated + segDistances[i];
+            if (targetDist <= nextAcc || i === segDistances.length - 1) {
+                currentSegIdx = i;
+                const segLen = segDistances[i];
+                ratioInSeg = segLen > 0 ? (targetDist - accumulated) / segLen : 0;
+                ratioInSeg = Math.max(0, Math.min(1.0, ratioInSeg));
+                break;
+            }
+            accumulated = nextAcc;
+        }
+
+        const p1 = locations[path[currentSegIdx]] || { x: 0, y: 0 };
+        const p2 = locations[path[currentSegIdx + 1]] || p1;
+        const coords = interpolate(p1, p2, ratioInSeg);
+
+        let angle = 0;
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        if (dx !== 0 || dy !== 0) {
+            angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+        }
+
+        return { coords, angle, segIdx: currentSegIdx };
+    }
+
     function planRouteBetween(fromId, toId) {
         if (!locations[fromId] || !locations[toId]) return [];
         const f1 = Number(locations[fromId].floor || 1);
@@ -579,7 +633,7 @@
     function buildReturnMission(robot, now) {
         const baseLoc = locations['1_N7'] || { x: 76.23, y: 64.42, floor: 1 };
         const robotFloor = Number(robot.floor || 1);
-        if (robotFloor === 1 && Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) < 2.0) {
+        if (robotFloor === 1 && Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) < 0.6) {
             robot.floor = 1;
             return null;
         }
@@ -646,6 +700,32 @@
             },
             body: JSON.stringify(payload)
         }).catch(err => console.error('Error syncing base station location:', err));
+    }
+
+    function resumeFromBaseAfterCharge(robot) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        fetch(`/api/robots/${robot.id}/resume-from-base`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({})
+        })
+        .then(res => res.json())
+        .then(data => {
+            activeDeliveries.forEach(d => {
+                if (Number(d.robot_id) === Number(robot.id)) {
+                    delete d._cachedMission;
+                }
+            });
+            if (data.delivery) {
+                delete data.delivery._cachedMission;
+            }
+            fetchData();
+        })
+        .catch(err => console.error('Error resuming from base after charge:', err));
     }
 
     function getDeliveryMission(delivery, robot) {
@@ -891,6 +971,20 @@
             if (robot.status === 'Charging' && !hasIssue) {
                 statusColor = 'bg-orange-500';
                 taskText = `Pengisian Daya di Base N7 (${robot.battery_level}%)...`;
+                
+                const nowTime = now.getTime();
+                if (!robot.lastChargeTick) robot.lastChargeTick = nowTime;
+                if (nowTime - robot.lastChargeTick >= 1000) {
+                    robot.lastChargeTick = nowTime;
+                    robot.battery_level = Math.min(100, (Number(robot.battery_level) || 0) + 15);
+                    syncRobotBaseLocation(robot.id, coords.x, coords.y, 1, 'Charging', robot.battery_level);
+                    if (robot.battery_level >= 100) {
+                        robot.battery_level = 100;
+                        robot.status = 'Idle';
+                        syncRobotBaseLocation(robot.id, coords.x, coords.y, 1, 'Idle', 100);
+                        resumeFromBaseAfterCharge(robot);
+                    }
+                }
             } else if (robot.status === 'Maintenance' || hasIssue) {
                 statusColor = 'bg-rose-500';
                 taskText = 'Maintenance required';
@@ -901,7 +995,7 @@
                 statusColor = 'bg-rose-600';
                 const issueName = robotAlert ? robotAlert.issue_type : 'Masalah Operasional';
                 taskText = `<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Terjadi Masalah (${issueName}) - Tertahan!</span>`;
-            } else if (delivery && (delivery.status === 'In Progress' || delivery.status === 'Pending')) {
+            } else if (delivery && (delivery.status === 'In Progress' || delivery.status === 'Pending') && robot.status !== 'Charging') {
                 robot.status = 'Delivering';
                 robot.isReturning = false;
                 robot.returnMission = null;
@@ -944,8 +1038,10 @@
                             floorNum = isSecondHalf ? activeStage.toFloor : activeStage.fromFloor;
                             const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
                             coords = locations[currentNodeId] || coords;
+                            angle = 0;
                             taskText = `Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...`;
                             statusColor = 'bg-amber-500';
+                            robot.currentSegIdx = 0;
 
                             if (robot.floor !== floorNum) {
                                 robot.floor = floorNum;
@@ -974,21 +1070,11 @@
                         } else {
                             floorNum = activeStage.floor || 1;
                             const path = activeStage.path || [];
-                            if (path.length >= 2) {
-                                const floatIdx = stageRatio * (path.length - 1);
-                                const currentSegIdx = Math.max(0, Math.min(Math.floor(floatIdx), path.length - 2));
-                                robot.currentSegIdx = currentSegIdx;
-                                const ratioInSegment = floatIdx - currentSegIdx;
-                                const p1 = locations[path[currentSegIdx]];
-                                const p2 = locations[path[currentSegIdx + 1]];
-                                if (p1 && p2) {
-                                    coords = interpolate(p1, p2, ratioInSegment);
-                                    const dx = p2.x - p1.x;
-                                    const dy = p2.y - p1.y;
-                                    if (dx !== 0 || dy !== 0) angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-                                }
-                            } else if (path.length === 1 && locations[path[0]]) {
-                                coords = locations[path[0]];
+                            const along = interpolateAlongPath(path, stageRatio);
+                            if (along) {
+                                coords = along.coords;
+                                angle = along.angle;
+                                robot.currentSegIdx = along.segIdx;
                             }
                             const isHeadingToPickup = mission.pickupStartMs && activeStage.startMs < mission.pickupStartMs;
                             if (isHeadingToPickup) {
@@ -1008,9 +1094,9 @@
                 const distToBase = (Number(robot.floor || 1) === 1) 
                     ? Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) 
                     : 999;
-                const isNearBase = Number(robot.floor || 1) === 1 && distToBase < 2.0;
+                const isNearBase = Number(robot.floor || 1) === 1 && distToBase < 0.6;
 
-                // Instant Arrival: When robot arrives at Base (within 2m on Floor 1)
+                // Instant Arrival: When robot arrives at Base (within 0.6m on Floor 1)
                 if (isNearBase && (robot.status === 'Returning' || robot.isReturning || robot.returnMission)) {
                     coords = { x: baseLoc.x, y: baseLoc.y };
                     floorNum = 1;
@@ -1019,10 +1105,10 @@
                     robot.floor = 1;
                     robot.returnMission = null;
                     robot.isReturning = false;
-                    robot.status = (robot.battery_level < 20) ? 'Charging' : 'Idle';
+                    robot.status = (robot.battery_level <= 20) ? 'Charging' : 'Idle';
                     taskText = (robot.status === 'Charging') ? `Pengisian Daya di Base N7 (${robot.battery_level}%)...` : 'Standby at base station (N7)';
                     syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, robot.status, robot.battery_level);
-                } else if (!isNearBase && distToBase > 0.8) {
+                } else if (!isNearBase && distToBase > 0.6) {
                     if (!robot.returnMission) {
                         robot.returnMission = buildReturnMission(robot, now);
                     }
@@ -1047,9 +1133,10 @@
                         robot.floor = 1;
                         robot.returnMission = null;
                         robot.isReturning = false;
-                        robot.status = 'Idle';
-                        taskText = 'Standby at base station (N7)';
-                        syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Idle', robot.battery_level);
+                        const nextStatus = (robot.battery_level <= 20) ? 'Charging' : 'Idle';
+                        robot.status = nextStatus;
+                        taskText = (nextStatus === 'Charging') ? `Pengisian Daya di Base N7 (${robot.battery_level}%)...` : 'Standby at base station (N7)';
+                        syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, nextStatus, robot.battery_level);
                     } else {
                         let activeStage = null;
                         for (let st of mission.stages) {
@@ -1069,8 +1156,10 @@
                             floorNum = isSecondHalf ? activeStage.toFloor : activeStage.fromFloor;
                             const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
                             coords = locations[currentNodeId] || coords;
+                            angle = 0;
                             taskText = `Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...`;
                             statusColor = 'bg-amber-500';
+                            robot.returnSegIdx = 0;
 
                             if (robot.floor !== floorNum) {
                                 robot.floor = floorNum;
@@ -1079,21 +1168,11 @@
                         } else {
                             floorNum = activeStage.floor || 1;
                             const path = activeStage.path || [];
-                            if (path.length >= 2) {
-                                const floatIdx = stageRatio * (path.length - 1);
-                                const currentSegIdx = Math.max(0, Math.min(Math.floor(floatIdx), path.length - 2));
-                                robot.returnSegIdx = currentSegIdx;
-                                const ratioInSegment = floatIdx - currentSegIdx;
-                                const p1 = locations[path[currentSegIdx]];
-                                const p2 = locations[path[currentSegIdx + 1]];
-                                if (p1 && p2) {
-                                    coords = interpolate(p1, p2, ratioInSegment);
-                                    const dx = p2.x - p1.x;
-                                    const dy = p2.y - p1.y;
-                                    if (dx !== 0 || dy !== 0) angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-                                }
-                            } else if (path.length === 1 && locations[path[0]]) {
-                                coords = locations[path[0]];
+                            const along = interpolateAlongPath(path, stageRatio);
+                            if (along) {
+                                coords = along.coords;
+                                angle = along.angle;
+                                robot.returnSegIdx = along.segIdx;
                             }
                             taskText = `Kembali ke Markas (N7)...`;
                         }
@@ -1104,14 +1183,14 @@
                         robot.rotation = angle;
 
                         // Immediate snap upon reaching base station during movement
-                        if (floorNum === 1 && Math.hypot(coords.x - baseLoc.x, coords.y - baseLoc.y) < 1.2) {
+                        if (floorNum === 1 && Math.hypot(coords.x - baseLoc.x, coords.y - baseLoc.y) < 0.6) {
                             coords = { x: baseLoc.x, y: baseLoc.y };
                             robot.current_x = baseLoc.x;
                             robot.current_y = baseLoc.y;
                             robot.floor = 1;
                             robot.returnMission = null;
                             robot.isReturning = false;
-                            robot.status = (robot.battery_level < 20) ? 'Charging' : 'Idle';
+                            robot.status = (robot.battery_level <= 20) ? 'Charging' : 'Idle';
                             taskText = (robot.status === 'Charging') ? `Pengisian Daya di Base N7 (${robot.battery_level}%)...` : 'Standby at base station (N7)';
                             syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, robot.status, robot.battery_level);
                         }
@@ -1124,11 +1203,12 @@
                         robot.current_y = baseLoc.y;
                         robot.floor = 1;
                         if (robot.status === 'Returning' || robot.isReturning) {
-                            robot.status = 'Idle';
+                            const nextStatus = (robot.battery_level <= 20) ? 'Charging' : 'Idle';
+                            robot.status = nextStatus;
                             robot.isReturning = false;
-                            syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Idle', robot.battery_level);
+                            syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, nextStatus, robot.battery_level);
                         }
-                        taskText = 'Standby at base station (N7)';
+                        taskText = (robot.status === 'Charging') ? `Pengisian Daya di Base N7 (${robot.battery_level}%)...` : 'Standby at base station (N7)';
                     } else {
                         robot.isReturning = false;
                         coords = { x: robot.current_x || baseLoc.x, y: robot.current_y || baseLoc.y };
@@ -1176,15 +1256,37 @@
                     actionIcon = 'fa-robot text-green-600';
                 }
 
+                let displayX = coords.x;
+                let displayY = coords.y;
+                if (Number(floorNum) === 1 && !hasIssue) {
+                    const baseLoc = locations['1_N7'] || { x: 76.23, y: 64.42, floor: 1 };
+                    const distToBase = Math.hypot(coords.x - baseLoc.x, coords.y - baseLoc.y);
+                    const parkOffset = (Number(robot.id) - 2) * 2.2;
+                    let parkFactor = 0;
+
+                    if (robot.status === 'Idle' && !robot.isReturning) {
+                        if (distToBase < 1.5) parkFactor = 1.0;
+                    } else if (robot.status === 'Delivering' && delivery && delivery._clientStartedAt) {
+                        const elapsed = now.getTime() - delivery._clientStartedAt;
+                        if (elapsed < 1500 && distToBase < 2.0) {
+                            parkFactor = Math.max(0, 1 - (elapsed / 1500));
+                        }
+                    } else if ((robot.status === 'Returning' || robot.isReturning) && distToBase < 1.5) {
+                        parkFactor = Math.max(0, (1.5 - distToBase) / 1.5);
+                    }
+
+                    displayX = coords.x + (parkOffset * parkFactor);
+                }
+
                 const marker = document.createElement('div');
                 marker.className = 'robot-marker z-30';
-                marker.style.left = `${coords.x}%`;
-                marker.style.top = `${coords.y}%`;
+                marker.style.left = `${displayX}%`;
+                marker.style.top = `${displayY}%`;
                 
                 marker.innerHTML = `
                     <div class="relative flex items-center justify-center">
                         <span class="animate-ping absolute inline-flex h-10 w-10 rounded-full ${hasIssue ? 'bg-red-500 ring-4 ring-red-400' : statusColor} opacity-40"></span>
-                        <div class="relative w-8 h-8 rounded-xl bg-white border ${ringClass} flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
+                        <div class="relative w-8 h-8 rounded-xl bg-white border ${ringClass} flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${(isTransit || isPickingUp || isDroppingOff || hasIssue) ? 0 : (robot.rotation || 0)}deg);">
                             <i class="fa-solid ${actionIcon} text-xs"></i>
                         </div>
                         <div class="absolute -top-6 ${hasIssue ? 'bg-red-600 text-white border-red-700' : 'bg-white/95 text-gray-700 border-gray-200'} border text-[8px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
@@ -1242,6 +1344,11 @@
             const option = document.createElement('option');
             option.value = robot.id;
             option.textContent = `${robot.name} (${robot.isReturning ? 'Returning' : robot.status} - Bat: ${robot.battery_level}%) ${isBusy ? (robot.isReturning ? '[Returning to N7]' : (robot.status !== 'Idle' ? '[Busy]' : '[Low Battery]')) : ''}`;
+            option.setAttribute('data-status', robot.status);
+            option.setAttribute('data-battery', robot.battery_level);
+            option.setAttribute('data-x', robot.current_x || 76.23);
+            option.setAttribute('data-y', robot.current_y || 64.42);
+            option.setAttribute('data-floor', robot.floor || 1);
             if (isBusy) option.disabled = true;
             if (robot.id.toString() === currentValue) option.selected = true;
             select.appendChild(option);
@@ -1251,19 +1358,12 @@
 
     function syncTelemetry() {
         robots.forEach(robot => {
-            if (robot.status === 'Delivering' || (robot.status === 'Idle' && !robot.returnPath)) {
-                return; // Skip telemetry sync during active deliveries or stationary idle
+            if (robot.status === 'Delivering' || robot.status === 'Charging' || (robot.status === 'Idle' && !robot.returnPath)) {
+                return; // Skip telemetry sync during active deliveries, charging (handled by simulation step), or stationary idle
             }
             
             let nextBattery = robot.battery_level;
             let nextStatus = robot.status;
-            
-            if (robot.status === 'Charging') {
-                nextBattery = Math.min(100, robot.battery_level + 5);
-                if (nextBattery === 100) {
-                    nextStatus = 'Idle';
-                }
-            }
             
             fetch(`/api/robots/${robot.id}/telemetry`, {
                 method: 'POST',
@@ -1355,7 +1455,7 @@
             data.robots.forEach(newRobot => {
                 const existing = robots.find(r => Number(r.id) === Number(newRobot.id));
                 const bLoc = locations['1_N7'] || { x: 76.23, y: 64.42, floor: 1 };
-                if (Math.hypot((newRobot.current_x || bLoc.x) - bLoc.x, (newRobot.current_y || bLoc.y) - bLoc.y) < 2.0) {
+                if (Math.hypot((newRobot.current_x || bLoc.x) - bLoc.x, (newRobot.current_y || bLoc.y) - bLoc.y) < 0.6) {
                     newRobot.floor = 1;
                 }
 
@@ -1368,8 +1468,14 @@
                 }
 
                 if (existing) {
-                    if (existing.status !== newRobot.status) {
-                        existing.status = newRobot.status;
+                    if (hasActiveReport) {
+                        existing.status = 'Maintenance';
+                        existing.hasIssue = true;
+                    } else if (existing.status !== newRobot.status) {
+                        // Do not overwrite 'Charging' with 'Idle' while charging is in progress
+                        if (!(existing.status === 'Charging' && newRobot.status === 'Idle' && (Number(existing.battery_level) || 0) < 100)) {
+                            existing.status = newRobot.status;
+                        }
                     }
 
                     // DO NOT overwrite coordinates or floor if robot is actively moving (Delivering, Returning, or isReturning)
@@ -1385,10 +1491,15 @@
                         existing.current_y = newRobot.current_y;
                     }
 
-                    // Baterai HANYA boleh bertambah jika status robot adalah 'Charging'
-                    if (newRobot.status === 'Charging') {
-                        existing.battery_level = newRobot.battery_level;
+                    // Battery level handling:
+                    const isCharging = (existing.status === 'Charging' || newRobot.status === 'Charging');
+                    if (isCharging) {
+                        if ((Number(existing.battery_level) || 0) < 100) {
+                            existing.status = 'Charging';
+                        }
+                        existing.battery_level = Math.max(Number(existing.battery_level) || 0, Number(newRobot.battery_level) || 0);
                     } else if (typeof existing.battery_level === 'number' && typeof newRobot.battery_level === 'number') {
+                        // While discharging/delivering, prevent artificial jumps if server lags behind
                         existing.battery_level = Math.min(existing.battery_level, newRobot.battery_level);
                     } else {
                         existing.battery_level = newRobot.battery_level;

@@ -107,7 +107,7 @@
                             {{ $report->created_at->format('d M, H:i') }}
                         </td>
                         <td class="px-6 py-4 font-bold text-gray-800">
-                            {{ $report->robot->name }}
+                            {{ $report->robot?->name ?? 'Robot Unknown' }}
                         </td>
                         <td class="px-6 py-4">
                             <span class="text-xs font-bold flex items-center gap-1.5 {{ $report->issue_type === 'Collision' || $report->issue_type === 'Sensor Error' ? 'text-rose-600' : 'text-amber-600' }}">
@@ -272,27 +272,50 @@
         .catch(err => console.error('Error resolving incident:', err));
     }
 
-    function confirmReset() {
-        if (confirm('Are you sure you want to clear all system logs and reset the robots? This action cannot be undone.')) {
-            fetch('/api/system/reset', {
+    async function confirmReset() {
+        const confirmed = await window.showConfirmDialog({
+            title: 'Hapus Log Masalah & Reset Robot?',
+            text: 'Semua riwayat laporan masalah/insiden akan dibersihkan dan armada robot dikembalikan ke Base Station (1_N7). Tindakan ini permanen.',
+            confirmText: '<i class="fa-solid fa-trash-can mr-1.5"></i> Ya, Bersihkan Log',
+            cancelText: 'Batal',
+            icon: 'warning',
+            isDanger: true
+        });
+
+        if (!confirmed) return;
+
+        RobopathSwal.fire({
+            title: 'Membersihkan Log & Reset Armada...',
+            html: '<p class="text-xs text-gray-500 mt-1">Menghapus seluruh log insiden dan mereset status armada...</p>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        try {
+            const res = await fetch('/api/system/reset', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'Accept': 'application/json'
                 }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert('System reset successfully.');
-                    window.location.reload();
-                }
-            })
-            .catch(err => {
-                console.error('Error resetting:', err);
-                alert('An error occurred while resetting the logs.');
             });
+            const data = await res.json();
+            if (data.success) {
+                await window.showSuccessAlert(
+                    'Log Berhasil Dibersihkan!',
+                    'Seluruh log insiden telah dibersihkan dan unit robot telah dikembalikan ke base.'
+                );
+                window.location.reload();
+            } else {
+                window.showErrorAlert('Gagal Mereset Log', data.message || 'Terjadi kendala saat mereset sistem.');
+            }
+        } catch (err) {
+            console.error('Error resetting:', err);
+            window.showErrorAlert('Kesalahan Jaringan', 'Terjadi kesalahan saat menghubungi server untuk mereset log.');
         }
     }
 </script>
