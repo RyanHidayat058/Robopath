@@ -45,7 +45,7 @@
                     <td class="px-6 py-4 font-bold text-gray-800">
                         <div class="flex items-center gap-2">
                             <i class="fa-solid fa-robot text-[#3b4cb8]"></i>
-                            {{ $delivery->robot->name }}
+                            {{ $delivery->robot?->name ?? 'Robot Unknown' }}
                         </div>
                     </td>
                     <td class="px-6 py-4 font-semibold text-gray-700">
@@ -98,27 +98,50 @@
 
 @section('scripts')
 <script>
-    function confirmReset() {
-        if (confirm('Are you sure you want to clear all history records and reset the robots? This action cannot be undone.')) {
-            fetch('/api/system/reset', {
+    async function confirmReset() {
+        const confirmed = await window.showConfirmDialog({
+            title: 'Hapus Semua Riwayat & Reset Robot?',
+            text: 'Semua catatan riwayat pengantaran akan dibersihkan dan semua robot akan dikembalikan ke Base Station (1_N7). Tindakan ini permanen.',
+            confirmText: '<i class="fa-solid fa-trash-can mr-1.5"></i> Ya, Hapus & Reset',
+            cancelText: 'Batal',
+            icon: 'warning',
+            isDanger: true
+        });
+
+        if (!confirmed) return;
+
+        RobopathSwal.fire({
+            title: 'Mereset Riwayat & Armada...',
+            html: '<p class="text-xs text-gray-500 mt-1">Menghapus log riwayat dan menempatkan robot di markas...</p>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        try {
+            const res = await fetch('/api/system/reset', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
                     'Accept': 'application/json'
                 }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert('System reset successfully.');
-                    window.location.reload();
-                }
-            })
-            .catch(err => {
-                console.error('Error resetting:', err);
-                alert('An error occurred while resetting the logs.');
             });
+            const data = await res.json();
+            if (data.success) {
+                await window.showSuccessAlert(
+                    'Riwayat Berhasil Direset!',
+                    'Semua catatan pengantaran telah dibersihkan dan unit robot telah dikembalikan ke base.'
+                );
+                window.location.reload();
+            } else {
+                window.showErrorAlert('Gagal Mereset Riwayat', data.message || 'Terjadi kendala saat mereset sistem.');
+            }
+        } catch (err) {
+            console.error('Error resetting:', err);
+            window.showErrorAlert('Kesalahan Jaringan', 'Terjadi kesalahan saat menghubungi server untuk mereset log.');
         }
     }
 </script>

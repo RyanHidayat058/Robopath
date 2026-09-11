@@ -16,8 +16,14 @@ class DashboardController extends Controller
         $activeRobotsCount = $robots->where('status', '!=', 'Maintenance')->count();
         $totalRobotsCount = $robots->count();
 
-        $deliveriesTodayCount = Delivery::whereDate('created_at', Carbon::today())->count();
-        $activeDeliveriesCount = Delivery::where('status', 'In Progress')->count();
+        $deliveriesTodayCount = Delivery::where('status', 'Completed')
+            ->where(function ($q) {
+                $q->whereDate('completed_at', Carbon::today())
+                  ->orWhere(function ($q2) {
+                      $q2->whereNull('completed_at')->whereDate('created_at', Carbon::today());
+                  });
+            })->count();
+        $activeDeliveriesCount = Delivery::whereIn('status', ['In Progress', 'Pending'])->count();
 
         $successRate = 0;
         $allDeliveriesFinished = Delivery::whereIn('status', ['Completed', 'Failed'])->count();
@@ -41,7 +47,7 @@ class DashboardController extends Controller
 
         $locations = $this->getLocationsData();
         $adj = $this->getAdjData();
-        $activeDeliveries = Delivery::with('robot')->where('status', 'In Progress')->get();
+        $activeDeliveries = Delivery::with('robot')->whereIn('status', ['In Progress', 'Pending'])->get();
 
         return view('dashboard', compact(
             'robots',

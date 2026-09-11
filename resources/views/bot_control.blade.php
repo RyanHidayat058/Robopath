@@ -521,7 +521,7 @@
         }
     }
 
-    function handleNodeClick(e, nodeId) {
+    async function handleNodeClick(e, nodeId) {
         e.stopPropagation();
         selectedNodeId = nodeId;
         inspectNode(nodeId);
@@ -540,7 +540,15 @@
                 inspectNode(selectedNodeId);
             }
         } else if (currentTool === 'delete') {
-            if (confirm(`Are you sure you want to delete node "${nodeId}"?`)) {
+            const confirmed = await window.showConfirmDialog({
+                title: `Hapus Node "${nodeId}"?`,
+                text: 'Node ini beserta seluruh garis relasinya akan dihapus dari peta graph.',
+                confirmText: '<i class="fa-solid fa-trash-can mr-1.5"></i> Ya, Hapus',
+                cancelText: 'Batal',
+                icon: 'warning',
+                isDanger: true
+            });
+            if (confirmed) {
                 delete locationsData[nodeId];
                 delete adjData[nodeId];
                 for (let k in adjData) {
@@ -548,7 +556,9 @@
                 }
                 selectedNodeId = null;
                 clearInspector();
+                renderEditorMap();
             }
+            return;
         }
 
         renderEditorMap();
@@ -705,7 +715,10 @@
         );
 
         if (hasDuplicateOnSameFloor) {
-            alert(`Ruangan bernama "${cleanName}" sudah ada di Lantai ${currentLoc.floor}! Anda bisa memberi nama yang sama di lantai yang berbeda.`);
+            window.showWarningAlert(
+                'Nama Ruangan Sudah Ada!',
+                `Ruangan bernama "${cleanName}" sudah ada di Lantai ${currentLoc.floor}. Anda bisa memberi nama yang sama pada lantai yang berbeda.`
+            );
             document.getElementById('inspect-node-name').value = currentLoc.name || selectedNodeId;
             return;
         }
@@ -772,7 +785,7 @@
         renderEditorMap();
     }
 
-    function saveGraphToServer() {
+    async function saveGraphToServer() {
         const formattedLocations = [];
         for (let id in locationsData) {
             formattedLocations.push({
@@ -786,30 +799,42 @@
             });
         }
 
-        fetch('/api/graph/save', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                locations: formattedLocations,
-                adj: adjData
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                alert(`Graph Map saved successfully! Total ${data.total_nodes} nodes updated.`);
-            } else {
-                alert('Failed to save graph map.');
+        RobopathSwal.fire({
+            title: 'Menyimpan Peta Graph...',
+            html: '<p class="text-xs text-gray-500 mt-1">Menyinkronkan perubahan node dan relasi jalur ke database...</p>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
             }
-        })
-        .catch(err => {
-            console.error('Error saving graph:', err);
-            alert('A network error occurred while saving the graph map.');
         });
+
+        try {
+            const res = await fetch('/api/graph/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    locations: formattedLocations,
+                    adj: adjData
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.showSuccessAlert(
+                    'Peta Graph Tersimpan!',
+                    `Berhasil menyimpan denah rute (${data.total_nodes} node terdaftar).`
+                );
+            } else {
+                window.showErrorAlert('Gagal Menyimpan Peta', data.message || 'Server gagal memproses pembaruan graph peta.');
+            }
+        } catch (err) {
+            console.error('Error saving graph:', err);
+            window.showErrorAlert('Kesalahan Jaringan', 'Terjadi gangguan jaringan saat menyimpan peta graph.');
+        }
     }
 
     // --- IT Repair Center & Fleet Telemetry ---
@@ -960,13 +985,14 @@
         .then(data => {
             if (data.success) {
                 fetchFleetTelemetry();
+                window.showToast(`Robot berhasil ${action === 'charge' ? 'dicas' : 'diperbaiki'}!`, 'success');
             } else {
-                alert('Gagal memproses robot: ' + (data.message || 'Terjadi kesalahan'));
+                window.showErrorAlert('Gagal Memproses Robot', data.message || 'Terjadi kesalahan sistem.');
             }
         })
         .catch(err => {
             console.error('Error fixing robot:', err);
-            alert('Terjadi kesalahan jaringan.');
+            window.showErrorAlert('Kesalahan Jaringan', 'Terjadi masalah saat menghubungi server.');
         });
     }
 
@@ -998,28 +1024,56 @@
         .then(data => {
             if (data.success) {
                 fetchFleetTelemetry();
+                window.showToast(`Simulasi masalah (${issueType}) aktif!`, 'warning');
             }
         })
         .catch(err => console.error('Error simulating issue:', err));
     }
 
-    function resetSystem() {
-        if (confirm('Reset all robot units to base station?')) {
-            fetch('/api/system/reset', {
+    async function resetSystem() {
+        const confirmed = await window.showConfirmDialog({
+            title: 'Reset Armada Robot ke Markas?',
+            text: 'Semua unit robot akan segera dikembalikan ke Base Station (1_N7), misi pengantaran aktif dibatalkan, dan status robot disetel ke standby.',
+            confirmText: '<i class="fa-solid fa-rotate-left mr-1.5"></i> Ya, Reset Armada',
+            cancelText: 'Batal',
+            icon: 'warning',
+            isDanger: true
+        });
+
+        if (!confirmed) return;
+
+        RobopathSwal.fire({
+            title: 'Mereset Armada Robot...',
+            html: '<p class="text-xs text-gray-500 mt-1">Mengembalikan seluruh unit robot ke markas dan membersihkan penugasan...</p>',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        try {
+            const res = await fetch('/api/system/reset', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'Accept': 'application/json'
                 }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Fleet reset successfully.');
-                    fetchFleetTelemetry();
-                }
             });
+            const data = await res.json();
+            if (data.success) {
+                await window.showSuccessAlert(
+                    'Armada Berhasil Direset!',
+                    'Seluruh robot telah diposisikan kembali di Base Station N7 dan siap menerima instruksi baru.'
+                );
+                fetchFleetTelemetry();
+            } else {
+                window.showErrorAlert('Gagal Mereset Armada', data.message || 'Terjadi kendala saat mereset sistem.');
+            }
+        } catch (err) {
+            console.error('Error resetting fleet:', err);
+            window.showErrorAlert('Kesalahan Jaringan', 'Gagal menghubungi server untuk mereset armada.');
         }
     }
 

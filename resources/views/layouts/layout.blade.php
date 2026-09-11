@@ -18,6 +18,9 @@
     <!-- Google Model Viewer for 3D GLB with WebAssembly Draco Decompression -->
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
+    <!-- SweetAlert2 for Modern Alerts & Confirmations -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -125,11 +128,11 @@
                 <div class="w-10 h-10 rounded-full {{ (auth()->check() && auth()->user()->isAdmin()) ? 'bg-brand-light text-brand-blue border-brand-blue/30' : 'bg-emerald-100 text-emerald-700 border-emerald-300' }} border flex items-center justify-center font-bold text-sm">
                     <i class="fa-solid {{ (auth()->check() && auth()->user()->isAdmin()) ? 'fa-user-shield' : 'fa-user' }}"></i>
                 </div>
-                <form action="{{ route('logout') }}" method="POST" class="inline">
+                <form id="logout-form" action="{{ route('logout') }}" method="POST" class="inline">
                     @csrf
-                    <button type="submit" title="Logout" 
+                    <button type="button" title="Logout" 
                             class="w-9 h-9 rounded-xl bg-gray-100 hover:bg-rose-50 text-gray-500 hover:text-rose-600 border border-gray-200 hover:border-rose-200 flex items-center justify-center transition"
-                            onclick="return confirm('Apakah Anda yakin ingin logout?');">
+                            onclick="confirmLogout()">
                         <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
                     </button>
                 </form>
@@ -161,6 +164,114 @@
     <script>
         window.currentUserRole = "{{ auth()->user()->role ?? 'karyawan' }}";
         window.isAdmin = {{ (auth()->check() && auth()->user()->isAdmin()) ? 'true' : 'false' }};
+
+        // Custom SweetAlert2 Theme for Robopath
+        const RobopathSwal = Swal.mixin({
+            customClass: {
+                popup: 'rounded-2xl shadow-2xl border border-gray-100 font-sans p-6 text-gray-800 bg-white',
+                title: 'text-lg font-extrabold text-gray-900 mb-1',
+                htmlContainer: 'text-sm text-gray-600 leading-relaxed',
+                confirmButton: 'bg-brand-blue hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition duration-200 shadow-sm mx-1 focus:ring-4 focus:ring-indigo-100',
+                cancelButton: 'bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-5 py-2.5 rounded-xl text-xs transition duration-200 mx-1',
+                denyButton: 'bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition duration-200 shadow-sm mx-1',
+                actions: 'gap-2 mt-4',
+            },
+            buttonsStyling: false,
+        });
+
+        window.showConfirmDialog = function(options = {}) {
+            const isDanger = options.isDanger !== false;
+            return RobopathSwal.fire({
+                title: options.title || 'Konfirmasi Tindakan',
+                text: options.text || 'Apakah Anda yakin ingin melanjutkan?',
+                html: options.html || undefined,
+                icon: options.icon || (isDanger ? 'warning' : 'question'),
+                showCancelButton: true,
+                confirmButtonText: options.confirmText || (isDanger ? 'Ya, Lanjutkan' : 'Ya, Konfirmasi'),
+                cancelButtonText: options.cancelText || 'Batal',
+                reverseButtons: true,
+                customClass: {
+                    popup: 'rounded-2xl shadow-2xl border border-gray-100 font-sans p-6 text-gray-800 bg-white',
+                    title: 'text-lg font-extrabold text-gray-900 mb-1',
+                    htmlContainer: 'text-sm text-gray-600 leading-relaxed',
+                    confirmButton: (isDanger 
+                        ? 'bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition duration-200 shadow-sm mx-1 focus:ring-4 focus:ring-rose-200' 
+                        : 'bg-brand-blue hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition duration-200 shadow-sm mx-1 focus:ring-4 focus:ring-indigo-100'),
+                    cancelButton: 'bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-5 py-2.5 rounded-xl text-xs transition duration-200 mx-1',
+                    actions: 'gap-2 mt-4'
+                },
+                buttonsStyling: false
+            }).then(result => result.isConfirmed);
+        };
+
+        window.showSuccessAlert = function(title, text) {
+            return RobopathSwal.fire({
+                icon: 'success',
+                title: title || 'Berhasil!',
+                text: text || '',
+                confirmButtonText: 'Selesai',
+                timer: 3500,
+                timerProgressBar: true
+            });
+        };
+
+        window.showErrorAlert = function(title, text) {
+            return RobopathSwal.fire({
+                icon: 'error',
+                title: title || 'Terjadi Kesalahan',
+                text: text || '',
+                confirmButtonText: 'Tutup'
+            });
+        };
+
+        window.showWarningAlert = function(title, text) {
+            return RobopathSwal.fire({
+                icon: 'warning',
+                title: title || 'Peringatan',
+                text: text || '',
+                confirmButtonText: 'Mengerti'
+            });
+        };
+
+        window.showToast = function(title, icon = 'success') {
+            const Toast = Swal.mixin({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+                didOpen: (toast) => {
+                    toast.onmouseenter = Swal.stopTimer;
+                    toast.onmouseleave = Swal.resumeTimer;
+                },
+                customClass: {
+                    popup: 'rounded-xl shadow-lg border border-gray-100 font-sans text-sm',
+                }
+            });
+            return Toast.fire({
+                icon: icon,
+                title: title
+            });
+        };
+
+        async function confirmLogout() {
+            const confirmed = await window.showConfirmDialog({
+                title: 'Konfirmasi Logout',
+                text: 'Apakah Anda yakin ingin keluar dari sesi Robopath?',
+                confirmText: '<i class="fa-solid fa-arrow-right-from-bracket mr-1.5"></i> Logout',
+                cancelText: 'Batal',
+                icon: 'question',
+                isDanger: true
+            });
+            if (confirmed) {
+                document.getElementById('logout-form').submit();
+            }
+        }
+
+        // Global fallback override for native window.alert
+        window.alert = function(message) {
+            window.showWarningAlert('Pemberitahuan', message);
+        };
     </script>
     @yield('scripts')
 </body>

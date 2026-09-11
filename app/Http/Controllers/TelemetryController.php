@@ -40,7 +40,7 @@ class TelemetryController extends Controller
             }
         }
 
-        // Auto Sanity Check: If a robot is 'Returning' and has arrived at base (or was returning > 20s ago), normalize to 'Idle'
+        // Auto Sanity Check: If a robot is 'Returning' and has arrived at base (or zombie inactive > 180s), normalize to 'Idle'
         $returningRobots = Robot::where('status', 'Returning')->get();
         foreach ($returningRobots as $robot) {
             $hasActiveReport = Report::where('robot_id', $robot->id)->where('status', 'Active')->exists();
@@ -55,11 +55,14 @@ class TelemetryController extends Controller
                     : 999.0;
 
                 $lastCompleted = Delivery::where('robot_id', $robot->id)->where('status', 'Completed')->latest('completed_at')->first();
-                $secondsSince = ($lastCompleted && $lastCompleted->completed_at) ? Carbon::parse($lastCompleted->completed_at)->diffInSeconds(Carbon::now()) : 99;
+                $secondsSince = ($lastCompleted && $lastCompleted->completed_at) ? Carbon::parse($lastCompleted->completed_at)->diffInSeconds(Carbon::now()) : null;
+                $isZombie = ($secondsSince !== null && $secondsSince >= 180) || ($robot->updated_at && $robot->updated_at->diffInSeconds(Carbon::now()) >= 180);
 
-                if ($distToBase <= 3.5 || $secondsSince >= 20) {
+                // Only normalize to Idle/Charging if robot has genuinely arrived at base (< 1.0) or is an abandoned/zombie session (> 180s)
+                if (($distToBase <= 1.0 && (int) ($robot->floor ?? 1) === 1) || $isZombie) {
+                    $nextStatus = ($robot->battery_level <= 20 || $robot->status === 'Charging') ? 'Charging' : 'Idle';
                     $robot->update([
-                        'status' => 'Idle',
+                        'status' => $nextStatus,
                         'current_x' => $baseLoc['x'],
                         'current_y' => $baseLoc['y'],
                         'floor' => 1,
@@ -124,6 +127,16 @@ class TelemetryController extends Controller
             unset($data['status']);
         }
 
+        // Guard: If robot is charging and battery is still below 100%, never let client demote status to 'Idle'
+        if ($robot->status === 'Charging' && isset($data['status']) && $data['status'] === 'Idle' && ($robot->battery_level < 100 && ($data['battery_level'] ?? $robot->battery_level) < 100)) {
+            $data['status'] = 'Charging';
+        }
+
+        // Guard: When charging, battery level must monotonically increase (never decrease)
+        if (($robot->status === 'Charging' || ($data['status'] ?? '') === 'Charging') && isset($data['battery_level'])) {
+            $data['battery_level'] = max((int) $robot->battery_level, (int) $data['battery_level']);
+        }
+
         $robot->update($data);
 
         return response()->json([
@@ -144,11 +157,11 @@ class TelemetryController extends Controller
 
         $robot = Robot::find($request->robot_id);
 
-        // If robot is in maintenance, prevent dispatch
-        if ($robot->status === 'Maintenance') {
+        // If robot is in maintenance, charging, or low battery, prevent dispatch
+        if ($robot->status === 'Maintenance' || $robot->status === 'Charging' || $robot->battery_level <= 20) {
             return response()->json([
                 'success' => false,
-                'message' => 'Robot is currently in maintenance and cannot be dispatched.',
+                'message' => 'Robot saat ini sedang tidak tersedia (dalam perbaikan, pengisian daya, atau baterai lemah) dan tidak dapat ditugaskan.',
             ], 422);
         }
 
@@ -204,9 +217,6 @@ class TelemetryController extends Controller
 
         // When delivery completes at destination, robot starts returning to base (1_N7)
         $nextStatus = 'Returning';
-        if ($robot->battery_level < 20) {
-            $nextStatus = 'Charging';
-        }
 
         // Keep status as Maintenance if there is an active Maintenance report
         $hasActiveMaintenance = Report::where('robot_id', $robot->id)
@@ -288,10 +298,42 @@ class TelemetryController extends Controller
             ->exists();
 
         if (! $hasOtherActive) {
-            // Restore robot to Idle
-            $robot->update([
-                'status' => 'Idle',
-            ]);
+            $battery = $robot->battery_level;
+            if ($battery < 40) {
+                $battery = 100;
+            }
+
+            // If there was an interrupted delivery, resume it properly
+            $pendingDelivery = Delivery::where('robot_id', $robot->id)
+                ->whereIn('status', ['Pending', 'In Progress'])
+                ->latest('started_at')
+                ->first();
+
+            if ($pendingDelivery) {
+                $pausedElapsed = Cache::get('paused_elapsed_' . $robot->id);
+                if ($pausedElapsed === null && $pendingDelivery->started_at) {
+                    $pausedElapsed = Carbon::parse($pendingDelivery->started_at)->diffInMilliseconds(Carbon::parse($report->created_at));
+                }
+                if ($pausedElapsed === null || !is_numeric($pausedElapsed) || $pausedElapsed < 0) {
+                    $pausedElapsed = 4000;
+                }
+
+                $pendingDelivery->update([
+                    'status' => 'In Progress',
+                    'started_at' => Carbon::now()->subMilliseconds((int) $pausedElapsed),
+                ]);
+                Cache::forget('paused_elapsed_' . $robot->id);
+
+                $robot->update([
+                    'status' => 'Delivering',
+                    'battery_level' => $battery,
+                ]);
+            } else {
+                $robot->update([
+                    'status' => 'Idle',
+                    'battery_level' => $battery,
+                ]);
+            }
         }
 
         return response()->json([
@@ -530,7 +572,7 @@ class TelemetryController extends Controller
         ]);
     }
 
-    public function resetSystem(Request $request)
+    public function resetSystem(?Request $request = null)
     {
         if (config('database.default') === 'pgsql') {
             \DB::statement('TRUNCATE TABLE deliveries RESTART IDENTITY CASCADE;');
@@ -702,12 +744,12 @@ class TelemetryController extends Controller
                 continue;
             }
 
-            // ONLY robots physically at the base station (Floor 1, distance <= 3.5) can receive a new task
+            // ONLY robots genuinely idle and physically docked at the base station (Floor 1, distance <= 1.5) can receive a new task
             $distToBase = ((int) ($robot->floor ?? 1) === (int) $baseLoc['floor'])
                 ? hypot((float) ($robot->current_x ?? $baseLoc['x']) - $baseLoc['x'], (float) ($robot->current_y ?? $baseLoc['y']) - $baseLoc['y'])
                 : 999.0;
 
-            if ($distToBase > 3.5) {
+            if ($distToBase > 1.5) {
                 continue; // Robot has not arrived back at base station yet
             }
 
