@@ -120,8 +120,8 @@ class RoleAndIncidentTest extends TestCase
             'name' => 'Robot Alpha',
             'status' => 'Idle',
             'battery_level' => 100,
-            'current_x' => 80.6,
-            'current_y' => 68.48,
+            'current_x' => 76.23,
+            'current_y' => 64.42,
             'floor' => 1,
         ]);
 
@@ -151,11 +151,11 @@ class RoleAndIncidentTest extends TestCase
         $telemetryOff->assertJson(['autopilot_enabled' => false]);
     }
 
-    public function test_autopilot_dispatches_from_current_robot_location(): void
+    public function test_autopilot_dispatches_only_when_robot_is_at_base(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
-        // Place robot at Floor 2 location (e.g. 2_Ruang Direktur: x=34.33, y=14.33, floor=2)
-        $robot = Robot::create([
+        // 1. Robot on Floor 2 away from base should NOT be dispatched
+        $robotFloor2 = Robot::create([
             'name' => 'Robot Floor2',
             'status' => 'Idle',
             'battery_level' => 95,
@@ -166,18 +166,33 @@ class RoleAndIncidentTest extends TestCase
 
         $this->actingAs($admin)->postJson('/api/system/autopilot', ['enabled' => true]);
 
-        $robot->refresh();
-        $this->assertEquals('Delivering', $robot->status);
+        $robotFloor2->refresh();
+        $this->assertEquals('Idle', $robotFloor2->status);
+        $this->assertDatabaseMissing('deliveries', [
+            'robot_id' => $robotFloor2->id,
+            'status' => 'In Progress',
+        ]);
 
-        $delivery = Delivery::where('robot_id', $robot->id)->where('status', 'In Progress')->first();
-        $this->assertNotNull($delivery);
-        // Origin and start location should be the robot's current node on floor 2, NOT 1_N7!
-        $this->assertNotEquals('1_N7', $delivery->origin_location);
-        $this->assertNotEquals('1_N7', $delivery->start_location);
-        $this->assertEquals($delivery->origin_location, $delivery->start_location);
+        // 2. Robot at Base station (1_N7: x=76.23, y=64.42, floor=1) gets dispatched
+        $robotAtBase = Robot::create([
+            'name' => 'Robot Base',
+            'status' => 'Idle',
+            'battery_level' => 100,
+            'current_x' => 76.23,
+            'current_y' => 64.42,
+            'floor' => 1,
+        ]);
+
+        $this->actingAs($admin)->postJson('/api/system/autopilot', ['enabled' => true]);
+        $robotAtBase->refresh();
+        $this->assertEquals('Delivering', $robotAtBase->status);
+        $this->assertDatabaseHas('deliveries', [
+            'robot_id' => $robotAtBase->id,
+            'status' => 'In Progress',
+        ]);
     }
 
-    public function test_full_view_and_layout_switcher_accessible_to_both_roles(): void
+    public function test_full_view_accessible_to_both_roles(): void
     {
         $karyawan = User::factory()->create(['role' => 'karyawan']);
         $admin = User::factory()->create(['role' => 'admin']);
@@ -188,8 +203,7 @@ class RoleAndIncidentTest extends TestCase
         $karyawanDash->assertSee('toggleFullView(true)', false);
         $karyawanDash->assertSee('id="fullview-mode"', false);
         $karyawanDash->assertSee('id="fullview-wrapper"', false);
-        $karyawanDash->assertSee('id="btn-layout-vertical"', false);
-        $karyawanDash->assertSee('id="btn-layout-horizontal"', false);
+        $karyawanDash->assertSee('id="fullview-container-merged"', false);
 
         // Check Admin view
         $adminDash = $this->actingAs($admin)->get('/');
@@ -197,7 +211,6 @@ class RoleAndIncidentTest extends TestCase
         $adminDash->assertSee('toggleFullView(true)', false);
         $adminDash->assertSee('id="fullview-mode"', false);
         $adminDash->assertSee('id="fullview-wrapper"', false);
-        $adminDash->assertSee('id="btn-layout-vertical"', false);
-        $adminDash->assertSee('id="btn-layout-horizontal"', false);
+        $adminDash->assertSee('id="fullview-container-merged"', false);
     }
 }

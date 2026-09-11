@@ -239,15 +239,29 @@
                 </div>
             </div>
 
-            <!-- Fleet Reset Action Card -->
-            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
-                <h3 class="text-base font-bold text-gray-800 mb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-sliders text-amber-500"></i> Fleet System Controls
-                </h3>
-                <p class="text-xs text-gray-500 mb-4">Emergency reset all robot units to home base and restore idle status.</p>
-                <button onclick="resetSystem()" class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 rounded-xl text-xs transition duration-200 shadow-md">
-                    <i class="fa-solid fa-rotate-left mr-1"></i> Reset All Units to Home Base
-                </button>
+            <!-- IT Repair Center & Fleet Status Card -->
+            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+                    <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                        <i class="fa-solid fa-screwdriver-wrench text-indigo-600"></i> IT Repair Center &amp; Fleet
+                    </h3>
+                    <span class="text-[10px] font-mono bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Live
+                    </span>
+                </div>
+                <p class="text-xs text-gray-500">Pantau status armada, pulihkan robot yang menabrak dinding, atau kelola perbaikan tugas yang tertunda.</p>
+
+                <!-- Dynamic Robot Fleet List -->
+                <div id="fleet-control-list" class="space-y-3">
+                    <div class="text-center py-4 text-xs text-gray-400">Memuat telemetri robot...</div>
+                </div>
+
+                <!-- Emergency Reset All Button -->
+                <div class="pt-3 border-t border-gray-100">
+                    <button onclick="resetSystem()" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold py-2.5 rounded-xl text-xs transition duration-200 shadow-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate-left text-rose-500"></i> Reset Semua Unit ke Base (N7)
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -798,6 +812,197 @@
         });
     }
 
+    // --- IT Repair Center & Fleet Telemetry ---
+    let fleetRobots = [];
+    let fleetDeliveries = [];
+    let fleetAlerts = [];
+
+    function fetchFleetTelemetry() {
+        fetch('/api/telemetry')
+            .then(res => res.json())
+            .then(data => {
+                fleetRobots = data.robots || [];
+                fleetDeliveries = data.active_deliveries || [];
+                fleetAlerts = data.active_alerts || [];
+                renderFleetList();
+            })
+            .catch(err => console.error('Error fetching fleet telemetry:', err));
+    }
+
+    function renderFleetList() {
+        const container = document.getElementById('fleet-control-list');
+        if (!container) return;
+
+        if (!fleetRobots || fleetRobots.length === 0) {
+            container.innerHTML = '<div class="text-center py-4 text-xs text-gray-400">Tidak ada data unit robot.</div>';
+            return;
+        }
+
+        let html = '';
+        fleetRobots.forEach(robot => {
+            const delivery = fleetDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending'));
+            const alert = fleetAlerts.find(a => Number(a.robot_id) === Number(robot.id) && a.status === 'Active');
+            const hasIssue = !!alert || robot.status === 'Maintenance' || (delivery && delivery.status === 'Pending');
+
+            const batLevel = Number(robot.battery_level) || 0;
+            const batColor = batLevel > 50 ? 'bg-emerald-500' : (batLevel > 20 ? 'bg-amber-500' : 'bg-rose-500');
+            const batTextCol = batLevel <= 20 ? 'text-rose-600 font-bold' : 'text-gray-700';
+
+            html += `
+            <div class="border ${hasIssue ? 'border-rose-300 bg-rose-50/50' : 'border-gray-200 bg-gray-50/70'} p-3.5 rounded-xl space-y-2.5 transition">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg ${hasIssue ? 'bg-rose-500 text-white animate-bounce' : 'bg-[#3b4cb8] text-white'} flex items-center justify-center text-xs font-bold shadow-sm">
+                            <i class="fa-solid ${hasIssue ? 'fa-triangle-exclamation' : 'fa-robot'}"></i>
+                        </div>
+                        <div>
+                            <span class="font-black text-gray-800 text-xs block">${robot.name}</span>
+                            <span class="text-[10px] text-gray-400">Lantai ${robot.floor || 1} • (${Math.round(robot.current_x || 0)}%, ${Math.round(robot.current_y || 0)}%)</span>
+                        </div>
+                    </div>
+                    <div>
+                        ${hasIssue ? `
+                            <span class="bg-rose-100 text-rose-700 font-black text-[10px] px-2 py-0.5 rounded-full border border-rose-300 shadow-sm animate-pulse">
+                                ${alert ? alert.issue_type : 'Maintenance'}
+                            </span>
+                        ` : robot.status === 'Charging' ? `
+                            <span class="bg-amber-100 text-amber-700 font-bold text-[10px] px-2 py-0.5 rounded-full border border-amber-300">
+                                <i class="fa-solid fa-bolt"></i> Charging
+                            </span>
+                        ` : robot.status === 'Delivering' ? `
+                            <span class="bg-blue-100 text-blue-700 font-bold text-[10px] px-2 py-0.5 rounded-full border border-blue-300">
+                                <i class="fa-solid fa-dolly"></i> Delivering
+                            </span>
+                        ` : `
+                            <span class="bg-emerald-100 text-emerald-700 font-bold text-[10px] px-2 py-0.5 rounded-full border border-emerald-300">
+                                <i class="fa-solid fa-check"></i> Idle
+                            </span>
+                        `}
+                    </div>
+                </div>
+
+                <!-- Battery Bar -->
+                <div>
+                    <div class="flex items-center justify-between text-[11px] mb-1">
+                        <span class="text-gray-400 font-semibold"><i class="fa-solid fa-battery-half text-gray-500 mr-1"></i>Baterai</span>
+                        <span class="${batTextCol} font-mono font-bold">${batLevel}%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 h-2 rounded-full overflow-hidden">
+                        <div class="${batColor} h-full transition-all duration-300 rounded-full" style="width: ${batLevel}%"></div>
+                    </div>
+                </div>
+
+                <!-- Active / Pending Mission Info -->
+                ${delivery ? `
+                    <div class="text-[11px] bg-white p-2 rounded-lg border border-gray-200 font-medium">
+                        <span class="text-gray-400 block text-[10px] uppercase font-bold">Misi:</span>
+                        <div class="text-gray-800 flex items-center justify-between">
+                            <span><i class="fa-solid fa-box text-blue-500 mr-1"></i> ${delivery.item_name} ke ${delivery.destination_location}</span>
+                            <span class="font-bold ${delivery.status === 'Pending' ? 'text-rose-600 animate-pulse' : 'text-blue-600'}">[${delivery.status}]</span>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Repair & Status Actions for IT / Admin -->
+                ${hasIssue ? `
+                    <div class="space-y-1.5">
+                        <button onclick="fixRobotUnit(${robot.id}, 'resume')" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black py-2.5 px-3 rounded-xl text-xs shadow flex items-center justify-center gap-2 transition duration-150">
+                            <i class="fa-solid fa-wrench"></i> Benerin Robot (Fix &amp; Lanjut Tugas)
+                        </button>
+                        <button onclick="fixRobotUnit(${robot.id}, 'idle')" class="w-full bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black py-2 px-3 rounded-xl text-xs shadow flex items-center justify-center gap-2 transition duration-150">
+                            <i class="fa-solid fa-power-off"></i> Ubah Jadi Idle (Batalkan Tugas)
+                        </button>
+                    </div>
+                ` : `
+                    <div class="flex items-center justify-between pt-1">
+                        <button onclick="fixRobotUnit(${robot.id}, 'idle')" class="text-[11px] font-semibold text-gray-500 hover:text-indigo-600 flex items-center gap-1 transition">
+                            <i class="fa-solid fa-arrows-rotate text-gray-400"></i> Setel Status: Idle
+                        </button>
+                    </div>
+                `}
+
+                <!-- Simulation Tools -->
+                <div class="flex items-center justify-end gap-2 pt-1 border-t border-gray-100 text-[10px]">
+                    <span class="text-gray-400">Test:</span>
+                    <button onclick="simulateUnitIssue(${robot.id}, 'Collision')" class="text-rose-600 hover:text-rose-800 font-semibold hover:underline">Tabrak Dinding</button>
+                    <span class="text-gray-300">•</span>
+                    <button onclick="simulateUnitIssue(${robot.id}, 'Low Battery')" class="text-amber-600 hover:text-amber-800 font-semibold hover:underline">Batre Habis</button>
+                </div>
+            </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    function fixRobotUnit(robotId, action = 'resume') {
+        const robot = fleetRobots.find(r => Number(r.id) === Number(robotId));
+        const delivery = fleetDeliveries.find(d => Number(d.robot_id) === Number(robotId) && (d.status === 'In Progress' || d.status === 'Pending'));
+        let pausedElapsed = null;
+        if (delivery && delivery.started_at) {
+            const started = new Date(delivery.started_at.replace(' ', 'T')).getTime();
+            pausedElapsed = Math.max(0, Date.now() - started);
+        }
+
+        fetch(`/api/robots/${robotId}/fix`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                action: action,
+                paused_elapsed_ms: pausedElapsed
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                fetchFleetTelemetry();
+            } else {
+                alert('Gagal memproses robot: ' + (data.message || 'Terjadi kesalahan'));
+            }
+        })
+        .catch(err => {
+            console.error('Error fixing robot:', err);
+            alert('Terjadi kesalahan jaringan.');
+        });
+    }
+
+    function simulateUnitIssue(robotId, issueType) {
+        const robot = fleetRobots.find(r => Number(r.id) === Number(robotId));
+        const delivery = fleetDeliveries.find(d => Number(d.robot_id) === Number(robotId) && (d.status === 'In Progress' || d.status === 'Pending'));
+        let pausedElapsed = null;
+        if (delivery && delivery.started_at) {
+            const started = new Date(delivery.started_at.replace(' ', 'T')).getTime();
+            pausedElapsed = Math.max(0, Date.now() - started);
+        }
+
+        fetch(`/api/robots/${robotId}/simulate-issue`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ 
+                issue_type: issueType,
+                current_x: robot ? robot.current_x : null,
+                current_y: robot ? robot.current_y : null,
+                floor: robot ? robot.floor : 1,
+                paused_elapsed_ms: pausedElapsed
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                fetchFleetTelemetry();
+            }
+        })
+        .catch(err => console.error('Error simulating issue:', err));
+    }
+
     function resetSystem() {
         if (confirm('Reset all robot units to base station?')) {
             fetch('/api/system/reset', {
@@ -810,7 +1015,10 @@
             })
             .then(res => res.json())
             .then(data => {
-                if (data.success) alert('Fleet reset successfully.');
+                if (data.success) {
+                    alert('Fleet reset successfully.');
+                    fetchFleetTelemetry();
+                }
             });
         }
     }
@@ -825,6 +1033,10 @@
         document.getElementById('check-show-labels').checked = showLabels;
         setZoomLevel(zoomLevel);
         switchFloor('all');
+
+        // Start Fleet Poller
+        fetchFleetTelemetry();
+        setInterval(fetchFleetTelemetry, 2000);
     });
     window.addEventListener('resize', () => {
         renderEditorMap();

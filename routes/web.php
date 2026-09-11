@@ -33,6 +33,7 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::put('/reports/{report}/resolve', [TelemetryController::class, 'resolveIncident'])->name('reports.resolve');
     Route::post('/robots/{robot}/simulate-issue', [TelemetryController::class, 'simulateIssue'])->name('robots.simulate-issue');
     Route::post('/robots/{robot}/fix', [TelemetryController::class, 'fixRobot'])->name('robots.fix');
+    Route::post('/robots/{robot}/resume-from-base', [TelemetryController::class, 'resumeDeliveryFromBase'])->name('robots.resume-from-base');
     Route::post('/system/reset', [TelemetryController::class, 'resetSystem'])->name('system.reset');
     Route::post('/system/autopilot', [TelemetryController::class, 'toggleAutopilot'])->name('system.autopilot');
     Route::post('/graph/save', [TelemetryController::class, 'saveGraph'])->name('graph.save');
