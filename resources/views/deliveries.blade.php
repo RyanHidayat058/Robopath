@@ -17,6 +17,18 @@
         border-radius: 12px;
         box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
     }
+    #deliv-3d-canvas-container {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+    }
+    #deliv-3d-canvas-container canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+    }
     .location-pin {
         position: absolute;
         transform: translate(-50%, -50%);
@@ -195,6 +207,8 @@
 
             <!-- The Map -->
             <div class="map-container relative overflow-hidden" id="map-container">
+                <!-- 3D Canvas Layer for Floor 2 -->
+                <div id="deliv-3d-canvas-container" class="absolute inset-0 z-0 hidden pointer-events-auto"></div>
                 <svg class="path-svg" id="path-svg"></svg>
                 
                 <!-- Locations pins -->
@@ -202,6 +216,11 @@
                 
                 <!-- Robot markers -->
                 <div id="robots-overlay"></div>
+
+                <!-- 3D Hint Badge -->
+                <div id="deliv-3d-hint" class="hidden absolute bottom-2 right-2 z-30 bg-slate-900/80 backdrop-blur-md text-white px-2.5 py-1 rounded-lg text-[10px] font-semibold border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
+                    <i class="fa-solid fa-cube text-sky-400"></i> Model 3D Aktif &bull; Putar (Drag) &bull; Zoom (Scroll)
+                </div>
             </div>
         </div>
 
@@ -236,6 +255,247 @@
 <script>
     const floor1Img = "{{ asset('images/floor1.jpeg') }}";
     const floor2Img = "{{ asset('images/floor2.jpeg') }}";
+    const floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
+    const MODEL_CACHE_NAME = 'robopath-glb-cache-v1';
+    let threeDeliv = null;
+    let labelScaleMultiplier = {{ $labelScale ?? 1.0 }};
+    let settings3D = @json($settings3D ?? []);
+    let current3DSettings = {
+        camera: { dist: parseFloat(settings3D?.camera?.dist ?? 5.0), fov: parseFloat(settings3D?.camera?.fov ?? 5.0), preset: settings3D?.camera?.preset ?? 'iso' },
+        lighting: { ambient: parseFloat(settings3D?.lighting?.ambient ?? 1.4), sun: parseFloat(settings3D?.lighting?.sun ?? 1.8), exposure: parseFloat(settings3D?.lighting?.exposure ?? 1.0), fill: parseFloat(settings3D?.lighting?.fill ?? 0.8) },
+        model_scale: parseFloat(settings3D?.model_scale ?? 1.0)
+    };
+
+    // Helper: Create room label sprite (compact & sleek)
+    function createRoomLabelSprite(text, isDest = true, isStairs = false) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 384;
+        canvas.height = 96;
+
+        const bgFill = isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.90)' : 'rgba(30, 41, 59, 0.85)');
+        const borderColor = isStairs ? '#fbbf24' : (isDest ? '#38bdf8' : '#94a3b8');
+
+        const radius = 18;
+        ctx.fillStyle = bgFill;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(8, 8, canvas.width - 16, canvas.height - 16, radius);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = borderColor;
+        ctx.beginPath();
+        ctx.arc(32, canvas.height / 2, 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+
+        let cleanText = String(text).replace(/^2_/, '');
+        if (cleanText.length > 20) cleanText = cleanText.substring(0, 18) + '...';
+        ctx.fillText(cleanText, 52, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false });
+        const sprite = new THREE.Sprite(spriteMaterial);
+        sprite.scale.set(3.6 * labelScaleMultiplier, 0.9 * labelScaleMultiplier, 1);
+        sprite.renderOrder = 999;
+        return sprite;
+    }
+
+    // Helper: Cached GLB buffer loader
+    async function fetchGLBBufferWithCache(url) {
+        if ('caches' in window) {
+            try {
+                const cache = await caches.open(MODEL_CACHE_NAME);
+                const cachedResponse = await cache.match(url);
+                if (cachedResponse) return await cachedResponse.arrayBuffer();
+            } catch (e) {}
+        }
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const buffer = await response.arrayBuffer();
+        if ('caches' in window) {
+            try {
+                const cache = await caches.open(MODEL_CACHE_NAME);
+                const cacheResponse = new Response(buffer.slice(0), {
+                    headers: { 'Content-Type': 'model/gltf-binary', 'Content-Length': String(buffer.byteLength) }
+                });
+                await cache.put(url, cacheResponse);
+            } catch (e) {}
+        }
+        return buffer;
+    }
+
+    // ObjectName anchor: posisi runtime dari Box3 center geometri GLB (GLB = source of truth).
+    // Hasil di field runtime _u/_v/_fy — tidak pernah persist ke graph.json. Fallback x/y bila Not found.
+    function locUV(loc) {
+        return { u: (loc._u ?? loc.x / 100), v: (loc._v ?? loc.y / 100) };
+    }
+    function resolveObjectAnchor(loc, model, size) {
+        if (!loc || !loc.objectName || !model || !size || !(size.x > 0.1)) return false;
+        const obj = model.getObjectByName(loc.objectName);
+        if (!obj) { console.warn('[Robopath] objectName tidak ditemukan di GLB:', loc.objectName); return false; }
+        const box = new THREE.Box3().setFromObject(obj);
+        if (box.isEmpty()) return false;
+        const c = box.getCenter(new THREE.Vector3());
+        const clamp01 = v => Math.max(0, Math.min(1, v));
+        loc._u = clamp01(c.x / (size.x * 0.95) + 0.5);
+        loc._v = clamp01(c.z / (size.z * 0.95) + 0.5);
+        try {
+            const rc = new THREE.Raycaster(new THREE.Vector3(c.x, c.y + 5, c.z), new THREE.Vector3(0, -1, 0), 0, 20);
+            const hits = rc.intersectObject(model, true);
+            loc._fy = hits.length ? hits[0].point.y : 0.05;
+        } catch (e) { loc._fy = 0.05; }
+        return true;
+    }
+    function resolveAllObjectAnchors(store, model, size) {
+        let ok = 0; const miss = [];
+        for (const id in store) {
+            const loc = store[id];
+            if (Number(loc.floor) !== 2 || !loc.objectName) continue;
+            if (resolveObjectAnchor(loc, model, size)) ok++;
+            else miss.push(id + ' (' + loc.objectName + ')');
+        }
+        console.log('[Robopath] object anchors resolved:', ok, miss.length ? ('NOT FOUND: ' + miss.join(', ')) : '');
+    }
+
+    function initThreeViewer(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return null;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a);
+        const width = container.clientWidth || 800;
+        const height = container.clientHeight || 450;
+
+        const initFovVal = parseFloat(current3DSettings.camera.fov ?? 5.0);
+        const initFov = 20 + (initFovVal / 10) * 70;
+        const camera = new THREE.PerspectiveCamera(initFov, width / height, 0.1, 1000);
+        camera.position.set(0, 38, 48);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = parseFloat(current3DSettings.lighting.exposure ?? 1.0);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.innerHTML = '';
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2.05;
+        controls.minDistance = 2;
+        controls.maxDistance = 200;
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, parseFloat(current3DSettings.lighting.ambient ?? 1.4));
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, parseFloat(current3DSettings.lighting.sun ?? 1.8));
+        dirLight.position.set(30, 50, 30);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+        const fillLight = new THREE.DirectionalLight(0x93c5fd, parseFloat(current3DSettings.lighting.fill ?? 0.8));
+        fillLight.position.set(-30, 20, -30);
+        scene.add(fillLight);
+
+        const grid = new THREE.GridHelper(80, 40, 0x3b4cb8, 0x334155);
+        grid.position.y = -0.05;
+        scene.add(grid);
+
+        const labelsGroup = new THREE.Group();
+        scene.add(labelsGroup);
+
+        const gltfLoader = new THREE.GLTFLoader();
+        if (typeof THREE.DRACOLoader !== 'undefined') {
+            const dracoLoader = new THREE.DRACOLoader();
+            dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.3/');
+            gltfLoader.setDRACOLoader(dracoLoader);
+        }
+
+        let _delivModel = null;
+        let _delivSize = new THREE.Vector3();
+        fetchGLBBufferWithCache(floor2ModelUrl).then(buffer => {
+            gltfLoader.parse(buffer, '', (gltf) => {
+                const model = gltf.scene;
+                _delivModel = model;
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                _delivSize.copy(size);
+
+                model.position.x -= center.x;
+                model.position.y -= box.min.y;
+                model.position.z -= center.z;
+                const mScale = parseFloat(current3DSettings.model_scale ?? 1.0);
+                model.scale.set(mScale,mScale,mScale);
+                const scaledBox = new THREE.Box3().setFromObject(model);
+                const scaledSize = scaledBox.getSize(new THREE.Vector3());
+                if(scaledSize.x>0.1) { size.copy(scaledSize); _delivSize.copy(scaledSize); }
+
+                model.traverse((child) => {
+                    if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+                });
+                scene.add(model);
+
+                // Resolve posisi destination dari nama object Blender (Box3 center). Fallback x/y bila tak ketemu.
+                try { resolveAllObjectAnchors(locations, model, _delivSize); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
+
+                // Add 3D Room labels — nempel atap (y = roof+0.32)
+                for (let id in locations) {
+                    const loc = locations[id];
+                    if (Number(loc.floor) !== 2) continue;
+                    const isStairs = id.includes('Stairs');
+                    if (!loc.is_destination && !isStairs && loc.hidden) continue;
+
+                    const sprite = createRoomLabelSprite(loc.name || id, loc.is_destination, isStairs);
+                    const uv = locUV(loc);
+                    const posX = (uv.u - 0.5) * (size.x * 0.95);
+                    const posZ = (uv.v - 0.5) * (size.z * 0.95);
+                    const posY = (size.y || 0.22) + 0.32;
+                    sprite.position.set(posX, posY, posZ);
+                    labelsGroup.add(sprite);
+                }
+
+                const maxDim = Math.max(size.x, size.z);
+                const savedDistVal = parseFloat(current3DSettings.camera.dist ?? 5.0);
+                const savedDist = 5 + (savedDistVal / 10) * 115;
+                const dir0 = new THREE.Vector3(0, maxDim*0.45, maxDim*0.55).normalize();
+                camera.position.copy(dir0.multiplyScalar(savedDist));
+                controls.target.set(0, size.y * 0.15, 0);
+                controls.update();
+            }, undefined, (err) => console.error('Error parsing GLB model Lantai 2:', err));
+        }).catch(err => console.error('Error fetching GLB:', err));
+
+        let animationFrameId = null;
+        function animate() {
+            animationFrameId = requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        function onResize() {
+            if (!container || container.clientWidth === 0) return;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+        window.addEventListener('resize', onResize);
+
+        return { resize: onResize, destroy: () => { if (animationFrameId) cancelAnimationFrame(animationFrameId); window.removeEventListener('resize', onResize); renderer.dispose(); } };
+    }
 
     const locations = {
         @foreach($locations as $id => $loc)
@@ -246,7 +506,8 @@
             y: {{ $loc['y'] }}, 
             floor: {{ $loc['floor'] ?? 1 }},
             hidden: {{ ($loc['hidden'] ?? false) ? 'true' : 'false' }},
-            is_destination: {{ ($loc['is_destination'] ?? false) ? 'true' : 'false' }}
+            is_destination: {{ ($loc['is_destination'] ?? false) ? 'true' : 'false' }},
+            objectName: {!! isset($loc['objectName']) && $loc['objectName'] ? ("'" . addslashes($loc['objectName']) . "'") : 'null' !!}
         },
         @endforeach
     };
@@ -274,18 +535,35 @@
         const map = document.getElementById('map-container');
         const title = document.getElementById('live-map-title');
         const subtitle = document.getElementById('live-map-subtitle');
+        const canvas3D = document.getElementById('deliv-3d-canvas-container');
+        const hint3D = document.getElementById('deliv-3d-hint');
         
         if (floorNum === 1) {
             btnF1.className = "px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition";
             btnF2.className = "px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
             map.style.backgroundImage = `url('${floor1Img}')`;
+            map.style.backgroundColor = '';
+            if (canvas3D) canvas3D.classList.add('hidden');
+            if (hint3D) hint3D.classList.add('hidden');
             if (title) title.innerHTML = '<i class="fa-solid fa-layer-group text-[#3b4cb8] mr-1"></i> Live Active Tracking - Lantai 1';
             if (subtitle) subtitle.textContent = 'Lantai 1 (Ground Floor - Lobby, Office & Receptionist)';
         } else {
             btnF2.className = "px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition";
             btnF1.className = "px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-            map.style.backgroundImage = `url('${floor2Img}')`;
-            if (title) title.innerHTML = '<i class="fa-solid fa-layer-group text-[#3b4cb8] mr-1"></i> Live Active Tracking - Lantai 2';
+            map.style.backgroundImage = 'none';
+            map.style.backgroundColor = '#0f172a';
+            if (canvas3D) {
+                canvas3D.classList.remove('hidden');
+                setTimeout(() => {
+                    if (!threeDeliv) {
+                        threeDeliv = initThreeViewer('deliv-3d-canvas-container');
+                    } else {
+                        threeDeliv.resize();
+                    }
+                }, 50);
+            }
+            if (hint3D) hint3D.classList.remove('hidden');
+            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-sky-400 mr-1"></i> Live Active Tracking - Lantai 2 <span class="text-[10px] bg-sky-500/20 text-sky-400 px-1.5 py-0.5 rounded-full border border-sky-500/30 ml-1">3D</span>';
             if (subtitle) subtitle.textContent = 'Lantai 2 (Upper Floor - Direksi, Lounge & Meeting Rooms)';
         }
         

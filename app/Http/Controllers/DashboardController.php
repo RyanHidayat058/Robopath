@@ -41,6 +41,8 @@ class DashboardController extends Controller
 
         $locations = $this->getLocationsData();
         $adj = $this->getAdjData();
+        $labelScale = $this->getLabelScale();
+        $settings3D = $this->get3DSettings();
         $activeDeliveries = Delivery::with('robot')->where('status', 'In Progress')->get();
 
         return view('dashboard', compact(
@@ -55,6 +57,8 @@ class DashboardController extends Controller
             'recentReports',
             'locations',
             'adj',
+            'labelScale',
+            'settings3D',
             'activeDeliveries'
         ));
     }
@@ -66,13 +70,15 @@ class DashboardController extends Controller
 
         $locations = $this->getLocationsData();
         $adj = $this->getAdjData();
+        $labelScale = $this->getLabelScale();
+        $settings3D = $this->get3DSettings();
 
         $recentActivity = Delivery::with('robot')
             ->orderBy('updated_at', 'desc')
             ->limit(10)
             ->get();
 
-        return view('deliveries', compact('robots', 'activeDeliveries', 'locations', 'adj', 'recentActivity'));
+        return view('deliveries', compact('robots', 'activeDeliveries', 'locations', 'adj', 'labelScale', 'settings3D', 'recentActivity'));
     }
 
     public function botControl()
@@ -80,8 +86,10 @@ class DashboardController extends Controller
         $robots = Robot::all();
         $locations = $this->getLocationsData();
         $adj = $this->getAdjData();
+        $labelScale = $this->getLabelScale();
+        $settings3D = $this->get3DSettings();
 
-        return view('bot_control', compact('robots', 'locations', 'adj'));
+        return view('bot_control', compact('robots', 'locations', 'adj', 'labelScale', 'settings3D'));
     }
 
     public function history()
@@ -118,6 +126,7 @@ class DashboardController extends Controller
                 'floor' => $loc['floor'] ?? 1,
                 'hidden' => $loc['hidden'] ?? false,
                 'is_destination' => $loc['is_destination'] ?? false,
+                'objectName' => $loc['objectName'] ?? null,
             ];
         }
 
@@ -133,5 +142,40 @@ class DashboardController extends Controller
         $data = json_decode(file_get_contents($graphPath), true);
 
         return $data['adj'] ?? [];
+    }
+
+    private function getLabelScale()
+    {
+        $graphPath = base_path('graph.json');
+        if (! file_exists($graphPath)) {
+            return 1.0;
+        }
+        $data = json_decode(file_get_contents($graphPath), true);
+
+        return (float) ($data['label_scale'] ?? 1.0);
+    }
+
+    private function get3DSettings()
+    {
+        $graphPath = base_path('graph.json');
+        if (! file_exists($graphPath)) {
+            return [];
+        }
+        $data = json_decode(file_get_contents($graphPath), true);
+
+        return $data['settings_3d'] ?? [
+            'camera' => [
+                'dist' => 5.0,
+                'fov' => 5.0,
+                'preset' => 'iso'
+            ],
+            'lighting' => [
+                'ambient' => 1.4,
+                'sun' => 1.8,
+                'exposure' => 1.0,
+                'fill' => 0.8
+            ],
+            'model_scale' => 1.0
+        ];
     }
 }
