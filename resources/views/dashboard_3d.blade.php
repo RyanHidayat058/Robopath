@@ -436,10 +436,16 @@
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                         </div>
-                        <!-- Selected Robot Info -->
-                        <div>
-                            <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1 text-[10px]">Robot Terpilih</label>
-                            <div id="selected-robot-3d-info" class="bg-slate-800/80 border border-white/10 rounded-xl px-3 py-2 font-mono text-gray-200">Klik robot di canvas/card dulu</div>
+                        <!-- Selected Robot Selector & Info -->
+                        <div class="space-y-1.5">
+                            <label class="block font-bold text-gray-400 uppercase tracking-wider text-[10px]">Pilih Robot</label>
+                            <select id="select-3d-robot" onchange="select3DRobotFromDropdown(this.value)" class="w-full bg-slate-800 border border-white/15 rounded-xl px-2.5 py-2 font-bold text-white focus:border-emerald-400 focus:outline-none transition text-xs">
+                                <option value="">-- Pilih Robot --</option>
+                                @foreach($robots as $robot)
+                                    <option value="{{ $robot->id }}">{{ $robot->name }} (Lantai {{ $robot->floor ?? 1 }})</option>
+                                @endforeach
+                            </select>
+                            <div id="selected-robot-3d-info" class="bg-slate-800/80 border border-white/10 rounded-xl px-3 py-1.5 font-mono text-[11px] text-gray-300 truncate">Pilih robot dari dropdown atau klik avatar</div>
                         </div>
                         <!-- D-Pad 4 Arah (X/Z World) -->
                         <div>
@@ -1016,7 +1022,7 @@
             if(networkBuilt) return; networkBuilt=true;
             networkGroup.clear();
             const seen=new Set();
-            const y = (modelSize.y||0.4)+0.06;
+            const y = 0.03; // Menempel langsung di lantai 3D
             for(const a in adj){
                 if(!locations[a] || Number(locations[a].floor)!==floorNum) continue;
                 for(const b of (adj[a]||[])){
@@ -1025,9 +1031,29 @@
                     const pA=worldPosForLoc(locations[a], modelSize); pA.y=y;
                     const pB=worldPosForLoc(locations[b], modelSize); pB.y=y;
                     const geo=new THREE.BufferGeometry().setFromPoints([pA,pB]);
-                    const mat=new THREE.LineBasicMaterial({color:0x64748b, transparent:true, opacity:0.28});
+                    const mat=new THREE.LineBasicMaterial({color:0x38bdf8, transparent:true, opacity:0.65});
                     networkGroup.add(new THREE.Line(geo, mat));
                 }
+            }
+            // Node pads di lantai 3D
+            for(const id in locations){
+                const loc = locations[id];
+                if(Number(loc.floor) !== floorNum) continue;
+                const isDest = !!loc.is_destination;
+                const isStairs = id.includes('Stairs');
+                const radius = (isDest || isStairs) ? 0.24 : 0.12;
+                const color = isStairs ? 0xf59e0b : (isDest ? 0x0284c7 : 0x64748b);
+                const discGeo = new THREE.CylinderGeometry(radius, radius, 0.015, 16);
+                const discMat = new THREE.MeshStandardMaterial({
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.35,
+                    roughness: 0.4
+                });
+                const disc = new THREE.Mesh(discGeo, discMat);
+                const wp = worldPosForLoc(loc, modelSize);
+                disc.position.set(wp.x, 0.02, wp.z);
+                networkGroup.add(disc);
             }
         }
         function getOrCreateRobotMesh(robot){
@@ -1460,6 +1486,13 @@
                 if (camPanel) camPanel.classList.add('hidden');
                 if (lightPanel) lightPanel.classList.add('hidden');
                 if (labelPanel) labelPanel.classList.add('hidden');
+                if (focusedRobotId == null) {
+                    const defaultRobot = robots.find(r => Number(r.floor) === Number(currentDashboardFloor)) || robots[0];
+                    if (defaultRobot) {
+                        focusRobotOnMap(Number(defaultRobot.id));
+                    }
+                }
+                updateSelectedRobotUI();
             } else {
                 robotPanel.classList.add('hidden');
             }
@@ -1495,11 +1528,35 @@
     function clearRobotFocus(){
         focusedRobotId=null; isFollowMode=false;
         updateFocusBadge(); updateFollowButton();
+        const sel = document.getElementById('select-3d-robot');
+        if (sel) sel.value = '';
         // highlight cards
         document.querySelectorAll('[id^="robot-card-"]').forEach(c=>c.classList.remove('ring-2','ring-sky-400'));
     }
 
     // === Robot Position Control (D-pad + Rotasi + World XZ) ===
+    function select3DRobotFromDropdown(val) {
+        if (!val) {
+            clearRobotFocus();
+            updateSelectedRobotUI();
+            return;
+        }
+        const rid = Number(val);
+        const r = robots.find(x => Number(x.id) === rid);
+        if (!r) return;
+        const targetFloor = Number(r.floor) === 1 ? 1 : 2;
+        if (Number(currentDashboardFloor) !== targetFloor) {
+            switchDashboardFloor(targetFloor);
+            setTimeout(() => {
+                focusRobotOnMap(rid);
+                updateSelectedRobotUI();
+            }, 300);
+        } else {
+            focusRobotOnMap(rid);
+            updateSelectedRobotUI();
+        }
+    }
+
     // Ambil holder robot 3D yang sedang difokuskan (viewer lantai aktif dulu, lalu viewer lain)
     function getFocusedRobotHolder(){
         if(focusedRobotId==null) return null;
@@ -1510,6 +1567,11 @@
         return null;
     }
     function updateSelectedRobotUI(){
+        const sel=document.getElementById('select-3d-robot');
+        if(sel){
+            if(focusedRobotId!=null && sel.value!==String(focusedRobotId)) sel.value=String(focusedRobotId);
+            else if(focusedRobotId==null) sel.value='';
+        }
         const info=document.getElementById('selected-robot-3d-info');
         const inpX=document.getElementById('input-robot-3d-x');
         const inpY=document.getElementById('input-robot-3d-y');
@@ -1521,7 +1583,7 @@
         const holder=getFocusedRobotHolder();
         const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
         if(!holder||!r){
-            if(info) info.textContent='Klik robot di canvas/card dulu';
+            if(info) info.textContent='Pilih robot dari dropdown atau klik avatar';
             if(inpX) inpX.value='';
             if(inpY) inpY.value='';
             if(inpZ) inpZ.value='';
@@ -1531,7 +1593,7 @@
             if(valRot) valRot.textContent='0°';
             return;
         }
-        if(info) info.textContent=r.name+' (#'+r.id+')';
+        if(info) info.textContent=r.name+' (#'+r.id+') - Lt. '+(r.floor||currentDashboardFloor);
         if(inpX && document.activeElement!==inpX) inpX.value=holder.position.x.toFixed(2);
         if(inpY && document.activeElement!==inpY) inpY.value=holder.position.y.toFixed(2);
         if(inpZ && document.activeElement!==inpZ) inpZ.value=holder.position.z.toFixed(2);
@@ -1655,18 +1717,26 @@
         if(!r){ alert('Data robot tidak ditemukan.'); return; }
         const st=document.getElementById('robot-3d-status');
         if(st) st.textContent='Menyimpan...';
-        fetch('/robots/'+r.id+'/telemetry', {
+        const targetFloor = Number(r.floor) || Number(currentDashboardFloor) || 1;
+        fetch('/api/robots/'+r.id+'/telemetry', {
             method:'POST',
             headers:{
                 'Content-Type':'application/json',
                 'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content||'',
                 'Accept':'application/json'
             },
-            body:JSON.stringify({current_x:r.current_x, current_y:r.current_y, floor:r.floor||2})
-        }).then(res=>res.json()).then(data=>{
-            if(st) st.textContent='Tersimpan ke server!';
+            body:JSON.stringify({current_x:r.current_x, current_y:r.current_y, floor:targetFloor})
+        }).then(res=>{
+            if(!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+        }).then(data=>{
+            if(st) {
+                st.textContent='✓ Posisi ' + r.name + ' tersimpan!';
+                setTimeout(()=>{ if(st && st.textContent.includes('tersimpan')) st.textContent=''; }, 3500);
+            }
         }).catch(err=>{
-            if(st) st.textContent='Gagal simpan (cek koneksi)';
+            console.error('Error saving robot position:', err);
+            if(st) st.textContent='Gagal simpan (' + err.message + ')';
         });
     }
     function toggleNetworkLines(){
@@ -2387,7 +2457,7 @@
             if (!v || !v.activePathGroup) return;
             const sz = v.getModelSize ? v.getModelSize() : null;
             if (!sz || sz.x < 0.1) return;
-            const y = (sz.y || 0.4) + yOff;
+            const y = 0.035; // Menempel langsung di atas lantai 3D
             const pts3 = remainingPts.map(pt => { const vv = worldPosForLoc(pt, sz); vv.y = y; return vv; });
             if (pts3.length < 2) return;
             const geo = new THREE.BufferGeometry().setFromPoints(pts3);
