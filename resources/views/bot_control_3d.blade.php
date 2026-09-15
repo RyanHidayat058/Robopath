@@ -751,24 +751,92 @@
         // Pre-load robot.glb early
         try { ensureRobotTemplate(() => {}); } catch (e) {}
 
-        // Helper: buat/update mesh node 3D (dot biru) untuk lokasi Lantai 2
+        // Helper: buat/update mesh node 3D yang menempel langsung di lantai 3D
         function getOrCreateNodeMesh(nodeId) {
             const id = nodeId;
             if (nodeMeshes.has(id)) return nodeMeshes.get(id);
             const loc = locationsData[id];
             if (!loc) return null;
             const isStairs = id.includes('Stairs');
-            const dotColor = loc.hidden ? 0x94a3b8 : (loc.is_destination ? 0x3b4cb8 : (isStairs ? 0xf59e0b : 0x38bdf8));
-            const dotSize = (loc.is_destination || !loc.hidden) ? 0.12 : 0.08;
-            const geo = new THREE.SphereGeometry(dotSize, 16, 16);
-            const mat = new THREE.MeshStandardMaterial({ color: dotColor, emissive: dotColor, emissiveIntensity: 0.3, metalness: 0.2, roughness: 0.6 });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.castShadow = true; mesh.receiveShadow = true;
-            mesh.userData.nodeId = id;
-            mesh.userData.type = 'node';
-            nodesGroup.add(mesh);
-            nodeMeshes.set(id, mesh);
-            return mesh;
+            const isDest = !!loc.is_destination;
+            const isHidden = !!loc.hidden;
+
+            const holder = new THREE.Group();
+            holder.userData.nodeId = id;
+            holder.userData.type = 'node';
+
+            // 1. Base floor pad (disc) menempel langsung di lantai
+            const radius = (isDest || isStairs) ? 0.28 : 0.16;
+            const discGeo = new THREE.CylinderGeometry(radius, radius, 0.02, 24);
+            const baseCol = isStairs ? 0xf59e0b : (isDest ? 0x2563eb : 0x64748b);
+            const discMat = new THREE.MeshStandardMaterial({
+                color: baseCol,
+                emissive: baseCol,
+                emissiveIntensity: isHidden ? 0.15 : 0.35,
+                roughness: 0.35,
+                transparent: isHidden,
+                opacity: isHidden ? 0.6 : 1.0
+            });
+            const discMesh = new THREE.Mesh(discGeo, discMat);
+            discMesh.position.y = 0.01;
+            discMesh.castShadow = true;
+            discMesh.receiveShadow = true;
+            discMesh.userData.nodeId = id;
+            discMesh.userData.type = 'node';
+            holder.add(discMesh);
+            holder.userData.discMesh = discMesh;
+
+            // 2. Center beacon pin (sphere)
+            const sphereRad = (isDest || isStairs) ? 0.09 : 0.06;
+            const sphereGeo = new THREE.SphereGeometry(sphereRad, 16, 16);
+            const sphereMesh = new THREE.Mesh(sphereGeo, discMat);
+            sphereMesh.position.y = 0.07;
+            sphereMesh.castShadow = true;
+            sphereMesh.userData.nodeId = id;
+            sphereMesh.userData.type = 'node';
+            holder.add(sphereMesh);
+            holder.userData.sphereMesh = sphereMesh;
+
+            // 3. Selection ring di lantai
+            const ringGeo = new THREE.RingGeometry(radius + 0.04, radius + 0.11, 24);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide });
+            const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+            ringMesh.rotation.x = -Math.PI / 2;
+            ringMesh.position.y = 0.022;
+            ringMesh.visible = (selectedNodeId === id);
+            holder.add(ringMesh);
+            holder.userData.selectionRing = ringMesh;
+
+            // 4. Label teks ruangan menempel tepat di atas pin node (y = 0.32)
+            const isNamed = isDest || isStairs || !isHidden;
+            if (isNamed) {
+                const sprite = createRoomLabelSprite(loc.name || id, isDest, isStairs);
+                sprite.scale.set(1.4 * labelScaleMultiplier, 0.35 * labelScaleMultiplier, 1);
+                sprite.position.set(0, 0.32, 0);
+                sprite.material.depthTest = true; // Mengikuti kedalaman 3D secara presisi
+                holder.add(sprite);
+                holder.userData.labelSprite = sprite;
+            }
+
+            const wp = worldPosForLoc(loc, _bcSize);
+            holder.position.set(wp.x, 0, wp.z);
+            holder.visible = (!isHidden || showHiddenDots);
+
+            nodesGroup.add(holder);
+            nodeMeshes.set(id, holder);
+            return holder;
+        }
+
+        function updateNodeSelectionHighlights() {
+            nodeMeshes.forEach((holder, id) => {
+                if (holder.userData && holder.userData.selectionRing) {
+                    const isSel = (selectedNodeId === id);
+                    const isConn = (connectStart3DNode === id);
+                    holder.userData.selectionRing.visible = (isSel || isConn);
+                    if (isConn) holder.userData.selectionRing.material.color.setHex(0xf59e0b);
+                    else holder.userData.selectionRing.material.color.setHex(0x10b981);
+                }
+            });
         }
 
         // Helper: buat/update mesh robot 3D (avatar robot.glb + name badge)
@@ -826,79 +894,106 @@
             raycaster.setFromCamera(mouse, camera);
             // Gabungkan nodes + robots untuk pick
             const pickTargets = [];
-            nodesGroup.children.forEach(m => pickTargets.push(m));
+            nodesGroup.children.forEach(m => {
+                if (m.isMesh) pickTargets.push(m);
+                else if (m.isGroup) m.traverse(c => { if (c.isMesh) pickTargets.push(c); });
+            });
             robotsGroup.children.forEach(g => { g.children.forEach(m => { if (m.isMesh) pickTargets.push(m); }); });
             const hits = raycaster.intersectObjects(pickTargets, false);
             if (hits.length > 0) {
                 let target = hits[0].object;
-                // bila mesh child of robot holder, naik ke holder
-                let p = target;
-                while (p && !p.userData?.type && p.parent) p = p.parent;
-                if (p && p.userData?.type) target = p;
+                while (target && !target.userData?.type && target.parent) target = target.parent;
                 selected3DObject = target;
                 updateSelected3DObjectUI();
                 // Klik robot di canvas = shortcut pilih robot: sinkronkan selector + activeRobot.
                 if (target && target.userData && target.userData.type === 'robot') {
                     setActiveRobot(target.userData.robotId, { selectHolder: false });
+                } else if (target && target.userData && target.userData.type === 'node') {
+                    selectedNodeId = target.userData.nodeId;
+                    inspectNode(selectedNodeId);
+                    updateNodeSelectionHighlights();
                 }
                 if (currentTool === 'move') {
                     dragged3D = target;
                     controls.enabled = false;
-                    // set dragOffset
                     const hitPoint = hits[0].point;
                     dragOffset.copy(target.position).sub(hitPoint);
+                    dragOffset.y = 0; // drag strictly di lantai datar
                 } else if (currentTool === 'connect') {
                     if (target.userData.type === 'node') {
                         const nodeId = target.userData.nodeId;
                         if (!connectStart3DNode) {
                             connectStart3DNode = nodeId;
+                            updateNodeSelectionHighlights();
                         } else if (connectStart3DNode !== nodeId) {
                             if (!adjData[connectStart3DNode]) adjData[connectStart3DNode] = [];
                             if (!adjData[nodeId]) adjData[nodeId] = [];
                             if (!adjData[connectStart3DNode].includes(nodeId)) adjData[connectStart3DNode].push(nodeId);
                             if (!adjData[nodeId].includes(connectStart3DNode)) adjData[nodeId].push(connectStart3DNode);
                             connectStart3DNode = null;
+                            inspectNode(selectedNodeId);
+                            updateNodeSelectionHighlights();
                             build3DEdges();
-                            renderEditorMap();
                         }
                     }
                 } else if (currentTool === 'delete') {
                     if (target.userData.type === 'node') {
                         const nodeId = target.userData.nodeId;
-                        if (confirm('Hapus node "' + nodeId + '"?')) {
+                        if (confirm('Hapus node "' + (locationsData[nodeId]?.name || nodeId) + '"?')) {
                             delete locationsData[nodeId];
                             delete adjData[nodeId];
                             for (let k in adjData) adjData[k] = adjData[k].filter(n => n !== nodeId);
                             nodeMeshes.delete(nodeId);
                             nodesGroup.remove(target);
-                            build3DEdges();
+                            selectedNodeId = null;
                             selected3DObject = null;
+                            connectStart3DNode = null;
+                            clearInspector();
                             updateSelected3DObjectUI();
-                            renderEditorMap();
+                            build3DEdges();
                         }
                     }
                 }
             } else {
-                // klik kosong
-                if (currentTool === 'add' && currentFloor === 2) {
-                    raycaster.ray.intersectPlane(dragPlane, new THREE.Vector3());
-                    const wp = raycaster.ray.intersectPlane(dragPlane, new THREE.Vector3());
-                    if (wp) {
-                        const pct = locFromWorld(wp.x, wp.z, _bcSize);
-                        const name = prompt('Nama ruangan baru:', 'Hall_' + Math.floor(Math.random() * 100));
+                // Klik area kosong lantai
+                if (currentTool === 'add') {
+                    const hitPoint = raycaster.ray.intersectPlane(dragPlane, new THREE.Vector3());
+                    if (hitPoint) {
+                        const pct = locFromWorld(hitPoint.x, hitPoint.z, _bcSize);
+                        const name = prompt('Nama ruangan / node baru:', 'Ruang_' + Math.floor(Math.random() * 100));
                         if (name && name.trim()) {
                             const clean = name.trim();
-                            const key = '2_' + clean;
-                            locationsData[key] = { id: key, name: clean, x: pct.x, y: pct.y, floor: 2, hidden: false, is_destination: true };
+                            const key = `${currentFloor}_${clean}`;
+                            locationsData[key] = {
+                                id: key,
+                                name: clean,
+                                x: parseFloat(pct.x.toFixed(2)),
+                                y: parseFloat(pct.y.toFixed(2)),
+                                floor: currentFloor,
+                                hidden: false,
+                                is_destination: true
+                            };
                             adjData[key] = [];
                             const mesh = getOrCreateNodeMesh(key);
-                            if (mesh) { const w = worldPosForLoc(locationsData[key], _bcSize); mesh.position.set(w.x, 0.05, w.z); }
+                            if (mesh) {
+                                const w = worldPosForLoc(locationsData[key], _bcSize);
+                                mesh.position.set(w.x, 0, w.z);
+                            }
                             selectedNodeId = key;
+                            selected3DObject = mesh;
                             inspectNode(key);
+                            updateNodeSelectionHighlights();
                             build3DEdges();
-                            renderEditorMap();
                         }
                     }
+                } else {
+                    selectedNodeId = null;
+                    selected3DObject = null;
+                    connectStart3DNode = null;
+                    clearInspector();
+                    updateSelected3DObjectUI();
+                    updateNodeSelectionHighlights();
+                    build3DEdges();
                 }
             }
         }
@@ -916,22 +1011,28 @@
             const newPos = hitPoint.add(dragOffset);
             dragged3D.position.x = newPos.x;
             dragged3D.position.z = newPos.z;
-            // sync ke locationsData bila node (drag manual memutus link objectName Blender)
+            // sync ke locationsData bila node
             if (dragged3D.userData.type === 'node') {
+                dragged3D.position.y = 0;
                 const nodeId = dragged3D.userData.nodeId;
                 const pct = locFromWorld(newPos.x, newPos.z, _bcSize);
-                locationsData[nodeId].x = pct.x;
-                locationsData[nodeId].y = pct.y;
+                locationsData[nodeId].x = parseFloat(pct.x.toFixed(2));
+                locationsData[nodeId].y = parseFloat(pct.y.toFixed(2));
                 if (locationsData[nodeId].objectName) {
-                    console.log('[Robopath] link objectName diputus (drag manual):', nodeId);
                     delete locationsData[nodeId].objectName;
                 }
                 delete locationsData[nodeId]._u;
                 delete locationsData[nodeId]._v;
                 delete locationsData[nodeId]._fy;
-                if (selectedNodeId === nodeId) inspectNode(nodeId);
+                const inpX = document.getElementById('inspect-x');
+                const inpY = document.getElementById('inspect-y');
+                if (inpX) inpX.value = locationsData[nodeId].x;
+                if (inpY) inpY.value = locationsData[nodeId].y;
                 build3DEdges();
-                renderEditorMap();
+                updateSelected3DObjectUI();
+            } else if (dragged3D.userData.type === 'robot') {
+                updateDriveReadout();
+                updateSelected3DObjectUI();
             }
         }
 
@@ -942,7 +1043,7 @@
         function build3DEdges() {
             if (!edgesGroup) return;
             edgesGroup.clear();
-            const y = (_bcSize.y || 0.4) + 0.06;
+            const y = 0.025; // Menempel langsung di atas lantai 3D
             const seen = new Set();
             for (const a in adjData) {
                 if (!locationsData[a] || Number(locationsData[a].floor) !== floorNum) continue;
@@ -953,7 +1054,12 @@
                     const pA = worldPosForLoc(locationsData[a], _bcSize); pA.y = y;
                     const pB = worldPosForLoc(locationsData[b], _bcSize); pB.y = y;
                     const geo = new THREE.BufferGeometry().setFromPoints([pA, pB]);
-                    const mat = new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.55 });
+                    const isConnected = (selectedNodeId === a || selectedNodeId === b || connectStart3DNode === a || connectStart3DNode === b);
+                    const mat = new THREE.LineBasicMaterial({
+                        color: isConnected ? 0x38bdf8 : 0x0284c7,
+                        transparent: true,
+                        opacity: isConnected ? 0.95 : 0.65
+                    });
                     edgesGroup.add(new THREE.Line(geo, mat));
                 }
             }
@@ -1013,29 +1119,14 @@
                 // Resolve posisi destination dari nama object Blender (Box3 center). Fallback x/y bila tak ketemu.
                 try { resolveAllObjectAnchors(locationsData, model, _bcSize, floorNum); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
 
-                // Add 3D Room labels — per lantai aktif, stagger Y anti-tumpuk
-                let _labelIdx=0;
-                for (let id in locationsData) {
-                    const loc = locationsData[id];
-                    if (Number(loc.floor) !== floorNum) continue;
-                    const isStairs = id.includes('Stairs');
-                    if (!loc.is_destination && !isStairs && loc.hidden) continue;
-                    const sprite = createRoomLabelSprite(loc.name || id, loc.is_destination, isStairs);
-                    const wp0 = worldPosForLoc(loc, _bcSize);
-                    const posY = (size.y || 0.22) + 0.32 + (_labelIdx%5)*0.22;
-                    _labelIdx++;
-                    sprite.position.set(wp0.x, posY, wp0.z);
-                    labelsGroup.add(sprite);
-                }
-
-                // Eager-create semua node mesh per lantai
+                // Eager-create semua node mesh di lantai 3D
                 for (const id in locationsData) {
                     const loc = locationsData[id];
                     if (Number(loc.floor) !== floorNum) continue;
                     const mesh = getOrCreateNodeMesh(id);
                     if (mesh) {
                         const wp = worldPosForLoc(loc, _bcSize);
-                        mesh.position.set(wp.x, 0.05, wp.z);
+                        mesh.position.set(wp.x, 0, wp.z);
                     }
                 }
                 build3DEdges();
@@ -1364,89 +1455,66 @@
         });
 
         const hint = document.getElementById('editor-hint');
-        const is3DMode = (currentFloor === 2);
-        if (tool === 'move') hint.textContent = is3DMode ? "Tool: Klik & drag node/robot di canvas 3D untuk pindah posisi. Gunakan D-pad di panel kontrol untuk presisi." : "Tool: Drag nodes to adjust coordinates. Click a node to edit room title & hidden flags.";
-        if (tool === 'add') hint.textContent = is3DMode ? "Tool: Klik area kosong di canvas 3D untuk tambah node ruangan baru." : "Tool: Click anywhere on the map to add a new room node (e.g. Hall, Lobby).";
-        if (tool === 'connect') hint.textContent = is3DMode ? "Tool: Klik node A lalu node B di canvas 3D untuk hubungkan jalur." : "Tool: Click Node A, then click Node B to draw a path line connection.";
-        if (tool === 'delete') hint.textContent = is3DMode ? "Tool: Klik node di canvas 3D untuk hapus." : "Tool: Click any node to delete it from the graph.";
+        if (tool === 'move') hint.textContent = "Tool: Klik & drag node/robot di canvas 3D untuk pindah posisi. Gunakan D-pad di panel kontrol untuk presisi.";
+        if (tool === 'add') hint.textContent = "Tool: Klik area kosong di canvas 3D untuk tambah node ruangan baru.";
+        if (tool === 'connect') hint.textContent = "Tool: Klik node A lalu node B di canvas 3D untuk hubungkan jalur.";
+        if (tool === 'delete') hint.textContent = "Tool: Klik node di canvas 3D untuk hapus.";
         
         connectStartNodeId = null;
+        connectStart3DNode = null;
         renderEditorMap();
     }
 
     function renderEditorMap() {
         const svg = document.getElementById('editor-svg');
         const nodesLayer = document.getElementById('editor-nodes-layer');
-        const container = document.getElementById('editor-map-container');
-        
-        if (!svg || !nodesLayer || !container) return;
-        svg.innerHTML = '';
-        nodesLayer.innerHTML = '';
+        if (svg) { svg.innerHTML = ''; svg.style.display = 'none'; }
+        if (nodesLayer) { nodesLayer.innerHTML = ''; nodesLayer.style.display = 'none'; }
 
-        const w = container.clientWidth || 800;
-        const h = container.clientHeight || 450;
+        sync3DNodesToData();
+    }
 
-        // Render Edges for current floor using for...of loops
-        const drawnEdges = new Set();
-        for (let nodeA in adjData) {
-            const locA = locationsData[nodeA];
-            if (!locA || Number(locA.floor) !== Number(currentFloor)) continue;
+    function sync3DNodesToData() {
+        const vw = activeBotViewer();
+        if (!vw || !vw.nodeMeshes) return;
+        const sz = vw.getModelSize ? vw.getModelSize() : null;
+        if (!sz || sz.x <= 0.1) return;
 
-            const neighbors = adjData[nodeA] || [];
-            for (let nodeB of neighbors) {
-                const locB = locationsData[nodeB];
-                if (!locB || Number(locB.floor) !== Number(currentFloor)) continue;
-
-                const edgeKey = [nodeA, nodeB].sort().join('--');
-                if (drawnEdges.has(edgeKey)) continue;
-                drawnEdges.add(edgeKey);
-
-                const pxA = (locA.x / 100) * w;
-                const pyA = (locA.y / 100) * h;
-                const pxB = (locB.x / 100) * w;
-                const pyB = (locB.y / 100) * h;
-
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', pxA);
-                line.setAttribute('y1', pyA);
-                line.setAttribute('x2', pxB);
-                line.setAttribute('y2', pyB);
-                line.setAttribute('stroke', '#38bdf8');
-                line.setAttribute('stroke-width', '2');
-                line.setAttribute('stroke-dasharray', '4,4');
-                svg.appendChild(line);
+        for (const id in locationsData) {
+            const loc = locationsData[id];
+            if (Number(loc.floor) !== Number(currentFloor)) {
+                if (vw.nodeMeshes.has(id)) {
+                    const m = vw.nodeMeshes.get(id);
+                    if (m && m.parent) m.parent.remove(m);
+                    vw.nodeMeshes.delete(id);
+                }
+                continue;
+            }
+            let holder = vw.nodeMeshes.get(id);
+            if (!holder && vw.getOrCreateNodeMesh) {
+                holder = vw.getOrCreateNodeMesh(id);
+            }
+            if (holder) {
+                const wp = worldPosForLoc(loc, sz);
+                holder.position.set(wp.x, 0, wp.z);
+                const isHidden = !!loc.hidden;
+                holder.visible = (!isHidden || showHiddenDots);
+                if (holder.userData && holder.userData.selectionRing) {
+                    const isSel = (selectedNodeId === id);
+                    const isConn = (connectStart3DNode === id);
+                    holder.userData.selectionRing.visible = (isSel || isConn);
+                    if (isConn) holder.userData.selectionRing.material.color.setHex(0xf59e0b);
+                    else holder.userData.selectionRing.material.color.setHex(0x10b981);
+                }
             }
         }
-
-        // Render Nodes for current floor
-        for (let nodeId in locationsData) {
-            const loc = locationsData[nodeId];
-            if (Number(loc.floor) !== Number(currentFloor)) continue;
-            const displayName = loc.name || nodeId;
-            const isNamed = loc.is_destination || (!loc.hidden);
-            const isSelected = selectedNodeId === nodeId;
-            const isConnectStart = connectStartNodeId === nodeId;
-
-            const el = document.createElement('div');
-            el.className = `editor-node ${isSelected ? 'selected' : ''}`;
-            el.style.left = `${loc.x}%`;
-            el.style.top = `${loc.y}%`;
-
-            let dotBg = loc.hidden ? 'bg-gray-400 opacity-70' : (isNamed ? 'bg-[#3b4cb8]' : (isConnectStart ? 'bg-amber-500 animate-bounce' : 'bg-sky-500'));
-            let dotSize = isNamed ? 'w-5 h-5' : 'w-3.5 h-3.5';
-
-            el.innerHTML = `
-                <div class="relative flex items-center justify-center group">
-                    <div class="${dotSize} rounded-full ${dotBg} border-2 border-white shadow-md transition transform group-hover:scale-125"></div>
-                    ${isNamed ? `<div class="absolute -top-6 bg-[#3b4cb8] text-white text-[9px] font-bold px-2 py-0.5 rounded shadow pointer-events-none whitespace-nowrap">${displayName}</div>` : ''}
-                </div>
-            `;
-
-            el.addEventListener('click', (e) => handleNodeClick(e, nodeId));
-            el.addEventListener('mousedown', (e) => handleNodeMouseDown(e, nodeId));
-
-            nodesLayer.appendChild(el);
-        }
+        vw.nodeMeshes.forEach((holder, id) => {
+            if (!locationsData[id] || Number(locationsData[id].floor) !== Number(currentFloor)) {
+                if (holder && holder.parent) holder.parent.remove(holder);
+                vw.nodeMeshes.delete(id);
+            }
+        });
+        if (vw.build3DEdges) vw.build3DEdges();
     }
 
     function handleNodeClick(e, nodeId) {
@@ -1573,6 +1641,12 @@
     function inspectNode(nodeId) {
         const loc = locationsData[nodeId];
         if (!loc) return;
+
+        const vw = activeBotViewer();
+        if (vw && vw.nodeMeshes && vw.nodeMeshes.has(nodeId)) {
+            selected3DObject = vw.nodeMeshes.get(nodeId);
+            updateSelected3DObjectUI();
+        }
 
         document.getElementById('inspect-node-name').value = loc.name || nodeId;
         document.getElementById('inspect-floor').value = loc.floor || 1;
