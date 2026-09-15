@@ -512,9 +512,9 @@
                         <div>
                             <div class="flex justify-between text-[11px] mb-1">
                                 <span class="text-gray-300">Ukuran Object Robot</span>
-                                <span id="val-robot-scale" class="font-mono text-emerald-400 font-bold">1.0x</span>
+                                <span id="val-robot-scale" class="font-mono text-emerald-400 font-bold">{{ number_format($settings3D['robot_scale'] ?? 0.6, 1) }}x</span>
                             </div>
-                            <input id="input-robot-scale" type="range" min="0.3" max="3.0" step="0.1" value="1.0" oninput="set3DRobotScale(this.value)" class="w-full accent-emerald-400">
+                            <input id="input-robot-scale" type="range" min="0.3" max="3.0" step="0.1" value="{{ $settings3D['robot_scale'] ?? 0.6 }}" oninput="set3DRobotScale(this.value)" class="w-full accent-emerald-400">
                             <div class="flex justify-between text-[10px] text-gray-400 px-0.5 mt-0.5">
                                 <span>Kecil (0.3x)</span>
                                 <span>Normal (1.0x)</span>
@@ -697,7 +697,10 @@
             exposure: parseFloat(settings3D?.lighting?.exposure ?? 1.0),
             fill: parseFloat(settings3D?.lighting?.fill ?? 0.8)
         },
-        model_scale: parseFloat(settings3D?.model_scale ?? 1.0)
+        model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
+        robot_scale: parseFloat(settings3D?.robot_scale ?? 0.6),
+        node_scale: parseFloat(settings3D?.node_scale ?? 0.6),
+        node_color: settings3D?.node_color ?? '#ef4444'
     };
     let settings3DSaveTimeout = null;
     let serverClientOffset = 0;
@@ -862,11 +865,12 @@
         return buffer;
     }
 
-    // Lantai 2 helpers: world mapping & robot template
+    // Helper: mapping 2D percent -> 3D world (XZ plane + Y elevation)
     // _u/_v runtime (hasil resolveObjectAnchor dari Box3 GLB) diutamakan; fallback x/y persen.
     function worldPosForLoc(loc, size) {
         const u = (loc._u ?? loc.x / 100), v = (loc._v ?? loc.y / 100);
-        return new THREE.Vector3((u - 0.5) * (size.x * 0.95), 0, (v - 0.5) * (size.z * 0.95));
+        const yElev = (loc.y_elev !== undefined && loc.y_elev !== null) ? Number(loc.y_elev) : (loc._fy ?? 0);
+        return new THREE.Vector3((u - 0.5) * (size.x * 0.95), yElev, (v - 0.5) * (size.z * 0.95));
     }
     function locFromWorld(worldX, worldZ, size) {
         const xPct = ((worldX / (size.x*0.95)) + 0.5) * 100;
@@ -1042,18 +1046,18 @@
                 if(Number(loc.floor) !== floorNum) continue;
                 const isDest = !!loc.is_destination;
                 const isStairs = id.includes('Stairs');
-                const radius = (isDest || isStairs) ? 0.24 : 0.12;
-                const color = isStairs ? 0xf59e0b : (isDest ? 0x0284c7 : 0x64748b);
-                const discGeo = new THREE.CylinderGeometry(radius, radius, 0.015, 16);
+                const radius = (isDest || isStairs) ? 0.10 : 0.05;
+                const color = isStairs ? 0xf59e0b : (isDest ? 0xef4444 : 0x64748b);
+                const discGeo = new THREE.CylinderGeometry(radius, radius, 0.015, 20);
                 const discMat = new THREE.MeshStandardMaterial({
                     color: color,
                     emissive: color,
-                    emissiveIntensity: 0.35,
+                    emissiveIntensity: 0.45,
                     roughness: 0.4
                 });
                 const disc = new THREE.Mesh(discGeo, discMat);
                 const wp = worldPosForLoc(loc, modelSize);
-                disc.position.set(wp.x, 0.02, wp.z);
+                disc.position.set(wp.x, wp.y + 0.015, wp.z);
                 networkGroup.add(disc);
             }
         }
@@ -1061,6 +1065,8 @@
             const id=Number(robot.id);
             if(robotMeshes.has(id)) return robotMeshes.get(id);
             const holder=new THREE.Group(); holder.userData.robotId=id;
+            const rSc = parseFloat(current3DSettings.robot_scale ?? 0.6);
+            holder.scale.set(rSc, rSc, rSc);
             // placeholder box until glb ready
             const boxMesh=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.5,0.35), new THREE.MeshStandardMaterial({color:getRobotColor(id)}));
             boxMesh.position.y=0.25; boxMesh.castShadow=true; boxMesh.receiveShadow=true;
@@ -1670,8 +1676,9 @@
             if(inpX) inpX.value='';
             if(inpY) inpY.value='';
             if(inpZ) inpZ.value='';
-            if(inpScale && document.activeElement!==inpScale) inpScale.value=1.0;
-            if(valScale) valScale.textContent='1.0x';
+            const defSc = parseFloat(current3DSettings.robot_scale ?? 0.6);
+            if(inpScale && document.activeElement!==inpScale) inpScale.value=defSc.toFixed(1);
+            if(valScale) valScale.textContent=defSc.toFixed(1)+'x';
             if(slider) slider.value=0;
             if(valRot) valRot.textContent='0°';
             return;
@@ -1689,32 +1696,23 @@
     }
     function move3DRobot(dx, dz){
         const holder=getFocusedRobotHolder();
-        if(!holder){ alert('Pilih robot dulu (klik card atau avatar di canvas).'); return; }
+        if(!holder) return;
         isEditingRobot3D = true;
         holder.position.x+=dx;
         holder.position.z+=dz;
         if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
         holder.userData.targetWp.copy(holder.position);
-        // sync ke robots[] data
-        const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
-        if (r) {
-            r.customPosition = true;
-            r.returnMission = null;
-            r.isReturning = false;
-            r.needsReturnToBase = false;
-            const vw=viewerOfHolder(holder);
-            if(vw && vw.getModelSize){
-                const sz=vw.getModelSize();
-                if(sz && sz.x>0.1){
-                    const pct=locFromWorld(holder.position.x, holder.position.z, sz);
-                    r.current_x=parseFloat(pct.x.toFixed(2));
-                    r.current_y=parseFloat(pct.y.toFixed(2));
-                }
+        const vw=viewerOfHolder(holder);
+        const sz=vw?vw.getModelSize():null;
+        if(sz && sz.x>0.1){
+            const pct=locFromWorld(holder.position.x, holder.position.z, sz);
+            const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
+            if(r){
+                r.current_x = parseFloat(pct.x.toFixed(2));
+                r.current_y = parseFloat(pct.y.toFixed(2));
             }
         }
         updateSelectedRobotUI();
-        const st=document.getElementById('robot-3d-status');
-        if(st){ st.textContent='Posisi: X='+holder.position.x.toFixed(2)+' Z='+holder.position.z.toFixed(2); }
     }
     function move3DRobotY(dy){
         const holder=getFocusedRobotHolder();
@@ -1729,21 +1727,15 @@
     }
     function rotate3DRobot(deltaDeg){
         const holder=getFocusedRobotHolder();
-        if(!holder){ alert('Pilih robot dulu.'); return; }
-        isEditingRobot3D = true;
-        holder.rotation.y+=(deltaDeg*Math.PI/180);
-        const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
-        if(r) r.rotation = Math.round((holder.rotation.y*180/Math.PI)%360);
+        if(!holder) return;
+        holder.rotation.y += (deltaDeg * Math.PI / 180);
         updateSelectedRobotUI();
     }
     function set3DRobotRotation(val){
         const holder=getFocusedRobotHolder();
         if(!holder) return;
         const deg=parseFloat(val);
-        isEditingRobot3D = true;
-        holder.rotation.y=deg*Math.PI/180;
-        const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
-        if(r) r.rotation = deg;
+        holder.rotation.y = deg * Math.PI / 180;
         const valEl=document.getElementById('val-robot-3d-rotation');
         if(valEl) valEl.textContent=Math.round(deg)+'°';
     }
@@ -1755,16 +1747,14 @@
         holder.position.x=x;
         if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
         holder.userData.targetWp.x=x;
-        const r=robots.find(x2=>Number(x2.id)===Number(focusedRobotId));
-        if (r) {
-            r.customPosition = true;
-            r.returnMission = null;
-            r.isReturning = false;
-            r.needsReturnToBase = false;
-            const vwx=viewerOfHolder(holder);
-            if(vwx && vwx.getModelSize){
-                const sz=vwx.getModelSize();
-                if(sz&&sz.x>0.1){ const pct=locFromWorld(x, holder.position.z, sz); r.current_x=parseFloat(pct.x.toFixed(2)); }
+        const vw=viewerOfHolder(holder);
+        const sz=vw?vw.getModelSize():null;
+        if(sz && sz.x>0.1){
+            const pct=locFromWorld(x, holder.position.z, sz);
+            const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
+            if(r){
+                r.current_x = parseFloat(pct.x.toFixed(2));
+                r.current_y = parseFloat(pct.y.toFixed(2));
             }
         }
     }
@@ -1776,16 +1766,14 @@
         holder.position.z=z;
         if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
         holder.userData.targetWp.z=z;
-        const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
-        if (r) {
-            r.customPosition = true;
-            r.returnMission = null;
-            r.isReturning = false;
-            r.needsReturnToBase = false;
-            const vwz=viewerOfHolder(holder);
-            if(vwz && vwz.getModelSize){
-                const sz=vwz.getModelSize();
-                if(sz&&sz.x>0.1){ const pct=locFromWorld(holder.position.x, z, sz); r.current_y=parseFloat(pct.y.toFixed(2)); }
+        const vw=viewerOfHolder(holder);
+        const sz=vw?vw.getModelSize():null;
+        if(sz && sz.x>0.1){
+            const pct=locFromWorld(holder.position.x, z, sz);
+            const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
+            if(r){
+                r.current_x = parseFloat(pct.x.toFixed(2));
+                r.current_y = parseFloat(pct.y.toFixed(2));
             }
         }
     }
@@ -1799,14 +1787,20 @@
         holder.userData.targetWp.y=y;
     }
     function set3DRobotScale(val){
-        const holder=getFocusedRobotHolder();
-        if(!holder) return;
         const s=parseFloat(val); if(isNaN(s)||s<0.1) return;
-        holder.scale.set(s,s,s);
+        current3DSettings.robot_scale = s;
+        allViewers().forEach(vw => {
+            if (vw && vw.robotMeshes) {
+                vw.robotMeshes.forEach(h => h.scale.set(s, s, s));
+            }
+        });
+        const holder=getFocusedRobotHolder();
+        if(holder) holder.scale.set(s,s,s);
         const valEl=document.getElementById('val-robot-scale');
         if(valEl) valEl.textContent=s.toFixed(1)+'x';
         const st=document.getElementById('robot-3d-status');
         if(st) st.textContent='Skala robot: '+s.toFixed(1)+'x';
+        save3DSettingsDebounced('robot-3d-status');
     }
     function reset3DRobotPosition(){
         const holder=getFocusedRobotHolder();
@@ -1837,7 +1831,14 @@
             }
         }
         holder.rotation.y=0;
-        holder.scale.set(1,1,1);
+        const defSc = 0.6;
+        current3DSettings.robot_scale = defSc;
+        holder.scale.set(defSc, defSc, defSc);
+        const inpSc = document.getElementById('input-robot-scale');
+        if (inpSc) inpSc.value = String(defSc);
+        const valSc = document.getElementById('val-robot-scale');
+        if (valSc) valSc.textContent = defSc.toFixed(1) + 'x';
+        save3DSettingsDebounced('robot-3d-status');
         updateSelectedRobotUI();
         const st=document.getElementById('robot-3d-status');
         if(st) st.textContent='Posisi & ukuran di-reset ke default';
@@ -1850,6 +1851,21 @@
         const st=document.getElementById('robot-3d-status');
         if(st) st.textContent='Menyimpan...';
         const targetFloor = Number(r.floor) || Number(currentDashboardFloor) || 1;
+
+        // Simpan settings_3d (termasuk robot_scale) ke /api/settings/label-scale
+        fetch('/api/settings/label-scale', {
+            method:'POST',
+            headers:{
+                'Content-Type':'application/json',
+                'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content||'',
+                'Accept':'application/json'
+            },
+            body:JSON.stringify({
+                scale: labelScaleMultiplier,
+                settings_3d: current3DSettings
+            })
+        }).catch(e => console.warn('Sync settings_3d fail:', e));
+
         fetch('/api/robots/'+r.id+'/telemetry', {
             method:'POST',
             headers:{
@@ -1867,7 +1883,7 @@
             r.isReturning = false;
             r.needsReturnToBase = false;
             if(st) {
-                st.textContent='✓ Posisi ' + r.name + ' tersimpan!';
+                st.textContent='✓ Posisi & skala ' + r.name + ' tersimpan!';
                 setTimeout(()=>{ if(st && st.textContent.includes('tersimpan')) st.textContent=''; }, 3500);
             }
         }).catch(err=>{

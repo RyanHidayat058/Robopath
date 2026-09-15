@@ -12,10 +12,23 @@ class ViewModeToggleTest extends TestCase
 
     protected User $admin;
 
+    protected ?string $graph3dBackup = null;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->admin = User::factory()->create(['role' => 'admin']);
+        if (file_exists(base_path('graph_3d.json'))) {
+            $this->graph3dBackup = file_get_contents(base_path('graph_3d.json'));
+        }
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->graph3dBackup !== null) {
+            file_put_contents(base_path('graph_3d.json'), $this->graph3dBackup);
+        }
+        parent::tearDown();
     }
 
     public function test_sidebar_has_view_mode_toggle_and_defaults_to_2d(): void
