@@ -1031,6 +1031,15 @@
                 build3DEdges();
                 updateSelected3DObjectUI();
             } else if (dragged3D.userData.type === 'robot') {
+                const rid = Number(dragged3D.userData.robotId);
+                const r = robotsData.find(x => Number(x.id) === rid);
+                const vw = viewerOfHolder(dragged3D);
+                const sz = vw ? vw.getModelSize() : _bcSize;
+                if (r && sz && sz.x > 0.1) {
+                    const pct = locFromWorld(dragged3D.position.x, dragged3D.position.z, sz);
+                    r.current_x = parseFloat(pct.x.toFixed(2));
+                    r.current_y = parseFloat(pct.y.toFixed(2));
+                }
                 updateDriveReadout();
                 updateSelected3DObjectUI();
             }
@@ -1305,9 +1314,9 @@
         if (!selected3DObject) { alert('Pilih object di canvas 3D dulu.'); return; }
         selected3DObject.position.x += dx;
         selected3DObject.position.z += dz;
+        const vw = viewerOfHolder(selected3DObject);
+        const sz = vw ? vw.getModelSize() : (activeBotViewer()?activeBotViewer().getModelSize():null);
         if (selected3DObject.userData.type === 'node') {
-            const vw = viewerOfHolder(selected3DObject);
-            const sz = vw ? vw.getModelSize() : (activeBotViewer()?activeBotViewer().getModelSize():null);
             if (!sz) { updateSelected3DObjectUI(); return; }
             const pct = locFromWorld(selected3DObject.position.x, selected3DObject.position.z, sz);
             const nodeId = selected3DObject.userData.nodeId;
@@ -1318,6 +1327,17 @@
                 if (vw && vw.build3DEdges) vw.build3DEdges();
                 renderEditorMap();
             }
+        } else if (selected3DObject.userData.type === 'robot') {
+            if (sz && sz.x > 0.1) {
+                const rid = Number(selected3DObject.userData.robotId);
+                const r = robotsData.find(x => Number(x.id) === rid);
+                if (r) {
+                    const pct = locFromWorld(selected3DObject.position.x, selected3DObject.position.z, sz);
+                    r.current_x = parseFloat(pct.x.toFixed(2));
+                    r.current_y = parseFloat(pct.y.toFixed(2));
+                }
+            }
+            updateDriveReadout();
         }
         updateSelected3DObjectUI();
     }
@@ -1340,24 +1360,40 @@
         if (!selected3DObject) return;
         const x = parseFloat(val); if (isNaN(x)) return;
         selected3DObject.position.x = x;
+        const vw = viewerOfHolder(selected3DObject);
+        const sz = vw ? vw.getModelSize() : null; if(!sz) return;
+        const pct = locFromWorld(x, selected3DObject.position.z, sz);
         if (selected3DObject.userData.type === 'node') {
-            const vw = viewerOfHolder(selected3DObject);
-            const sz = vw ? vw.getModelSize() : null; if(!sz) return;
-            const pct = locFromWorld(x, selected3DObject.position.z, sz);
             const nodeId = selected3DObject.userData.nodeId;
             if (locationsData[nodeId]) { locationsData[nodeId].x = pct.x; if (selectedNodeId === nodeId) inspectNode(nodeId); if (vw.build3DEdges) vw.build3DEdges(); renderEditorMap(); }
+        } else if (selected3DObject.userData.type === 'robot') {
+            const rid = Number(selected3DObject.userData.robotId);
+            const r = robotsData.find(x => Number(x.id) === rid);
+            if (r) {
+                r.current_x = parseFloat(pct.x.toFixed(2));
+                r.current_y = parseFloat(pct.y.toFixed(2));
+            }
+            updateDriveReadout();
         }
     }
     function set3DWorldZ(val) {
         if (!selected3DObject) return;
         const z = parseFloat(val); if (isNaN(z)) return;
         selected3DObject.position.z = z;
+        const vw = viewerOfHolder(selected3DObject);
+        const sz = vw ? vw.getModelSize() : null; if(!sz) return;
+        const pct = locFromWorld(selected3DObject.position.x, z, sz);
         if (selected3DObject.userData.type === 'node') {
-            const vw = viewerOfHolder(selected3DObject);
-            const sz = vw ? vw.getModelSize() : null; if(!sz) return;
-            const pct = locFromWorld(selected3DObject.position.x, z, sz);
             const nodeId = selected3DObject.userData.nodeId;
             if (locationsData[nodeId]) { locationsData[nodeId].y = pct.y; if (selectedNodeId === nodeId) inspectNode(nodeId); if (vw.build3DEdges) vw.build3DEdges(); renderEditorMap(); }
+        } else if (selected3DObject.userData.type === 'robot') {
+            const rid = Number(selected3DObject.userData.robotId);
+            const r = robotsData.find(x => Number(x.id) === rid);
+            if (r) {
+                r.current_x = parseFloat(pct.x.toFixed(2));
+                r.current_y = parseFloat(pct.y.toFixed(2));
+            }
+            updateDriveReadout();
         }
     }
 
@@ -1378,8 +1414,41 @@
                 const nodeId = selected3DObject.userData.nodeId;
                 if (locationsData[nodeId]) { locationsData[nodeId].x = pct.x; locationsData[nodeId].y = pct.y; }
             }
+            saveGraphToServer();
+        } else if (selected3DObject.userData.type === 'robot') {
+            const rid = Number(selected3DObject.userData.robotId);
+            const r = robotsData.find(x => Number(x.id) === rid);
+            if (!r) { alert('Data robot tidak ditemukan.'); return; }
+            const vw = viewerOfHolder(selected3DObject);
+            const sz = vw ? vw.getModelSize() : null;
+            if (sz && sz.x > 0.1) {
+                const pct = locFromWorld(selected3DObject.position.x, selected3DObject.position.z, sz);
+                r.current_x = parseFloat(pct.x.toFixed(2));
+                r.current_y = parseFloat(pct.y.toFixed(2));
+            }
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            fetch(`/api/robots/${rid}/telemetry`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    current_x: r.current_x,
+                    current_y: r.current_y,
+                    floor: Number(currentFloor) || 1
+                })
+            })
+            .then(res => res.json())
+            .then(d => {
+                alert(`✓ Posisi Robot #${rid} berhasil disimpan di database!`);
+            })
+            .catch(err => {
+                console.error('Error saving robot telemetry:', err);
+                alert('Gagal menyimpan posisi robot: ' + err.message);
+            });
         }
-        saveGraphToServer();
     }
 
     function switchFloor(floorNum) {
