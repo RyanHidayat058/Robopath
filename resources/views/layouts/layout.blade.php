@@ -12,13 +12,18 @@
     <!-- SweetAlert2 for Modern Alerts & Confirmations -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    <style>
+        html, body {
+            background-color: #f9fafb;
+        }
+    </style>
+
     @if(($viewMode ?? '2d') === '3d')
-    <!-- Three.js 3D Rendering Engine & Draco Loaders (Loaded only in 3D Mode) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <!-- Three.js 3D Rendering Engine & Draco Loaders (Served Locally for Instant Load) -->
+    <script src="{{ asset('js/three.min.js') }}"></script>
+    <script src="{{ asset('js/OrbitControls.js') }}"></script>
+    <script src="{{ asset('js/GLTFLoader.js') }}"></script>
+    <script src="{{ asset('js/DRACOLoader.js') }}"></script>
     @endif
 
     <script>
@@ -396,30 +401,86 @@
 
         window.switchGlobalViewMode = function(mode) {
             if (mode !== '2d' && mode !== '3d') mode = '2d';
+
+            // Show smooth transition overlay immediately (eliminates white flicker/blink)
+            const overlay = document.getElementById('global-mode-switch-overlay');
+            const title = document.getElementById('mode-switch-title');
+            const desc = document.getElementById('mode-switch-desc');
+            const icon = document.getElementById('mode-switch-icon');
+            if (overlay) {
+                if (title) title.textContent = mode === '3d' ? 'Mengaktifkan Mode 3D' : 'Mengaktifkan Mode 2D';
+                if (desc) desc.textContent = mode === '3d' ? 'Memuat visualisasi 3D...' : 'Menyiapkan layout 2D...';
+                if (icon) icon.className = mode === '3d' ? 'fa-solid fa-cube text-indigo-600 absolute text-xs' : 'fa-solid fa-map text-indigo-600 absolute text-xs';
+                overlay.classList.remove('pointer-events-none');
+                overlay.classList.remove('opacity-0');
+            }
+
+            // Immediately update sidebar buttons & badge for 0ms visual feedback
+            const btn2d = document.getElementById('btn-view-mode-2d');
+            const btn3d = document.getElementById('btn-view-mode-3d');
+            const badge = document.getElementById('global-mode-badge');
+            if (badge) {
+                badge.textContent = mode.toUpperCase();
+                badge.className = 'view-mode-badge text-[9px] font-bold px-1.5 py-0.5 rounded-full font-mono ' + (mode === '3d' ? 'bg-emerald-400 text-slate-900' : 'bg-white/20 text-white');
+            }
+            if (btn2d && btn3d) {
+                if (mode === '3d') {
+                    btn3d.className = 'toggle-view-mode-3d py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm bg-white text-brand-blue';
+                    btn2d.className = 'toggle-view-mode-2d py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-white/80 hover:text-white hover:bg-white/10';
+                } else {
+                    btn2d.className = 'toggle-view-mode-2d py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm bg-white text-brand-blue';
+                    btn3d.className = 'toggle-view-mode-3d py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-white/80 hover:text-white hover:bg-white/10';
+                }
+            }
+
             localStorage.setItem('robopath_view_mode', mode);
             document.cookie = "robopath_view_mode=" + mode + "; path=/; max-age=31536000; SameSite=Lax";
 
-            const url = new URL(window.location.href);
-            if (url.searchParams.has('view_mode')) {
-                url.searchParams.set('view_mode', mode);
-                window.location.href = url.toString();
-            } else {
-                window.location.reload();
-            }
+            // Navigate using URL parameter to ensure atomic server response and prevent blank reload
+            const targetUrl = new URL(window.location.href);
+            targetUrl.searchParams.set('view_mode', mode);
+            window.location.href = targetUrl.toString();
         };
 
-        // Sync initial mode on page load
+        // Sync initial mode on page load without double reload loops
         document.addEventListener('DOMContentLoaded', () => {
             const currentServerMode = "{{ $viewMode ?? '2d' }}";
+            const urlParams = new URLSearchParams(window.location.search);
+
+            // If arrived via view_mode parameter, sync localStorage & clean URL silently
+            if (urlParams.has('view_mode')) {
+                localStorage.setItem('robopath_view_mode', currentServerMode);
+                const cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete('view_mode');
+                window.history.replaceState({}, document.title, cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : ''));
+                return;
+            }
+
             const localMode = localStorage.getItem('robopath_view_mode');
             if (localMode && (localMode === '2d' || localMode === '3d') && localMode !== currentServerMode) {
+                // Out of sync: navigate cleanly with query parameter
                 document.cookie = "robopath_view_mode=" + localMode + "; path=/; max-age=31536000; SameSite=Lax";
-                window.location.reload();
+                const targetUrl = new URL(window.location.href);
+                targetUrl.searchParams.set('view_mode', localMode);
+                window.location.href = targetUrl.toString();
             } else if (!localMode) {
                 localStorage.setItem('robopath_view_mode', currentServerMode);
             }
         });
     </script>
+
+    <!-- Global Mode Transition Overlay (Prevents white flash/blink on switch) -->
+    <div id="global-mode-switch-overlay" class="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center transition-opacity duration-200 opacity-0 pointer-events-none">
+        <div class="bg-white/95 backdrop-blur-md rounded-2xl p-6 shadow-2xl flex flex-col items-center max-w-xs text-center border border-white/40">
+            <div class="relative flex items-center justify-center w-12 h-12 mb-3">
+                <div class="w-10 h-10 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div>
+                <i id="mode-switch-icon" class="fa-solid fa-cube text-indigo-600 absolute text-xs"></i>
+            </div>
+            <h4 id="mode-switch-title" class="text-sm font-bold text-gray-800">Mengalihkan Mode...</h4>
+            <p id="mode-switch-desc" class="text-xs text-gray-500 mt-1">Menyiapkan tampilan sistem...</p>
+        </div>
+    </div>
+
     @yield('scripts')
 </body>
 </html>
