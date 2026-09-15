@@ -58,8 +58,8 @@ class TelemetryController extends Controller
                 $secondsSince = ($lastCompleted && $lastCompleted->completed_at) ? Carbon::parse($lastCompleted->completed_at)->diffInSeconds(Carbon::now()) : null;
                 $isZombie = ($secondsSince !== null && $secondsSince >= 180) || ($robot->updated_at && $robot->updated_at->diffInSeconds(Carbon::now()) >= 180);
 
-                // Only normalize to Idle/Charging if robot has genuinely arrived at base (< 1.0) or is an abandoned/zombie session (> 180s)
-                if (($distToBase <= 1.0 && (int) ($robot->floor ?? 1) === 1) || $isZombie) {
+                // Only normalize to Idle/Charging if robot has genuinely arrived at base (<= 1.5) or is an abandoned/zombie session (> 180s)
+                if (($distToBase <= 1.5 && (int) ($robot->floor ?? 1) === 1) || $isZombie) {
                     $nextStatus = ($robot->battery_level <= 20 || $robot->status === 'Charging') ? 'Charging' : 'Idle';
                     $robot->update([
                         'status' => $nextStatus,
@@ -83,6 +83,18 @@ class TelemetryController extends Controller
             }
         }
 
+        // Reverse Sanity Check: If a robot is marked 'Delivering' but has NO delivery in progress or pending
+        $deliveringRobots = Robot::where('status', 'Delivering')->get();
+        foreach ($deliveringRobots as $r) {
+            $hasDeliv = Delivery::where('robot_id', $r->id)->whereIn('status', ['In Progress', 'Pending'])->exists();
+            if (! $hasDeliv) {
+                $distToBase = ((int) ($r->floor ?? 1) === 1)
+                    ? hypot((float) ($r->current_x ?? 76.23) - 76.23, (float) ($r->current_y ?? 64.42) - 64.42)
+                    : 999.0;
+                $r->update(['status' => ($distToBase <= 1.5) ? 'Idle' : 'Returning']);
+            }
+        }
+
         $isAutopilot = (bool) Cache::get('autopilot_enabled', false);
         if ($isAutopilot) {
             $this->dispatchAutopilotDeliveries();
@@ -99,6 +111,23 @@ class TelemetryController extends Controller
             ->limit(10)
             ->get();
 
+        // Calculate live statistics for real-time KPI card updates
+        $deliveriesTodayCount = Delivery::where('status', 'Completed')
+            ->where(function ($q) {
+                $q->whereDate('completed_at', Carbon::today())
+                  ->orWhere(function ($q2) {
+                      $q2->whereNull('completed_at')->whereDate('created_at', Carbon::today());
+                  });
+            })->count();
+
+        $allDeliveriesFinished = Delivery::whereIn('status', ['Completed', 'Failed'])->count();
+        $successRate = $allDeliveriesFinished > 0 
+            ? round((Delivery::where('status', 'Completed')->count() / $allDeliveriesFinished) * 100) 
+            : 100;
+
+        $activeRobotsCount = $robots->where('status', '!=', 'Maintenance')->count();
+        $totalRobotsCount = $robots->count();
+
         return response()->json([
             'robots' => $robots,
             'active_deliveries' => $activeDeliveries,
@@ -106,6 +135,14 @@ class TelemetryController extends Controller
             'recent_deliveries' => $recentDeliveries,
             'autopilot_enabled' => $isAutopilot,
             'server_time' => Carbon::now()->toIso8601String(),
+            'stats' => [
+                'active_robots_count' => $activeRobotsCount,
+                'total_robots_count' => $totalRobotsCount,
+                'active_deliveries_count' => $activeDeliveries->count(),
+                'deliveries_today_count' => $deliveriesTodayCount,
+                'success_rate' => $successRate,
+                'active_alerts_count' => $activeAlerts->count(),
+            ],
         ]);
     }
 
@@ -122,8 +159,14 @@ class TelemetryController extends Controller
         $data = $request->only(['status', 'battery_level', 'current_x', 'current_y', 'floor']);
 
         // Guard: If robot has an active delivery in progress, never let client telemetry demote it to 'Idle'
-        $hasActive = Delivery::where('robot_id', $robot->id)->where('status', 'In Progress')->exists();
+        $hasActive = Delivery::where('robot_id', $robot->id)->whereIn('status', ['In Progress', 'Pending'])->exists();
         if ($hasActive && isset($data['status']) && $data['status'] === 'Idle') {
+            unset($data['status']);
+        }
+
+        // Guard: If robot has an active In Progress delivery, never let stale 'Charging' or 'Returning' telemetry demote it
+        $hasInProgress = Delivery::where('robot_id', $robot->id)->where('status', 'In Progress')->exists();
+        if ($hasInProgress && isset($data['status']) && in_array($data['status'], ['Charging', 'Returning'])) {
             unset($data['status']);
         }
 
@@ -228,12 +271,14 @@ class TelemetryController extends Controller
             $nextStatus = 'Maintenance';
         }
 
-        $robot->update([
-            'status' => $nextStatus,
-            'current_x' => $request->input('current_x', $robot->current_x),
-            'current_y' => $request->input('current_y', $robot->current_y),
-            'floor' => $request->input('floor', $robot->floor ?? 1),
-        ]);
+        if ($robot->status !== 'Idle' && $robot->status !== 'Charging') {
+            $robot->update([
+                'status' => $nextStatus,
+                'current_x' => $request->input('current_x', $robot->current_x),
+                'current_y' => $request->input('current_y', $robot->current_y),
+                'floor' => $request->input('floor', $robot->floor ?? 1),
+            ]);
+        }
 
         return response()->json([
             'success' => true,
@@ -299,7 +344,8 @@ class TelemetryController extends Controller
 
         if (! $hasOtherActive) {
             $battery = $robot->battery_level;
-            if ($battery < 40) {
+            // Only recharge to 100% if the issue resolved was specifically Low Battery
+            if ($report->issue_type === 'Low Battery') {
                 $battery = 100;
             }
 
@@ -423,6 +469,12 @@ class TelemetryController extends Controller
 
     public function fixRobot(Request $request, Robot $robot)
     {
+        // Check if there was an active Low Battery report before resolving
+        $hasLowBatteryIssue = Report::where('robot_id', $robot->id)
+            ->where('status', 'Active')
+            ->where('issue_type', 'Low Battery')
+            ->exists();
+
         // 1. Resolve all active reports for this robot
         Report::where('robot_id', $robot->id)
             ->where('status', 'Active')
@@ -432,8 +484,9 @@ class TelemetryController extends Controller
 
         $action = $request->input('action', 'resume');
         $battery = $robot->battery_level;
-        // If the robot was stuck due to depleted battery, technician field repair recharges it to 100%
-        if ($battery < 40) {
+        // If the issue was Low Battery, field repair recharges it to 100%
+        // For other issues (Collision, Sensor Error), preserve existing battery level!
+        if ($hasLowBatteryIssue) {
             $battery = 100;
         }
 
@@ -532,10 +585,13 @@ class TelemetryController extends Controller
             ->first();
 
         if ($pendingDelivery) {
+            $itemPickedUp = $request->boolean('item_picked_up', false);
+            $startLoc = $itemPickedUp ? '1_N7' : $pendingDelivery->start_location;
+
             // Re-route from base station (1_N7) to destination location directly (no teleport)
             $pendingDelivery->update([
                 'origin_location' => '1_N7',
-                'start_location' => '1_N7',
+                'start_location' => $startLoc,
                 'started_at' => Carbon::now(),
                 'status' => 'In Progress',
             ]);
@@ -569,6 +625,34 @@ class TelemetryController extends Controller
             'message' => "Robot {$robot->name} fully charged at base station (1_N7).",
             'robot' => $robot,
             'delivery' => null,
+        ]);
+    }
+
+    public function pauseForCharge(Request $request, Robot $robot)
+    {
+        $delivery = Delivery::where('robot_id', $robot->id)
+            ->whereIn('status', ['In Progress', 'Pending'])
+            ->first();
+
+        if ($delivery) {
+            $delivery->update([
+                'status' => 'Pending',
+            ]);
+        }
+
+        $robot->update([
+            'status' => 'Returning',
+            'current_x' => $request->input('current_x', $robot->current_x),
+            'current_y' => $request->input('current_y', $robot->current_y),
+            'floor' => $request->input('floor', $robot->floor ?? 1),
+            'battery_level' => $request->input('battery_level', $robot->battery_level),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Robot {$robot->name} is returning to base station for charging.",
+            'robot' => $robot,
+            'delivery' => $delivery,
         ]);
     }
 
@@ -656,17 +740,76 @@ class TelemetryController extends Controller
 
         if ($enabled) {
             $this->dispatchAutopilotDeliveries();
+        } else {
+            // User turned OFF autopilot!
+            // 1. Base station coordinates
+            $baseX = 76.23;
+            $baseY = 64.42;
+            $graphPath = base_path('graph.json');
+            if (file_exists($graphPath)) {
+                $graphData = json_decode(file_get_contents($graphPath), true);
+                foreach ($graphData['locations'] ?? [] as $loc) {
+                    if ($loc['id'] === '1_N7') {
+                        $baseX = (float) $loc['x'];
+                        $baseY = (float) $loc['y'];
+                        break;
+                    }
+                }
+            }
+
+            // 2. Only cancel pending (not yet started) deliveries
+            Delivery::where('status', 'Pending')->update([
+                'status' => 'Cancelled',
+                'completed_at' => Carbon::now(),
+            ]);
+
+            // 3. For robots without an active In Progress delivery:
+            // - If at base (dist <= 1.5) or already Idle/Charging: keep at base as Idle/Charging
+            // - If out in the field and marked Delivering without delivery: transition to Returning
+            // Note: Robots with an active 'In Progress' delivery will finish their delivery,
+            // then return to base, and stay Idle at base.
+            $robots = Robot::all();
+            foreach ($robots as $robot) {
+                $hasActiveDelivery = Delivery::where('robot_id', $robot->id)
+                    ->where('status', 'In Progress')
+                    ->exists();
+
+                if (! $hasActiveDelivery) {
+                    $distToBase = ((int) ($robot->floor ?? 1) === 1)
+                        ? hypot((float) ($robot->current_x ?? $baseX) - $baseX, (float) ($robot->current_y ?? $baseY) - $baseY)
+                        : 999.0;
+
+                    if ($distToBase <= 1.5 || in_array($robot->status, ['Idle', 'Charging'])) {
+                        if ($robot->status !== 'Charging' && $robot->status !== 'Maintenance') {
+                            $robot->update([
+                                'status' => 'Idle',
+                                'current_x' => $baseX,
+                                'current_y' => $baseY,
+                                'floor' => 1,
+                            ]);
+                        }
+                    } else if ($robot->status === 'Delivering') {
+                        $robot->update(['status' => 'Returning']);
+                    }
+                }
+            }
         }
 
         return response()->json([
             'success' => true,
             'autopilot_enabled' => $enabled,
-            'message' => $enabled ? 'Autopilot diaktifkan: semua bot idle akan diberangkatkan serentak.' : 'Autopilot dinonaktifkan: pengantaran aktif akan diselesaikan lalu bot kembali ke markas.',
+            'message' => $enabled ? 'Autopilot diaktifkan: semua bot idle akan diberangkatkan serentak.' : 'Autopilot dinonaktifkan: bot di markas stay, bot yang sedang mengantar akan menyelesaikan tugas lalu kembali ke markas.',
         ]);
     }
 
     public function dispatchAutopilotDeliveries()
     {
+        // STRICT GUARD: If autopilot is disabled, NEVER dispatch any deliveries!
+        $isAutopilot = (bool) Cache::get('autopilot_enabled', false);
+        if (! $isAutopilot) {
+            return;
+        }
+
         $graphPath = base_path('graph.json');
         if (! file_exists($graphPath)) {
             return;
