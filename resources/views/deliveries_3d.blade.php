@@ -261,7 +261,8 @@
     let current3DSettings = {
         camera: { dist: parseFloat(settings3D?.camera?.dist ?? 5.0), fov: parseFloat(settings3D?.camera?.fov ?? 5.0), preset: settings3D?.camera?.preset ?? 'iso' },
         lighting: { ambient: parseFloat(settings3D?.lighting?.ambient ?? 1.4), sun: parseFloat(settings3D?.lighting?.sun ?? 1.8), exposure: parseFloat(settings3D?.lighting?.exposure ?? 1.0), fill: parseFloat(settings3D?.lighting?.fill ?? 0.8) },
-        model_scale: parseFloat(settings3D?.model_scale ?? 1.0)
+        model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
+        robot_scale: parseFloat(settings3D?.robot_scale ?? 0.6)
     };
     // robot template shared (same as dashboard)
     let robotTemplate = null, robotTemplateReady = false, robotTemplateLoading = false, robotTemplateFailed = false;
@@ -505,6 +506,8 @@
             const rid=Number(robot.id);
             if(robotMeshes.has(rid)) return robotMeshes.get(rid);
             const holder=new THREE.Group(); holder.userData.robotId=rid;
+            const rSc = parseFloat(current3DSettings.robot_scale ?? 0.6);
+            holder.scale.set(rSc, rSc, rSc);
             const boxGeo=new THREE.BoxGeometry(0.5,0.5,0.5);
             const boxMat=new THREE.MeshStandardMaterial({color:getRobotColor(rid)});
             const box=new THREE.Mesh(boxGeo, boxMat); box.position.y=0.25; holder.add(box);
