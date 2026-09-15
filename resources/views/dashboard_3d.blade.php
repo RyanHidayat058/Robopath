@@ -700,7 +700,7 @@
         model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
         robot_scale: parseFloat(settings3D?.robot_scale ?? 0.6),
         node_scale: parseFloat(settings3D?.node_scale ?? 0.6),
-        node_color: settings3D?.node_color ?? '#ef4444'
+        node_color: settings3D?.node_color ?? '#ff0000'
     };
     let settings3DSaveTimeout = null;
     let serverClientOffset = 0;
@@ -753,7 +753,7 @@
         canvas.height = 96;
 
         const bgFill = isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.90)' : 'rgba(30, 41, 59, 0.85)');
-        const borderColor = isStairs ? '#fbbf24' : (isDest ? '#38bdf8' : '#94a3b8');
+        const borderColor = isStairs ? '#fbbf24' : (isDest ? '#ff0000' : '#94a3b8');
         const textColor = '#ffffff';
 
         // Rounded Rect pill
@@ -981,10 +981,14 @@
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
+        controls.dampingFactor = 0.08;
         controls.maxPolarAngle = Math.PI / 2.05;
-        controls.minDistance = 2;
-        controls.maxDistance = 200;
+        controls.minDistance = 0.1;
+        controls.maxDistance = 250;
+        controls.enablePan = true;
+        controls.screenSpacePanning = true;
+        controls.panSpeed = 1.2;
+        controls.zoomSpeed = 1.3;
 
         // Lights reference object for interactive sliders (inits from server graph.json)
         const ambientLight = new THREE.AmbientLight(0xffffff, parseFloat(current3DSettings.lighting.ambient ?? 1.4));
@@ -1047,13 +1051,12 @@
                 const isDest = !!loc.is_destination;
                 const isStairs = id.includes('Stairs');
                 const radius = (isDest || isStairs) ? 0.10 : 0.05;
-                const color = isStairs ? 0xf59e0b : (isDest ? 0xef4444 : 0x64748b);
-                const discGeo = new THREE.CylinderGeometry(radius, radius, 0.015, 20);
-                const discMat = new THREE.MeshStandardMaterial({
+                const color = isStairs ? 0xf59e0b : (isDest ? 0xff0000 : 0x64748b);
+                const discGeo = new THREE.CylinderGeometry(radius, radius, 0.015, 24);
+                const discMat = new THREE.MeshBasicMaterial({
                     color: color,
-                    emissive: color,
-                    emissiveIntensity: 0.45,
-                    roughness: 0.4
+                    transparent: isHidden,
+                    opacity: isHidden ? 0.6 : 1.0
                 });
                 const disc = new THREE.Mesh(discGeo, discMat);
                 const wp = worldPosForLoc(loc, modelSize);

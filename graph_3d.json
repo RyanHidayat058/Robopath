@@ -963,7 +963,7 @@
         "model_scale": 1,
         "robot_scale": 0.6,
         "node_scale": 0.6,
-        "node_color": "#ef4444"
+        "node_color": "#ff0000"
     },
     "label_scale": 1
 }
