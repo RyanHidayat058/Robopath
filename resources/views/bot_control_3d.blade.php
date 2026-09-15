@@ -51,6 +51,44 @@
         pointer-events: none;
         z-index: 10;
     }
+    /* Full Map 3D Mode Styles */
+    .botctrl-fullmap-card {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        z-index: 9999 !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        background-color: #0b1120 !important;
+        padding: 0.75rem !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+    .botctrl-fullmap-canvas {
+        flex: 1 1 0% !important;
+        height: 100% !important;
+        aspect-ratio: auto !important;
+        border-radius: 0.75rem !important;
+    }
+    /* Floating Collapsible Inspector in Full Map */
+    .botctrl-inspector-floating {
+        position: fixed !important;
+        top: 4.5rem !important;
+        right: 1.25rem !important;
+        z-index: 10001 !important;
+        width: 24rem !important;
+        max-height: calc(100vh - 5.5rem) !important;
+        overflow-y: auto !important;
+        background: rgba(255, 255, 255, 0.96) !important;
+        backdrop-filter: blur(16px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35) !important;
+        border-radius: 1.25rem !important;
+    }
 </style>
 @endsection
 
@@ -77,6 +115,9 @@
             <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Edit</span>
             <div class="flex flex-wrap items-center gap-3">
             <div class="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
+                <button onclick="setEditorTool('hand')" id="tool-hand" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Free Hand (Pan): Geser kanvas bebas tanpa menyentuh node">
+                    <i class="fa-solid fa-hand"></i> Free Hand
+                </button>
                 <button onclick="setEditorTool('move')" id="tool-move" class="px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition">
                     <i class="fa-solid fa-up-down-left-right"></i> Move Node
                 </button>
@@ -100,6 +141,10 @@
             <button onclick="toggleShowHiddenDots()" id="btn-toggle-hidden" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
                 <i class="fa-solid fa-eye-slash text-gray-600" id="icon-toggle-hidden"></i> <span id="text-toggle-hidden">Show Hidden Transit Nodes</span>
             </button>
+            <!-- Full Map 3D Mode Toggle -->
+            <button onclick="toggleFullMap(true)" id="btn-open-fullmap" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition shadow-sm" title="Buka Denah 3D Layar Penuh">
+                <i class="fa-solid fa-expand"></i> <span>Full Map 3D</span>
+            </button>
         </div>
 
         <!-- ACTION -->
@@ -116,8 +161,66 @@
         
         <!-- Interactive Map Canvas (2/3 Width) -->
         <div class="lg:col-span-2 space-y-4">
-            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
-                <div class="flex items-center justify-between mb-4">
+            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl transition-all" id="editor-map-card">
+                <!-- Dedicated Top Bar for Full Map Mode -->
+                <div id="fullmap-top-bar" class="hidden flex flex-wrap items-center justify-between gap-3 pb-3 mb-2 border-b border-slate-700/60 select-none">
+                    <!-- Left: Floor Switcher -->
+                    <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs">
+                            <button type="button" onclick="switchFloor(1)" id="fullmap-tab-floor-1" class="px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white">
+                                <i class="fa-solid fa-layer-group mr-1"></i> Lantai 1
+                            </button>
+                            <button type="button" onclick="switchFloor(2)" id="fullmap-tab-floor-2" class="px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:bg-white/10">
+                                <i class="fa-solid fa-layer-group mr-1"></i> Lantai 2
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Center: Editor Tools (Free Hand, Move, Add, Connect, Delete) -->
+                    <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
+                        <button type="button" onclick="setEditorTool('hand')" id="fullmap-tool-hand" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Free Hand (Pan): Geser kanvas bebas tanpa menyentuh node">
+                            <i class="fa-solid fa-hand"></i> <span>Free Hand</span>
+                        </button>
+                        <button type="button" onclick="setEditorTool('move')" id="fullmap-tool-move" class="px-3 py-1.5 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Move: Geser posisi node/robot">
+                            <i class="fa-solid fa-up-down-left-right"></i> <span>Move</span>
+                        </button>
+                        <button type="button" onclick="setEditorTool('add')" id="fullmap-tool-add" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Add: Tambah node ruangan baru">
+                            <i class="fa-solid fa-plus-circle"></i> <span>Add</span>
+                        </button>
+                        <button type="button" onclick="setEditorTool('connect')" id="fullmap-tool-connect" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Connect: Hubungkan jalur node">
+                            <i class="fa-solid fa-diagram-project"></i> <span>Connect</span>
+                        </button>
+                        <button type="button" onclick="setEditorTool('delete')" id="fullmap-tool-delete" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Delete: Hapus node">
+                            <i class="fa-solid fa-trash-can"></i> <span>Delete</span>
+                        </button>
+                    </div>
+
+                    <!-- Right: Transit toggle, Edit Manual XYZ button, Save, Exit Full Map -->
+                    <div class="flex items-center gap-2">
+                        <!-- Transit Toggle -->
+                        <button type="button" onclick="toggleShowHiddenDots()" id="fullmap-btn-toggle-hidden" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-eye-slash" id="fullmap-icon-toggle-hidden"></i> <span id="fullmap-text-toggle-hidden">Transit</span>
+                        </button>
+
+                        <!-- Inspector Toggle Button -->
+                        <button type="button" onclick="toggleInspectorPanel()" id="fullmap-btn-inspector" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition" title="Tampilkan / Sembunyikan Panel Edit Manual XYZ">
+                            <i class="fa-solid fa-sliders"></i> <span>Edit Manual XYZ</span>
+                            <span id="fullmap-node-badge" class="ml-1 text-[10px] bg-white/25 px-1.5 py-0.5 rounded-md font-mono hidden">Node</span>
+                        </button>
+
+                        <!-- Save Button -->
+                        <button type="button" onclick="saveGraphToServer()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition">
+                            <i class="fa-solid fa-floppy-disk"></i> <span>Simpan</span>
+                        </button>
+
+                        <!-- Exit Full Map Button -->
+                        <button type="button" onclick="toggleFullMap(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition" title="Keluar dari Full Map (Esc)">
+                            <i class="fa-solid fa-compress"></i> <span>Exit</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between mb-4" id="editor-header-bar">
                     <div>
                         <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
                             <i class="fa-solid fa-map-location-dot text-[#3b4cb8]"></i> Visual Map Node Editor
@@ -162,8 +265,8 @@
                         <button type="button" onclick="focusOnActiveSelection()" title="Fokus Kamera ke Node / Robot Terpilih" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-amber-400 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
                             <i class="fa-solid fa-crosshairs"></i>
                         </button>
-                        <button type="button" onclick="reset3DCameraView()" title="Reset Tampilan (Lihat Seluruh Lantai)" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-sky-400 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
-                            <i class="fa-solid fa-expand"></i>
+                        <button type="button" onclick="toggleFullMap()" id="btn-floating-fullmap" title="Full Map 3D / Layar Penuh" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-sky-400 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
+                            <i class="fa-solid fa-expand" id="icon-floating-fullmap"></i>
                         </button>
                     </div>
 
@@ -307,12 +410,20 @@
                     </details>
                 </div>
             </div>
-            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col">
-                <details open>
-                    <summary class="text-base font-bold text-gray-800 mb-4 pb-3 border-b border-gray-200 flex items-center gap-2 cursor-pointer select-none">
-                        <i class="fa-solid fa-pen-to-square text-[#3b4cb8]"></i> Node Properties Inspector
-                        <span class="ml-auto text-[10px] text-gray-400 font-semibold">SECONDARY</span>
-                    </summary>
+            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col transition-all" id="node-inspector-card">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 select-none">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square text-[#3b4cb8]"></i>
+                        <h3 class="text-base font-bold text-gray-800">Node Properties Inspector</h3>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-gray-400 font-semibold" id="inspector-mode-tag">SECONDARY</span>
+                        <!-- Close / Hide Button (visible when in Full Map or floating) -->
+                        <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector" class="hidden text-gray-400 hover:text-gray-700 w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-sm font-bold transition" title="Tutup / Sembunyikan Panel (Biar Pandangan Luas)">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
 
                 <div class="space-y-4 flex-1 text-xs text-gray-700">
                     <div>
@@ -340,6 +451,20 @@
                             <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Elev (Y)</label>
                             <input type="number" step="0.05" id="inspect-y-elev" oninput="handleElevationChange(this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition" placeholder="0.00">
                         </div>
+                    </div>
+
+                    <!-- Quick Elevation Step Buttons -->
+                    <div class="flex items-center gap-2 bg-indigo-50/70 p-2 rounded-xl border border-indigo-100">
+                        <span class="text-[10px] font-bold text-indigo-700">Quick Elev:</span>
+                        <button type="button" onclick="move3DObjectY(-0.05)" class="flex-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-1 px-2 rounded-lg text-xs transition" title="Turun -0.05m">
+                            <i class="fa-solid fa-arrow-down mr-1"></i> -0.05m
+                        </button>
+                        <button type="button" onclick="move3DObjectY(0.05)" class="flex-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-1 px-2 rounded-lg text-xs transition" title="Naik +0.05m">
+                            <i class="fa-solid fa-arrow-up mr-1"></i> +0.05m
+                        </button>
+                        <button type="button" onclick="focusOnActiveSelection()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2.5 rounded-lg text-xs transition" title="Fokus / Zoom Dekat">
+                            <i class="fa-solid fa-crosshairs"></i>
+                        </button>
                     </div>
 
                     <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3">
@@ -383,8 +508,17 @@
                             <span class="text-gray-400 italic">No node selected</span>
                         </div>
                     </div>
+
+                    <!-- Bottom Action Buttons in Inspector -->
+                    <div class="pt-2 flex gap-2 border-t border-gray-100">
+                        <button type="button" onclick="saveGraphToServer()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow transition">
+                            <i class="fa-solid fa-floppy-disk"></i> Simpan ke Graph
+                        </button>
+                        <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector-bottom" class="hidden bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-2 rounded-xl text-xs transition">
+                            Tutup
+                        </button>
+                    </div>
                 </div>
-                </details>
             </div>
 
             <!-- Fleet Reset Action Card -->
@@ -928,6 +1062,7 @@
         // Raycaster pick handler (dipanggil dari renderer.domElement)
         function handle3DPick(e) {
             if (e.button !== 0) return; // Hanya tangani klik kiri (button 0)! Klik kanan khusus untuk pan/geser kamera OrbitControls
+            if (currentTool === 'hand') return; // Free Hand mode: abaikan klik/drag node agar bebas navigasi!
             const rect = renderer.domElement.getBoundingClientRect();
             const mouse = new THREE.Vector2(
                 ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -1044,6 +1179,7 @@
         }
 
         function handle3DDragMove(e) {
+            if (currentTool === 'hand') return;
             if (!dragged3D) return;
             const rect = renderer.domElement.getBoundingClientRect();
             const mouse = new THREE.Vector2(
@@ -1127,9 +1263,15 @@
         renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
         // Hook raycaster ke renderer canvas — hanya aktif jika viewer lantai ini yang sedang tampil
-        renderer.domElement.addEventListener('pointerdown', (e) => { if (Number(currentFloor) === floorNum) handle3DPick(e); });
+        renderer.domElement.addEventListener('pointerdown', (e) => {
+            if (currentTool === 'hand') renderer.domElement.style.cursor = 'grabbing';
+            if (Number(currentFloor) === floorNum) handle3DPick(e);
+        });
         window.addEventListener('pointermove', (e) => { if (Number(currentFloor) === floorNum) handle3DDragMove(e); });
-        window.addEventListener('pointerup', () => { if (Number(currentFloor) === floorNum) handle3DDragUp(); });
+        window.addEventListener('pointerup', () => {
+            if (currentTool === 'hand') renderer.domElement.style.cursor = 'grab';
+            if (Number(currentFloor) === floorNum) handle3DDragUp();
+        });
 
         // Zoom pintar mendekat ke arah kursor mouse saat scroll wheel ke dalam
         renderer.domElement.addEventListener('wheel', (e) => {
@@ -1405,14 +1547,24 @@
         const text = document.getElementById('text-toggle-hidden');
         const btn = document.getElementById('btn-toggle-hidden');
 
+        const fmIcon = document.getElementById('fullmap-icon-toggle-hidden');
+        const fmText = document.getElementById('fullmap-text-toggle-hidden');
+        const fmBtn = document.getElementById('fullmap-btn-toggle-hidden');
+
         if (showHiddenDots) {
-            icon.className = "fa-solid fa-eye text-[#3b4cb8]";
-            text.textContent = "Showing All Nodes";
-            btn.className = "bg-blue-50 border border-blue-300 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+            if (icon) icon.className = "fa-solid fa-eye text-[#3b4cb8]";
+            if (text) text.textContent = "Showing All Nodes";
+            if (btn) btn.className = "bg-blue-50 border border-blue-300 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+            if (fmIcon) fmIcon.className = "fa-solid fa-eye text-sky-400";
+            if (fmText) fmText.textContent = "Transit On";
+            if (fmBtn) fmBtn.className = "bg-sky-950/80 border border-sky-500/40 text-sky-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition";
         } else {
-            icon.className = "fa-solid fa-eye-slash text-gray-600";
-            text.textContent = "Show Hidden Transit Nodes";
-            btn.className = "bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+            if (icon) icon.className = "fa-solid fa-eye-slash text-gray-600";
+            if (text) text.textContent = "Show Hidden Transit Nodes";
+            if (btn) btn.className = "bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+            if (fmIcon) fmIcon.className = "fa-solid fa-eye-slash text-gray-400";
+            if (fmText) fmText.textContent = "Transit";
+            if (fmBtn) fmBtn.className = "bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition";
         }
         renderEditorMap();
     }
@@ -1716,29 +1868,202 @@
         }
         selectedNodeId = null;
         clearInspector();
+        syncFullMapControls();
         renderEditorMap();
     }
 
     function setEditorTool(tool) {
         currentTool = tool;
-        ['move', 'add', 'connect', 'delete'].forEach(t => {
+        ['hand', 'move', 'add', 'connect', 'delete'].forEach(t => {
             const btn = document.getElementById(`tool-${t}`);
-            if (t === tool) {
-                btn.className = "px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 font-bold transition";
-            } else {
-                btn.className = "px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition";
+            if (btn) {
+                if (t === tool) {
+                    btn.className = "px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 font-bold transition";
+                } else {
+                    btn.className = "px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition";
+                }
+            }
+            const fmBtn = document.getElementById(`fullmap-tool-${t}`);
+            if (fmBtn) {
+                if (t === tool) {
+                    fmBtn.className = "px-3 py-1.5 rounded-lg bg-white text-[#3b4cb8] shadow font-bold flex items-center gap-1.5 transition";
+                } else {
+                    fmBtn.className = "px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition";
+                }
+            }
+        });
+
+        // Switch OrbitControls left button behavior:
+        // In 'hand' mode, left click pans the map smoothly without touching/dragging nodes
+        allBotViewers().forEach(vw => {
+            if (vw && vw.controls) {
+                if (tool === 'hand') {
+                    vw.controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+                } else {
+                    vw.controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+                }
+            }
+            if (vw && vw.renderer && vw.renderer.domElement) {
+                vw.renderer.domElement.style.cursor = (tool === 'hand') ? 'grab' : 'default';
             }
         });
 
         const hint = document.getElementById('editor-hint');
-        if (tool === 'move') hint.textContent = "Tool: Klik & drag node/robot di canvas 3D untuk pindah posisi. Gunakan D-pad di panel kontrol untuk presisi.";
-        if (tool === 'add') hint.textContent = "Tool: Klik area kosong di canvas 3D untuk tambah node ruangan baru.";
-        if (tool === 'connect') hint.textContent = "Tool: Klik node A lalu node B di canvas 3D untuk hubungkan jalur.";
-        if (tool === 'delete') hint.textContent = "Tool: Klik node di canvas 3D untuk hapus.";
+        if (hint) {
+            if (tool === 'hand') hint.textContent = "Tool Free Hand: Klik & geser (drag) di mana saja untuk menggeser (pan) kamera tanpa menyentuh atau memindahkan node.";
+            if (tool === 'move') hint.textContent = "Tool Move: Klik & drag node/robot di canvas 3D untuk pindah posisi. Gunakan D-pad di panel kontrol untuk presisi.";
+            if (tool === 'add') hint.textContent = "Tool Add: Klik area kosong di canvas 3D untuk tambah node ruangan baru.";
+            if (tool === 'connect') hint.textContent = "Tool Connect: Klik node A lalu node B di canvas 3D untuk hubungkan jalur.";
+            if (tool === 'delete') hint.textContent = "Tool Delete: Klik node di canvas 3D untuk hapus.";
+        }
         
         connectStartNodeId = null;
         connectStart3DNode = null;
         renderEditorMap();
+    }
+
+    let isFullMap = false;
+    function toggleFullMap(showFull) {
+        if (showFull === undefined) isFullMap = !isFullMap;
+        else isFullMap = !!showFull;
+
+        const editorCard = document.getElementById('editor-map-card');
+        const editorContainer = document.getElementById('editor-map-container');
+        const fullmapTopBar = document.getElementById('fullmap-top-bar');
+        const editorHeader = document.getElementById('editor-header-bar');
+        const inspectorCard = document.getElementById('node-inspector-card');
+        const btnFloatingFm = document.getElementById('btn-floating-fullmap');
+        const btnOpenFm = document.getElementById('btn-open-fullmap');
+        const btnCloseInspBottom = document.getElementById('btn-close-inspector-bottom');
+
+        if (isFullMap) {
+            if (editorCard) editorCard.classList.add('botctrl-fullmap-card');
+            if (editorContainer) editorContainer.classList.add('botctrl-fullmap-canvas');
+            if (fullmapTopBar) fullmapTopBar.classList.remove('hidden');
+            if (editorHeader) editorHeader.classList.add('hidden');
+            if (btnFloatingFm) {
+                btnFloatingFm.innerHTML = '<i class="fa-solid fa-compress"></i>';
+                btnFloatingFm.title = 'Kecilkan / Keluar Full Map (Esc)';
+            }
+            if (btnOpenFm) {
+                btnOpenFm.innerHTML = '<i class="fa-solid fa-compress text-[#3b4cb8]"></i> <span>Exit Full Map</span>';
+            }
+            if (inspectorCard) {
+                inspectorCard.classList.add('botctrl-inspector-floating');
+                inspectorCard.classList.add('hidden'); // Default closed in full map for wide view
+            }
+            if (btnCloseInspBottom) btnCloseInspBottom.classList.remove('hidden');
+        } else {
+            if (editorCard) editorCard.classList.remove('botctrl-fullmap-card');
+            if (editorContainer) editorContainer.classList.remove('botctrl-fullmap-canvas');
+            if (fullmapTopBar) fullmapTopBar.classList.add('hidden');
+            if (editorHeader) editorHeader.classList.remove('hidden');
+            if (btnFloatingFm) {
+                btnFloatingFm.innerHTML = '<i class="fa-solid fa-expand"></i>';
+                btnFloatingFm.title = 'Buka Full Map 3D';
+            }
+            if (btnOpenFm) {
+                btnOpenFm.innerHTML = '<i class="fa-solid fa-expand text-[#3b4cb8]"></i> <span>Full Map 3D</span>';
+            }
+            if (inspectorCard) {
+                inspectorCard.classList.remove('botctrl-inspector-floating');
+                inspectorCard.classList.remove('hidden'); // Return to standard 3-column layout
+            }
+            if (btnCloseInspBottom) btnCloseInspBottom.classList.add('hidden');
+        }
+
+        syncFullMapControls();
+
+        // Trigger resize on active viewer so aspect ratio and canvas fill screen instantly
+        setTimeout(() => {
+            const vw = activeBotViewer();
+            if (vw && vw.resize) vw.resize();
+        }, 60);
+    }
+
+    function toggleInspectorPanel(forceState) {
+        const inspectorCard = document.getElementById('node-inspector-card');
+        if (!inspectorCard) return;
+        if (forceState !== undefined) {
+            if (forceState) inspectorCard.classList.remove('hidden');
+            else inspectorCard.classList.add('hidden');
+        } else {
+            inspectorCard.classList.toggle('hidden');
+        }
+        syncFullMapControls();
+    }
+
+    function syncFullMapControls() {
+        const tabF1 = document.getElementById('fullmap-tab-floor-1');
+        const tabF2 = document.getElementById('fullmap-tab-floor-2');
+        if (tabF1 && tabF2) {
+            if (currentFloor === 1) {
+                tabF1.className = "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow";
+                tabF2.className = "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:bg-white/10";
+            } else {
+                tabF1.className = "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:bg-white/10";
+                tabF2.className = "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow";
+            }
+        }
+
+        const inspectorCard = document.getElementById('node-inspector-card');
+        const btnToggleInsp = document.getElementById('fullmap-btn-inspector');
+        if (btnToggleInsp && inspectorCard) {
+            const isShown = !inspectorCard.classList.contains('hidden');
+            const locName = (selectedNodeId && locationsData[selectedNodeId]) ? (locationsData[selectedNodeId].name || selectedNodeId) : null;
+            if (isShown) {
+                btnToggleInsp.className = "bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition";
+                btnToggleInsp.innerHTML = '<i class="fa-solid fa-eye-slash"></i> <span>Tutup Panel XYZ</span>' + (locName ? `<span id="fullmap-node-badge" class="ml-1 text-[10px] bg-black/20 px-1.5 py-0.5 rounded-md font-mono">${locName}</span>` : `<span id="fullmap-node-badge" class="ml-1 text-[10px] bg-black/20 px-1.5 py-0.5 rounded-md font-mono hidden"></span>`);
+            } else {
+                btnToggleInsp.className = "bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition";
+                btnToggleInsp.innerHTML = '<i class="fa-solid fa-sliders"></i> <span>Edit Manual XYZ</span>' + (locName ? `<span id="fullmap-node-badge" class="ml-1 text-[10px] bg-white/25 px-1.5 py-0.5 rounded-md font-mono">${locName}</span>` : `<span id="fullmap-node-badge" class="ml-1 text-[10px] bg-white/25 px-1.5 py-0.5 rounded-md font-mono hidden"></span>`);
+            }
+        }
+    }
+
+    function handleElevationChange(val) {
+        if (!selectedNodeId || !locationsData[selectedNodeId]) return;
+        const num = parseFloat(val);
+        if (isNaN(num)) return;
+        locationsData[selectedNodeId].y_elev = parseFloat(num.toFixed(2));
+        locationsData[selectedNodeId]._fy = parseFloat(num.toFixed(2));
+
+        const inpElev = document.getElementById('inspect-y-elev');
+        if (inpElev && parseFloat(inpElev.value) !== num) inpElev.value = num.toFixed(2);
+        const inp3DY = document.getElementById('input-3d-y');
+        if (inp3DY && parseFloat(inp3DY.value) !== num) inp3DY.value = num.toFixed(2);
+
+        const vw = activeBotViewer();
+        if (vw && vw.nodeMeshes && vw.nodeMeshes.has(selectedNodeId)) {
+            const mesh = vw.nodeMeshes.get(selectedNodeId);
+            if (mesh) {
+                mesh.position.y = num;
+            }
+        }
+        if (vw && vw.build3DEdges) vw.build3DEdges();
+        refreshObjectStatus();
+    }
+
+    function focusOnActiveSelection() {
+        const vw = activeBotViewer();
+        if (!vw || !vw.controls || !vw.camera) return;
+        let targetPos = null;
+        if (selectedNodeId && locationsData[selectedNodeId]) {
+            const loc = locationsData[selectedNodeId];
+            const sz = vw.getModelSize ? vw.getModelSize() : null;
+            if (sz) {
+                const wp = worldPosForLoc(loc, sz);
+                targetPos = new THREE.Vector3(wp.x, Number(loc.y_elev ?? loc._fy ?? 0.05), wp.z);
+            }
+        } else if (selected3DObject) {
+            targetPos = selected3DObject.position.clone();
+        }
+        if (targetPos) {
+            vw.controls.target.copy(targetPos);
+            const offset = new THREE.Vector3(0, 4, 5);
+            vw.camera.position.copy(targetPos.clone().add(offset));
+            vw.controls.update();
+        }
     }
 
     function renderEditorMap() {
@@ -1971,6 +2296,7 @@
                 </div>`;
             }).join('');
         }
+        syncFullMapControls();
     }
 
     function clearInspector() {
@@ -1989,6 +2315,7 @@
         document.getElementById('inspect-neighbors').innerHTML = '<span class="text-gray-400 italic">No node selected</span>';
         const badge = document.getElementById('neighbors-count-badge');
         if (badge) badge.textContent = `0 edges`;
+        syncFullMapControls();
     }
 
     function refreshObjectStatus() {
@@ -2200,6 +2527,11 @@
     });
     window.addEventListener('resize', () => {
         renderEditorMap();
+    });
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isFullMap) {
+            toggleFullMap(false);
+        }
     });
 </script>
 @endsection
