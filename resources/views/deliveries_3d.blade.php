@@ -363,7 +363,7 @@
         robotTemplateLoading=true; robotTemplateTries++;
         fetchGLBBufferWithCache(robotModelUrl).then(buf=>{
             const loader=new THREE.GLTFLoader();
-            if(typeof THREE.DRACOLoader!=='undefined'){ const d=new THREE.DRACOLoader(); d.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.3/'); loader.setDRACOLoader(d); }
+            if(typeof THREE.DRACOLoader!=='undefined'){ const d=new THREE.DRACOLoader(); d.setDecoderPath("{{ asset('draco') }}/"); loader.setDRACOLoader(d); }
             loader.parse(buf,'',(gltf)=>{
                 const root=gltf.scene;
                 const box=new THREE.Box3().setFromObject(root); const sz=box.getSize(new THREE.Vector3()); const ctr=box.getCenter(new THREE.Vector3());
@@ -551,7 +551,7 @@
         const gltfLoader = new THREE.GLTFLoader();
         if (typeof THREE.DRACOLoader !== 'undefined') {
             const dracoLoader = new THREE.DRACOLoader();
-            dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.3/');
+            dracoLoader.setDecoderPath("{{ asset('draco') }}/");
             gltfLoader.setDRACOLoader(dracoLoader);
         }
 

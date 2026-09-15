@@ -17,6 +17,15 @@ class DashboardController extends Controller
         return in_array($mode, ['2d', '3d']) ? $mode : '2d';
     }
 
+    protected function renderView(Request $request, string $viewName, array $data)
+    {
+        $response = response()->view($viewName, $data);
+        if ($request->has('view_mode')) {
+            $response->withCookie(cookie('robopath_view_mode', $data['viewMode'] ?? '2d', 525600, null, null, false, false));
+        }
+        return $response;
+    }
+
     public function index(Request $request)
     {
         $viewMode = $this->getViewMode($request);
@@ -68,7 +77,7 @@ class DashboardController extends Controller
         $adj = $is3D ? $adj3D : $adj2D;
         $viewName = $is3D ? 'dashboard_3d' : 'dashboard';
 
-        return view($viewName, compact(
+        return $this->renderView($request, $viewName, compact(
             'viewMode',
             'robots',
             'activeRobotsCount',
@@ -114,7 +123,7 @@ class DashboardController extends Controller
 
         $viewName = $is3D ? 'deliveries_3d' : 'deliveries';
 
-        return view($viewName, compact(
+        return $this->renderView($request, $viewName, compact(
             'viewMode',
             'robots',
             'activeDeliveries',
@@ -146,7 +155,7 @@ class DashboardController extends Controller
 
         $viewName = $is3D ? 'bot_control_3d' : 'bot_control';
 
-        return view($viewName, compact(
+        return $this->renderView($request, $viewName, compact(
             'viewMode',
             'robots',
             'locations',
