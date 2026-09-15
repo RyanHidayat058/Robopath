@@ -734,6 +734,7 @@
     let focusedRobotId = null;
     let isFollowMode = false;
     let showNetworkLines = false;
+    let isEditingRobot3D = false;
     let robotTemplate = null;
     let robotTemplateReady = false;
     let robotTemplateLoading = false;
@@ -1282,28 +1283,101 @@
             if (loaderStatus && Number(currentDashboardFloor) === floorNum) loaderStatus.textContent = 'Gagal mengunduh aset 3D! Coba refresh.';
         });
 
-        // Raycast klik avatar 3D -> focus robot (Lantai 2)
+        // Raycast klik & geser (drag) avatar 3D
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
-        renderer.domElement.addEventListener('click', (e)=>{
+        const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.02);
+        const dragOffset = new THREE.Vector3();
+        let dragTargetHolder = null;
+        let isPointerDragging = false;
+        let pointerStartClient = { x: 0, y: 0 };
+
+        renderer.domElement.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
             const rect = renderer.domElement.getBoundingClientRect();
-            mouse.x = ((e.clientX - rect.left)/rect.width)*2-1;
-            mouse.y = -((e.clientY - rect.top)/rect.height)*2+1;
+            mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
             raycaster.setFromCamera(mouse, camera);
-            const targets=[]; robotMeshes.forEach(h=>{ if(h.visible) targets.push(h); });
-            // intersect recursively (avatar has Box/GLB inside holder)
+            const targets = [];
+            robotMeshes.forEach(h => { if (h.visible) targets.push(h); });
             const hits = raycaster.intersectObjects(targets, true);
-            if(hits.length){
-                let obj=hits[0].object;
-                while(obj && obj.parent && !obj.userData.robotId) obj=obj.parent;
-                const rid = obj?.userData?.robotId ?? hits[0].object?.parent?.userData?.robotId;
-                // fallback: find holder by traversing up
-                let holder=obj;
-                while(holder && !robotMeshes.has(Number(holder.userData?.robotId))) holder=holder.parent;
-                if(holder && holder.userData.robotId) focusRobotOnMap(Number(holder.userData.robotId));
-                else if(rid) focusRobotOnMap(Number(rid));
+            if (hits.length) {
+                let obj = hits[0].object;
+                while (obj && obj.parent && !obj.userData.robotId) obj = obj.parent;
+                let holder = obj;
+                while (holder && !robotMeshes.has(Number(holder.userData?.robotId))) holder = holder.parent;
+                if (!holder || !holder.userData.robotId) {
+                    const rid = obj?.userData?.robotId ?? hits[0].object?.parent?.userData?.robotId;
+                    if (rid && robotMeshes.has(Number(rid))) holder = robotMeshes.get(Number(rid));
+                }
+                if (holder) {
+                    dragTargetHolder = holder;
+                    isPointerDragging = false;
+                    pointerStartClient = { x: e.clientX, y: e.clientY };
+                    const hitPoint = raycaster.ray.intersectPlane(dragPlane, new THREE.Vector3());
+                    if (hitPoint) {
+                        dragOffset.copy(holder.position).sub(hitPoint);
+                        dragOffset.y = 0;
+                    }
+                }
             }
         });
+
+        renderer.domElement.addEventListener('pointermove', (e) => {
+            if (!dragTargetHolder) return;
+            const distSq = Math.hypot(e.clientX - pointerStartClient.x, e.clientY - pointerStartClient.y);
+            if (distSq > 4) {
+                isPointerDragging = true;
+                controls.enabled = false;
+                isEditingRobot3D = true;
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const hitPoint = raycaster.ray.intersectPlane(dragPlane, new THREE.Vector3());
+                if (hitPoint) {
+                    const newPos = hitPoint.add(dragOffset);
+                    dragTargetHolder.position.x = newPos.x;
+                    dragTargetHolder.position.z = newPos.z;
+                    if (!dragTargetHolder.userData.targetWp) dragTargetHolder.userData.targetWp = new THREE.Vector3();
+                    dragTargetHolder.userData.targetWp.copy(dragTargetHolder.position);
+
+                    const rid = Number(dragTargetHolder.userData.robotId);
+                    focusedRobotId = rid;
+                    const r = robots.find(x => Number(x.id) === rid);
+                    if (r && modelSize && modelSize.x > 0.1) {
+                        r.customPosition = true;
+                        r.returnMission = null;
+                        r.isReturning = false;
+                        r.needsReturnToBase = false;
+                        const pct = locFromWorld(newPos.x, newPos.z, modelSize);
+                        r.current_x = parseFloat(pct.x.toFixed(2));
+                        r.current_y = parseFloat(pct.y.toFixed(2));
+                    }
+                    updateSelectedRobotUI();
+                    const st = document.getElementById('robot-3d-status');
+                    if (st) st.textContent = `Posisi: X=${dragTargetHolder.position.x.toFixed(2)} Z=${dragTargetHolder.position.z.toFixed(2)}`;
+                }
+            }
+        });
+
+        const endDragOrClick = (e) => {
+            if (dragTargetHolder) {
+                controls.enabled = true;
+                const rid = Number(dragTargetHolder.userData.robotId);
+                if (!isPointerDragging) {
+                    focusRobotOnMap(rid);
+                } else {
+                    focusedRobotId = rid;
+                    updateFocusBadge();
+                    updateSelectedRobotUI();
+                }
+                dragTargetHolder = null;
+                isPointerDragging = false;
+            }
+        };
+        renderer.domElement.addEventListener('pointerup', endDragOrClick);
+        renderer.domElement.addEventListener('pointerleave', endDragOrClick);
 
         let animationFrameId = null;
         function animate() {
@@ -1415,8 +1489,11 @@
             const sz = viewer.getModelSize();
             if (!sz || sz.x <= 0.1) return false;
             const holder = viewer.getOrCreateRobotMesh(robot);
-            snapRobot3D(holder, coords, sz);
-            smoothFaceTowards(holder, robot.rotation);
+            const isEditingThis = isEditingRobot3D && Number(robot.id) === Number(focusedRobotId);
+            if (!isEditingThis) {
+                snapRobot3D(holder, coords, sz);
+                smoothFaceTowards(holder, robot.rotation);
+            }
             holder.visible = true;
             const d = (robot.status === 'Delivering') ? (robot._activeDelivery || null) : null;
             updateRobotStatusSprite(holder, robot, d, robot.hasIssue, destName);
@@ -1483,6 +1560,7 @@
         } else if (panelName === 'robot') {
             if (robotPanel.classList.contains('hidden')) {
                 robotPanel.classList.remove('hidden');
+                isEditingRobot3D = true;
                 if (camPanel) camPanel.classList.add('hidden');
                 if (lightPanel) lightPanel.classList.add('hidden');
                 if (labelPanel) labelPanel.classList.add('hidden');
@@ -1495,6 +1573,7 @@
                 updateSelectedRobotUI();
             } else {
                 robotPanel.classList.add('hidden');
+                isEditingRobot3D = false;
             }
         }
     }
@@ -1526,7 +1605,7 @@
         if(btn) btn.classList.toggle('opacity-60', !showNetworkLines);
     }
     function clearRobotFocus(){
-        focusedRobotId=null; isFollowMode=false;
+        focusedRobotId=null; isFollowMode=false; isEditingRobot3D=false;
         updateFocusBadge(); updateFollowButton();
         const sel = document.getElementById('select-3d-robot');
         if (sel) sel.value = '';
@@ -1541,9 +1620,13 @@
             updateSelectedRobotUI();
             return;
         }
+        isEditingRobot3D = true;
         const rid = Number(val);
         const r = robots.find(x => Number(x.id) === rid);
         if (!r) return;
+        r.returnMission = null;
+        r.isReturning = false;
+        r.needsReturnToBase = false;
         const targetFloor = Number(r.floor) === 1 ? 1 : 2;
         if (Number(currentDashboardFloor) !== targetFloor) {
             switchDashboardFloor(targetFloor);
@@ -1607,16 +1690,26 @@
     function move3DRobot(dx, dz){
         const holder=getFocusedRobotHolder();
         if(!holder){ alert('Pilih robot dulu (klik card atau avatar di canvas).'); return; }
+        isEditingRobot3D = true;
         holder.position.x+=dx;
         holder.position.z+=dz;
+        if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
+        holder.userData.targetWp.copy(holder.position);
         // sync ke robots[] data
         const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
-        const vw=viewerOfHolder(holder);
-        if(r && vw && vw.getModelSize){
-            const sz=vw.getModelSize();
-            if(sz && sz.x>0.1){
-                const pct=locFromWorld(holder.position.x, holder.position.z, sz);
-                r.current_x=pct.x; r.current_y=pct.y;
+        if (r) {
+            r.customPosition = true;
+            r.returnMission = null;
+            r.isReturning = false;
+            r.needsReturnToBase = false;
+            const vw=viewerOfHolder(holder);
+            if(vw && vw.getModelSize){
+                const sz=vw.getModelSize();
+                if(sz && sz.x>0.1){
+                    const pct=locFromWorld(holder.position.x, holder.position.z, sz);
+                    r.current_x=parseFloat(pct.x.toFixed(2));
+                    r.current_y=parseFloat(pct.y.toFixed(2));
+                }
             }
         }
         updateSelectedRobotUI();
@@ -1626,7 +1719,10 @@
     function move3DRobotY(dy){
         const holder=getFocusedRobotHolder();
         if(!holder){ alert('Pilih robot dulu (klik card atau avatar di canvas).'); return; }
+        isEditingRobot3D = true;
         holder.position.y+=dy;
+        if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
+        holder.userData.targetWp.y = holder.position.y;
         updateSelectedRobotUI();
         const st=document.getElementById('robot-3d-status');
         if(st){ st.textContent='Posisi Y='+holder.position.y.toFixed(2); }
@@ -1634,14 +1730,20 @@
     function rotate3DRobot(deltaDeg){
         const holder=getFocusedRobotHolder();
         if(!holder){ alert('Pilih robot dulu.'); return; }
+        isEditingRobot3D = true;
         holder.rotation.y+=(deltaDeg*Math.PI/180);
+        const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
+        if(r) r.rotation = Math.round((holder.rotation.y*180/Math.PI)%360);
         updateSelectedRobotUI();
     }
     function set3DRobotRotation(val){
         const holder=getFocusedRobotHolder();
         if(!holder) return;
         const deg=parseFloat(val);
+        isEditingRobot3D = true;
         holder.rotation.y=deg*Math.PI/180;
+        const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
+        if(r) r.rotation = deg;
         const valEl=document.getElementById('val-robot-3d-rotation');
         if(valEl) valEl.textContent=Math.round(deg)+'°';
     }
@@ -1649,34 +1751,52 @@
         const holder=getFocusedRobotHolder();
         if(!holder) return;
         const x=parseFloat(val); if(isNaN(x)) return;
+        isEditingRobot3D = true;
         holder.position.x=x;
-        if(holder.userData.targetWp) holder.userData.targetWp.x=x;
+        if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
+        holder.userData.targetWp.x=x;
         const r=robots.find(x2=>Number(x2.id)===Number(focusedRobotId));
-        const vwx=viewerOfHolder(holder);
-        if(r && vwx && vwx.getModelSize){
-            const sz=vwx.getModelSize();
-            if(sz&&sz.x>0.1){ const pct=locFromWorld(x, holder.position.z, sz); r.current_x=pct.x; }
+        if (r) {
+            r.customPosition = true;
+            r.returnMission = null;
+            r.isReturning = false;
+            r.needsReturnToBase = false;
+            const vwx=viewerOfHolder(holder);
+            if(vwx && vwx.getModelSize){
+                const sz=vwx.getModelSize();
+                if(sz&&sz.x>0.1){ const pct=locFromWorld(x, holder.position.z, sz); r.current_x=parseFloat(pct.x.toFixed(2)); }
+            }
         }
     }
     function set3DRobotWorldZ(val){
         const holder=getFocusedRobotHolder();
         if(!holder) return;
         const z=parseFloat(val); if(isNaN(z)) return;
+        isEditingRobot3D = true;
         holder.position.z=z;
-        if(holder.userData.targetWp) holder.userData.targetWp.z=z;
+        if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
+        holder.userData.targetWp.z=z;
         const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
-        const vwz=viewerOfHolder(holder);
-        if(r && vwz && vwz.getModelSize){
-            const sz=vwz.getModelSize();
-            if(sz&&sz.x>0.1){ const pct=locFromWorld(holder.position.x, z, sz); r.current_y=pct.y; }
+        if (r) {
+            r.customPosition = true;
+            r.returnMission = null;
+            r.isReturning = false;
+            r.needsReturnToBase = false;
+            const vwz=viewerOfHolder(holder);
+            if(vwz && vwz.getModelSize){
+                const sz=vwz.getModelSize();
+                if(sz&&sz.x>0.1){ const pct=locFromWorld(holder.position.x, z, sz); r.current_y=parseFloat(pct.y.toFixed(2)); }
+            }
         }
     }
     function set3DRobotWorldY(val){
         const holder=getFocusedRobotHolder();
         if(!holder) return;
         const y=parseFloat(val); if(isNaN(y)) return;
+        isEditingRobot3D = true;
         holder.position.y=y;
-        if(holder.userData.targetWp) holder.userData.targetWp.y=y;
+        if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
+        holder.userData.targetWp.y=y;
     }
     function set3DRobotScale(val){
         const holder=getFocusedRobotHolder();
@@ -1691,6 +1811,13 @@
     function reset3DRobotPosition(){
         const holder=getFocusedRobotHolder();
         if(!holder){ alert('Pilih robot dulu.'); return; }
+        const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
+        if (r) {
+            r.customPosition = false;
+            r.returnMission = null;
+            r.isReturning = false;
+            r.needsReturnToBase = false;
+        }
         // reset ke posisi parkir dekat Stairs lantai viewer aktif
         const idx=robots.findIndex(r=>Number(r.id)===Number(focusedRobotId));
         const offX=(idx-(robots.length-1)/2)*2.0;
@@ -1701,7 +1828,12 @@
             if(sz&&sz.x>0.1){
                 const wp=worldPosForLoc({x:park.x+offX, y:park.y}, sz);
                 holder.position.set(wp.x, 0.02, wp.z);
-                if(holder.userData.targetWp) holder.userData.targetWp.copy(holder.position);
+                if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
+                holder.userData.targetWp.copy(holder.position);
+                if (r) {
+                    r.current_x = parseFloat((park.x+offX).toFixed(2));
+                    r.current_y = parseFloat(park.y.toFixed(2));
+                }
             }
         }
         holder.rotation.y=0;
@@ -1730,13 +1862,16 @@
             if(!res.ok) throw new Error('HTTP ' + res.status);
             return res.json();
         }).then(data=>{
+            r.customPosition = true;
+            r.returnMission = null;
+            r.isReturning = false;
+            r.needsReturnToBase = false;
             if(st) {
                 st.textContent='✓ Posisi ' + r.name + ' tersimpan!';
                 setTimeout(()=>{ if(st && st.textContent.includes('tersimpan')) st.textContent=''; }, 3500);
             }
         }).catch(err=>{
             console.error('Error saving robot position:', err);
-            if(st) st.textContent='Gagal simpan (' + err.message + ')';
         });
     }
     function toggleNetworkLines(){
@@ -2698,18 +2833,28 @@
                     robot.rotation = angle;
                 }
             } else if (robot.status === 'Idle' && !hasIssue) {
+                const isEditingThis = isEditingRobot3D && Number(robot.id) === Number(focusedRobotId);
                 const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
                 const distToBase = (Number(robot.floor || 1) === 1) 
                     ? Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) 
                     : 999;
 
-                if (!isAutopilotEnabled && distToBase > 0.8) {
+                if (isEditingThis) {
+                    robot.returnMission = null;
+                    robot.isReturning = false;
+                    robot.needsReturnToBase = false;
+                    robot.customPosition = true;
+                    coords = { x: (robot.current_x !== undefined ? robot.current_x : baseLoc.x), y: (robot.current_y !== undefined ? robot.current_y : baseLoc.y) };
+                    floorNum = robot.floor || currentDashboardFloor;
+                    taskText = 'Mode Edit Posisi Robot (Geser 3D / D-Pad)';
+                    currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
+                } else if (!isAutopilotEnabled && robot.needsReturnToBase && !robot.customPosition && distToBase > 0.8) {
                     if (!robot.returnMission) {
                         robot.returnMission = buildReturnMission(robot, now);
                     }
                 }
 
-                if (robot.returnMission) {
+                if (!isEditingThis && robot.returnMission) {
                     robot.isReturning = true;
                     const mission = robot.returnMission;
                     const elapsedMs = now.getTime() - mission.startedAt;
@@ -2727,6 +2872,7 @@
                         robot.floor = 1;
                         robot.returnMission = null;
                         robot.isReturning = false;
+                        robot.needsReturnToBase = false;
                         taskText = 'Standby at base station (N7)';
                         syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
                     } else {
@@ -2781,14 +2927,14 @@
                         robot.rotation = angle;
                     }
                     currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
-                } else {
-                    coords = { x: baseLoc.x, y: baseLoc.y };
-                    floorNum = 1;
-                    robot.current_x = baseLoc.x;
-                    robot.current_y = baseLoc.y;
-                    robot.floor = 1;
-                    taskText = 'Standby at base station (N7)';
-                    currentLocName = 'Base Station (N7)';
+                } else if (!isEditingThis) {
+                    coords = { x: (robot.current_x !== undefined ? robot.current_x : baseLoc.x), y: (robot.current_y !== undefined ? robot.current_y : baseLoc.y) };
+                    floorNum = robot.floor || 1;
+                    robot.current_x = coords.x;
+                    robot.current_y = coords.y;
+                    const isAtBase = (Number(floorNum) === 1 && Math.hypot(coords.x - baseLoc.x, coords.y - baseLoc.y) < 1.0);
+                    taskText = isAtBase ? 'Standby at base station (N7)' : `Standby di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
+                    currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
                 }
             }
 
@@ -3163,13 +3309,18 @@
             data.robots.forEach(newRobot => {
                 const existing = robots.find(r => Number(r.id) === Number(newRobot.id));
                 if (existing) {
+                    const isEditingThis = isEditingRobot3D && Number(existing.id) === Number(focusedRobotId);
+                    if (isEditingThis) {
+                        existing.battery_level = newRobot.battery_level;
+                        return;
+                    }
                     if (existing.status !== newRobot.status) {
                         existing.status = newRobot.status;
-                        if (!existing.isReturning) {
+                        if (!existing.isReturning && !existing.customPosition) {
                             existing.current_x = newRobot.current_x;
                             existing.current_y = newRobot.current_y;
                         }
-                    } else if (!existing.isReturning && existing.status !== 'Delivering') {
+                    } else if (!existing.isReturning && existing.status !== 'Delivering' && !existing.customPosition) {
                         existing.current_x = newRobot.current_x;
                         existing.current_y = newRobot.current_y;
                     }
