@@ -151,9 +151,25 @@
                     </div>
                     <svg class="editor-svg" id="editor-svg"></svg>
                     <div id="editor-nodes-layer"></div>
+                    <!-- Floating 3D Navigation & Zoom Controls -->
+                    <div id="botctrl-3d-nav-controls" class="absolute top-3 right-3 z-20 flex flex-col gap-1.5 pointer-events-auto">
+                        <button type="button" onclick="zoom3DCamera(0.65)" title="Zoom In / Mendekat (+)" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-white flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                        <button type="button" onclick="zoom3DCamera(1.5)" title="Zoom Out / Menjauh (-)" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-white flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
+                            <i class="fa-solid fa-minus"></i>
+                        </button>
+                        <button type="button" onclick="focusOnActiveSelection()" title="Fokus Kamera ke Node / Robot Terpilih" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-amber-400 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
+                            <i class="fa-solid fa-crosshairs"></i>
+                        </button>
+                        <button type="button" onclick="reset3DCameraView()" title="Reset Tampilan (Lihat Seluruh Lantai)" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-sky-400 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
+                            <i class="fa-solid fa-expand"></i>
+                        </button>
+                    </div>
+
                     <!-- 3D Hint -->
                     <div id="botctrl-3d-hint" class="hidden absolute bottom-2 right-2 z-30 bg-slate-900/80 backdrop-blur-md text-white px-2.5 py-1 rounded-lg text-[10px] font-semibold border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
-                        <i class="fa-solid fa-cube text-sky-400"></i> Model 3D Aktif &bull; Putar (Drag) &bull; Zoom (Scroll)
+                        <i class="fa-solid fa-cube text-sky-400"></i> Putar (Klik Kiri) &bull; Pan/Geser (Klik Kanan) &bull; Zoom Dekat (Scroll/Tombol)
                     </div>
                 </div>
             </div>
@@ -284,6 +300,9 @@
                             <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan ke Graph
                         </button>
                     </div>
+                    <button onclick="focusOnActiveSelection()" class="w-full bg-blue-50 hover:bg-blue-100 border border-blue-200 text-[#3b4cb8] font-bold py-2 rounded-xl transition text-xs flex items-center justify-center gap-1.5 mt-2">
+                        <i class="fa-solid fa-crosshairs"></i> Zoom Dekat / Pusatkan Kamera ke Sini
+                    </button>
                         </div>
                     </details>
                 </div>
@@ -404,7 +423,7 @@
         model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
         robot_scale: parseFloat(settings3D?.robot_scale ?? 0.6),
         node_scale: parseFloat(settings3D?.node_scale ?? 0.6),
-        node_color: settings3D?.node_color ?? '#ef4444'
+        node_color: settings3D?.node_color ?? '#ff0000'
     };
 
     // === 3D Robot Avatar & Node Editor State ===
@@ -614,7 +633,7 @@
         canvas.height = 96;
 
         const bgFill = isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.90)' : 'rgba(30, 41, 59, 0.85)');
-        const borderColor = isStairs ? '#fbbf24' : (isDest ? '#ef4444' : '#94a3b8');
+        const borderColor = isStairs ? '#fbbf24' : (isDest ? '#ff0000' : '#94a3b8');
 
         const radius = 18;
         ctx.fillStyle = bgFill;
@@ -724,7 +743,7 @@
 
         const initFovVal = parseFloat(current3DSettings.camera.fov ?? 5.0);
         const initFov = 20 + (initFovVal / 10) * 70;
-        const camera = new THREE.PerspectiveCamera(initFov, width / height, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(initFov, width / height, 0.02, 1000);
         camera.position.set(0, 38, 48);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -740,10 +759,14 @@
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.maxPolarAngle = Math.PI / 2.05;
-        controls.minDistance = 2;
-        controls.maxDistance = 200;
+        controls.dampingFactor = 0.08;
+        controls.maxPolarAngle = Math.PI / 2.02;
+        controls.minDistance = 0.05; // Memungkinkan zoom sangat dekat hingga 5 cm di atas objek/node
+        controls.maxDistance = 250;
+        controls.enablePan = true;
+        controls.screenSpacePanning = true; // Pan terasa natural mengikuti layar
+        controls.panSpeed = 1.2;
+        controls.zoomSpeed = 1.3;
 
         const ambientLight = new THREE.AmbientLight(0xffffff, parseFloat(current3DSettings.lighting.ambient ?? 1.4));
         scene.add(ambientLight);
@@ -790,13 +813,10 @@
             // 1. Base floor pad (disc) menempel langsung di lantai
             // Ukuran kompak: 0.10 untuk destination/stairs, 0.05 untuk transit dot
             const radius = (isDest || isStairs) ? 0.10 : 0.05;
-            const discGeo = new THREE.CylinderGeometry(radius, radius, 0.015, 20);
-            const baseCol = isStairs ? 0xf59e0b : (isDest ? 0xef4444 : 0x64748b);
-            const discMat = new THREE.MeshStandardMaterial({
+            const discGeo = new THREE.CylinderGeometry(radius, radius, 0.015, 24);
+            const baseCol = isStairs ? 0xf59e0b : (isDest ? 0xff0000 : 0x64748b);
+            const discMat = new THREE.MeshBasicMaterial({
                 color: baseCol,
-                emissive: baseCol,
-                emissiveIntensity: isHidden ? 0.15 : 0.45,
-                roughness: 0.35,
                 transparent: isHidden,
                 opacity: isHidden ? 0.6 : 1.0
             });
@@ -907,6 +927,7 @@
 
         // Raycaster pick handler (dipanggil dari renderer.domElement)
         function handle3DPick(e) {
+            if (e.button !== 0) return; // Hanya tangani klik kiri (button 0)! Klik kanan khusus untuk pan/geser kamera OrbitControls
             const rect = renderer.domElement.getBoundingClientRect();
             const mouse = new THREE.Vector2(
                 ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -1102,10 +1123,40 @@
             }
         }
 
+        // Disable context menu on canvas agar drag klik kanan (pan) lancar tanpa gangguan popup browser
+        renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
         // Hook raycaster ke renderer canvas — hanya aktif jika viewer lantai ini yang sedang tampil
         renderer.domElement.addEventListener('pointerdown', (e) => { if (Number(currentFloor) === floorNum) handle3DPick(e); });
         window.addEventListener('pointermove', (e) => { if (Number(currentFloor) === floorNum) handle3DDragMove(e); });
         window.addEventListener('pointerup', () => { if (Number(currentFloor) === floorNum) handle3DDragUp(); });
+
+        // Zoom pintar mendekat ke arah kursor mouse saat scroll wheel ke dalam
+        renderer.domElement.addEventListener('wheel', (e) => {
+            if (Number(currentFloor) !== floorNum) return;
+            if (e.deltaY < 0) { // Zoom in
+                const rect = renderer.domElement.getBoundingClientRect();
+                const mouse = new THREE.Vector2(
+                    ((e.clientX - rect.left) / rect.width) * 2 - 1,
+                    -((e.clientY - rect.top) / rect.height) * 2 + 1
+                );
+                raycaster.setFromCamera(mouse, camera);
+                const hitPoint = raycaster.ray.intersectPlane(dragPlane, new THREE.Vector3());
+                if (hitPoint) {
+                    const shift = hitPoint.clone().sub(controls.target).multiplyScalar(0.08);
+                    controls.target.add(shift);
+                    camera.position.add(shift);
+                }
+            }
+        }, { passive: true });
+
+        // Double-click untuk langsung zoom/fokus ke node atau robot terpilih
+        renderer.domElement.addEventListener('dblclick', (e) => {
+            if (Number(currentFloor) !== floorNum || e.button !== 0) return;
+            if (selected3DObject) {
+                focusOn(selected3DObject.position, 1.8);
+            }
+        });
 
 
         const gltfLoader = new THREE.GLTFLoader();
@@ -1270,6 +1321,26 @@
         }
         window.addEventListener('resize', onResize);
 
+        function focusOn(pos, distance = 2.0) {
+            if (!pos) return;
+            const t = new THREE.Vector3(pos.x, pos.y || 0, pos.z);
+            controls.target.copy(t);
+            const dir = camera.position.clone().sub(controls.target).normalize();
+            if (dir.lengthSq() < 0.01) dir.set(0, 0.7, 0.7).normalize();
+            camera.position.copy(t.clone().add(dir.multiplyScalar(distance)));
+            controls.update();
+        }
+
+        function resetView() {
+            const maxDim = Math.max(_bcSize.x, _bcSize.z);
+            const savedDistVal = parseFloat(current3DSettings.camera.dist ?? 5.0);
+            const savedDist = 5 + (savedDistVal / 10) * 115;
+            const dir0 = new THREE.Vector3(0, maxDim * 0.45, maxDim * 0.55).normalize();
+            camera.position.copy(_defaultCamTarget.clone().add(dir0.multiplyScalar(savedDist)));
+            controls.target.copy(_defaultCamTarget);
+            controls.update();
+        }
+
         return {
             resize: onResize,
             destroy: () => { if (animationFrameId) cancelAnimationFrame(animationFrameId); window.removeEventListener('resize', onResize); renderer.dispose(); },
@@ -1279,8 +1350,43 @@
             getOrCreateRobotMesh, getOrCreateNodeMesh, build3DEdges,
             getModelSize: () => _bcSize,
             floor: floorNum,
-            getDefaultCamTarget: () => _defaultCamTarget.clone()
+            getDefaultCamTarget: () => _defaultCamTarget.clone(),
+            focusOn,
+            resetView
         };
+    }
+
+    function zoom3DCamera(factor) {
+        const vw = activeBotViewer();
+        if (!vw || !vw.controls || !vw.camera) return;
+        const c = vw.camera;
+        const t = vw.controls.target;
+        const dir = c.position.clone().sub(t);
+        const newLen = Math.max(0.06, Math.min(250, dir.length() * factor));
+        dir.setLength(newLen);
+        c.position.copy(t.clone().add(dir));
+        vw.controls.update();
+    }
+
+    function focusOnActiveSelection() {
+        const vw = activeBotViewer();
+        if (!vw || !vw.focusOn) return;
+        if (selected3DObject) {
+            vw.focusOn(selected3DObject.position, 1.8);
+        } else if (selectedNodeId && locationsData[selectedNodeId]) {
+            const wp = worldPosForLoc(locationsData[selectedNodeId], vw.getModelSize());
+            vw.focusOn(wp, 1.8);
+        } else if (activeRobotId != null && robotMeshes.has(activeRobotId)) {
+            vw.focusOn(robotMeshes.get(activeRobotId).position, 1.8);
+        } else {
+            alert('Pilih sebuah node atau robot terlebih dahulu untuk fokus kamera.');
+        }
+    }
+
+    function reset3DCameraView() {
+        const vw = activeBotViewer();
+        if (!vw || !vw.resetView) return;
+        vw.resetView();
     }
 
     let currentFloor = 1;

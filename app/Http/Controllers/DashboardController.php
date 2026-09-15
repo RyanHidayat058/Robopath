@@ -309,7 +309,7 @@ class DashboardController extends Controller
             'model_scale' => 1.0,
             'robot_scale' => 0.6,
             'node_scale' => 0.6,
-            'node_color' => '#ef4444',
+            'node_color' => '#ff0000',
         ];
 
         return array_replace_recursive($default, $data['settings_3d'] ?? []);
