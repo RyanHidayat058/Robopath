@@ -8,8 +8,7 @@
       "y": 49.44,
       "floor": 1,
       "hidden": false,
-      "is_destination": true,
-      "objectName": "LANTAI1_MEETING_03"
+      "is_destination": true
     },
     {
       "id": "1_Waiting Room",
@@ -18,8 +17,7 @@
       "y": 68.48,
       "floor": 1,
       "hidden": false,
-      "is_destination": true,
-      "objectName": "LANTAI1_WAITING_ROOM_01"
+      "is_destination": true
     },
     {
       "id": "1_N1",
@@ -64,8 +62,7 @@
       "y": 62,
       "floor": 1,
       "hidden": false,
-      "is_destination": true,
-      "objectName": "LANTAI1_LOBY_01"
+      "is_destination": true
     },
     {
       "id": "1_N5",
@@ -254,8 +251,7 @@
       "y": 49.44,
       "floor": 1,
       "hidden": false,
-      "is_destination": true,
-      "objectName": "LANTAI1_MEETING_01"
+      "is_destination": true
     },
     {
       "id": "1_Kasir",
@@ -264,8 +260,7 @@
       "y": 49.44,
       "floor": 1,
       "hidden": false,
-      "is_destination": true,
-      "objectName": "LANTAI1_KASIR_01"
+      "is_destination": true
     },
     {
       "id": "1_N26",
@@ -292,8 +287,7 @@
       "y": 74.33,
       "floor": 1,
       "hidden": false,
-      "is_destination": true,
-      "objectName": "LANTAI1_RECEPTIONIST_01"
+      "is_destination": true
     },
     {
       "id": "1_Office",
@@ -302,8 +296,7 @@
       "y": 74.33,
       "floor": 1,
       "hidden": false,
-      "is_destination": true,
-      "objectName": "LANTAI1_OFFICE_01"
+      "is_destination": true
     },
     {
       "id": "1_Museum",
@@ -312,8 +305,7 @@
       "y": 74.33,
       "floor": 1,
       "hidden": false,
-      "is_destination": true,
-      "objectName": "LANTAI1_MUSEUM_01"
+      "is_destination": true
     },
     {
       "id": "1_Parquet",
@@ -322,8 +314,7 @@
       "y": 62,
       "floor": 1,
       "hidden": false,
-      "is_destination": true,
-      "objectName": "LANTAI1_MULTIFUNCTION_01"
+      "is_destination": true
     },
     {
       "id": "1_N28",
@@ -1129,8 +1120,7 @@
     ],
     "2_N201": [
       "2_N207",
-      "2_Stairs",
-      "2_Toilet Wanita 1"
+      "2_Stairs"
     ],
     "2_N202": [
       "2_N206",
@@ -1272,8 +1262,7 @@
       "2_N230",
       "2_Pantry",
       "2_Toilet Wanita 2",
-      "2_Jonathan 2",
-      "2_Gudang Janitor"
+      "2_Jonathan 2"
     ],
     "2_N232": [
       "2_N230",
@@ -1341,19 +1330,14 @@
       "2_N231"
     ],
     "2_Toilet Pria 1": [
-      "2_Stairs",
-      "2_Toilet Wanita 1"
+      "2_Stairs"
     ],
     "2_Toilet Pria 2": [
       "2_N232"
     ],
-    "2_Toilet Wanita 1": [
-      "2_Toilet Pria 1",
-      "2_N201"
-    ],
+    "2_Toilet Wanita 1": [],
     "2_Toilet Wanita 2": [
-      "2_N231",
-      "2_Gudang Janitor"
+      "2_N231"
     ],
     "2_Toilet Direksi": [
       "2_N228"
@@ -1367,10 +1351,7 @@
     "2_Gudang Sekertaris": [
       "2_N207"
     ],
-    "2_Gudang Janitor": [
-      "2_Toilet Wanita 2",
-      "2_N231"
-    ],
+    "2_Gudang Janitor": [],
     "2_Gudang Direksi": [
       "2_N212"
     ],
@@ -1388,7 +1369,7 @@
     "camera": {
       "dist": 0,
       "fov": 5.2,
-      "preset": "top"
+      "preset": "iso"
     },
     "lighting": {
       "ambient": 0.3,

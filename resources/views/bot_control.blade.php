@@ -16,14 +16,14 @@
         user-select: none;
         box-shadow: 0 4px 20px rgba(59, 76, 184, 0.08), inset 0 0 0 1px rgba(0,0,0,0.06);
     }
-    #botctrl-3d-canvas-container {
+    #botctrl-3d-canvas-container, #botctrl-3d-canvas-f1 {
         position: absolute;
         inset: 0;
         width: 100%;
         height: 100%;
         z-index: 0;
     }
-    #botctrl-3d-canvas-container canvas {
+    #botctrl-3d-canvas-container canvas, #botctrl-3d-canvas-f1 canvas {
         display: block;
         width: 100% !important;
         height: 100% !important;
@@ -58,19 +58,24 @@
 <div class="space-y-8">
 
     <!-- Top Control Bar: Floor Selection, Editor Tools, Show/Hide Hidden Dots, & Save Button -->
-    <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
-        <!-- Floor Selector Tabs -->
-        <div class="flex items-center gap-2 bg-gray-100 p-1.5 rounded-xl border border-gray-200">
+    <div class="bg-white border border-gray-200 p-4 rounded-2xl shadow-xl flex flex-wrap items-center gap-x-6 gap-y-3">
+        <!-- FLOOR -->
+        <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Floor</span>
+            <div class="flex items-center gap-2 bg-gray-100 p-1.5 rounded-xl border border-gray-200">
             <button onclick="switchFloor(1)" id="tab-floor-1" class="px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white">
                 <i class="fa-solid fa-layer-group mr-1.5"></i> Lantai 1 (Ground Floor)
             </button>
             <button onclick="switchFloor(2)" id="tab-floor-2" class="px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200">
                 <i class="fa-solid fa-layer-group mr-1.5"></i> Lantai 2 (Second Floor)
             </button>
+            </div>
         </div>
 
-        <!-- Tool Action Buttons -->
-        <div class="flex flex-wrap items-center gap-3">
+        <!-- EDIT -->
+        <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Edit</span>
+            <div class="flex flex-wrap items-center gap-3">
             <div class="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
                 <button onclick="setEditorTool('move')" id="tool-move" class="px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition">
                     <i class="fa-solid fa-up-down-left-right"></i> Move Node
@@ -85,12 +90,21 @@
                     <i class="fa-solid fa-trash-can"></i> Delete
                 </button>
             </div>
+            </div>
+        </div>
 
+        <!-- VIEW -->
+        <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">View</span>
             <!-- Show/Hide Transit Dots Toggle -->
             <button onclick="toggleShowHiddenDots()" id="btn-toggle-hidden" class="bg-blue-50 border border-blue-300 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
                 <i class="fa-solid fa-eye text-[#3b4cb8]" id="icon-toggle-hidden"></i> <span id="text-toggle-hidden">Showing All Nodes</span>
             </button>
+        </div>
 
+        <!-- ACTION -->
+        <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Action</span>
             <button onclick="saveGraphToServer()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md hover:shadow-lg transition">
                 <i class="fa-solid fa-floppy-disk"></i> Save Graph Map
             </button>
@@ -115,10 +129,26 @@
                     </span>
                 </div>
 
-                <!-- Editor Canvas Container -->
-                <div class="editor-map-container shadow-inner border border-gray-300 overflow-hidden" id="editor-map-container" style="background-image: url('{{ asset('images/floor1.jpeg') }}');" onclick="handleMapClick(event)">
+                <!-- Editor Canvas Container — kedua lantai 3D -->
+                <div class="editor-map-container shadow-inner border border-gray-300 overflow-hidden" id="editor-map-container" style="background-color:#0f172a;" onclick="handleMapClick(event)">
                     <!-- 3D Canvas Layer for Floor 2 -->
                     <div id="botctrl-3d-canvas-container" class="absolute inset-0 z-0 hidden pointer-events-auto"></div>
+                    <!-- 3D Canvas Layer for Floor 1 -->
+                    <div id="botctrl-3d-canvas-f1" class="absolute inset-0 z-0 hidden pointer-events-auto"></div>
+                    <!-- 3D Loading Overlay (shared) -->
+                    <div id="botctrl-3d-loader" class="hidden absolute inset-0 z-30 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center text-white">
+                        <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#3b4cb8] to-sky-400 p-0.5 shadow-2xl mb-4 animate-bounce">
+                            <div class="w-full h-full bg-slate-900 rounded-2xl flex items-center justify-center">
+                                <i class="fa-solid fa-cube text-2xl text-sky-400 animate-spin"></i>
+                            </div>
+                        </div>
+                        <h4 class="font-bold text-sm tracking-wide text-gray-100 mb-1" id="botctrl-3d-loader-title">Memuat Model 3D Lantai 1...</h4>
+                        <p class="text-xs text-gray-400 mb-4" id="botctrl-3d-loader-status">Mengunduh aset GLB (8 MB)...</p>
+                        <div class="w-56 bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+                            <div id="botctrl-3d-loader-bar" class="bg-gradient-to-r from-[#3b4cb8] to-sky-400 h-2 rounded-full transition-all duration-200" style="width:5%"></div>
+                        </div>
+                        <span id="botctrl-3d-loader-pct" class="text-[11px] font-mono text-sky-400 font-bold mt-2">5%</span>
+                    </div>
                     <svg class="editor-svg" id="editor-svg"></svg>
                     <div id="editor-nodes-layer"></div>
                     <!-- 3D Hint -->
@@ -131,10 +161,125 @@
 
         <!-- Node Inspector & Configuration Panel (1/3 Width) -->
         <div class="space-y-6">
-            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col">
-                <h3 class="text-base font-bold text-gray-800 mb-4 pb-3 border-b border-gray-200 flex items-center gap-2">
-                    <i class="fa-solid fa-pen-to-square text-[#3b4cb8]"></i> Node Properties Inspector
+            <!-- ROBOT CONTROL (Lantai 2 only) -->
+            <div id="panel-3d-controls" class="hidden bg-white border border-gray-200 p-5 rounded-2xl shadow-xl">
+                <h3 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
+                    <i class="fa-solid fa-robot text-[#3b4cb8]"></i> Robot Control
                 </h3>
+                <p class="text-xs text-gray-500 mb-4">Pilih robot, lihat status & posisi, lalu kendalikan manual.</p>
+
+                <div class="space-y-4 text-xs">
+                    <!-- Robot -->
+                    <div>
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Robot</label>
+                        <select id="robot-selector" onchange="setActiveRobot(Number(this.value))" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-bold text-gray-800 focus:outline-none">
+                            <option value="">Memuat robot...</option>
+                        </select>
+                        <div id="robot-active-name" class="font-bold text-gray-800 text-[13px] mt-1.5">-</div>
+                    </div>
+
+                    <!-- Status -->
+                    <div>
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Status</label>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span class="font-bold text-gray-800">Online</span>
+                            <span id="robot-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Position -->
+                    <div>
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Position</label>
+                        <div id="drive-readout" class="bg-slate-900 text-emerald-300 border border-slate-700 rounded-xl px-3 py-2 font-mono text-[11px]">R- (model 3D belum siap)</div>
+                    </div>
+
+                    <!-- Manual Drive -->
+                    <div>
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1.5">Manual Drive</label>
+                        <div class="grid grid-cols-3 gap-1 max-w-[132px] mb-2 pointer-events-none select-none" aria-hidden="true">
+                            <div></div>
+                            <div class="bg-slate-100 border border-slate-300 text-slate-500 font-bold py-1.5 rounded-lg flex items-center justify-center text-[10px]">W</div>
+                            <div></div>
+                            <div class="bg-slate-100 border border-slate-300 text-slate-500 font-bold py-1.5 rounded-lg flex items-center justify-center text-[10px]">A</div>
+                            <div class="bg-slate-100 border border-slate-300 text-slate-500 font-bold py-1.5 rounded-lg flex items-center justify-center text-[10px]">S</div>
+                            <div class="bg-slate-100 border border-slate-300 text-slate-500 font-bold py-1.5 rounded-lg flex items-center justify-center text-[10px]">D</div>
+                        </div>
+                        <div class="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-500">
+                            <span><kbd class="bg-gray-100 border border-gray-300 rounded px-1 font-mono">W A S D</kbd> Move</span>
+                            <span><kbd class="bg-gray-100 border border-gray-300 rounded px-1 font-mono">Q / E</kbd> Up / Down</span>
+                            <span><kbd class="bg-gray-100 border border-gray-300 rounded px-1 font-mono">Shift</kbd> Fast</span>
+                        </div>
+                    </div>
+
+                    <button onclick="resetActiveRobotPosition()" class="w-full bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-2 rounded-xl transition text-xs">
+                        <i class="fa-solid fa-arrows-rotate mr-1"></i> Reset Position
+                    </button>
+
+                    <!-- Node / Object Editor (3D) -->
+                    <details class="bg-gray-50 border border-gray-200 rounded-xl">
+                        <summary class="cursor-pointer px-3.5 py-2.5 font-bold text-gray-500 uppercase tracking-wider select-none">Node / Object Editor</summary>
+                        <div class="px-3.5 pb-3.5 space-y-3">
+                        <div>
+                            <div id="selected-3d-info" class="bg-white border border-gray-200 rounded-xl px-3 py-2 font-mono text-gray-800">Tidak ada object dipilih</div>
+                            <p class="text-[10px] text-gray-400 mt-1">Klik object (node/robot) di canvas 3D untuk editor. Klik robot juga memilihnya di Robot Control.</p>
+                        </div>
+
+                    <!-- D-Pad 4 arah (editor: geser object terpilih) -->
+                    <div>
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1.5">Geser Object (Editor)</label>
+                        <div class="grid grid-cols-3 gap-1.5 max-w-[180px]">
+                            <div></div>
+                            <button onclick="move3DObject(0, -0.3)" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-lg transition flex items-center justify-center" title="Atas (-Z)">
+                                <i class="fa-solid fa-arrow-up"></i>
+                            </button>
+                            <div></div>
+                            <button onclick="move3DObject(-0.3, 0)" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-lg transition flex items-center justify-center" title="Kiri (-X)">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                            <button onclick="move3DObject(0, 0.3)" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-lg transition flex items-center justify-center" title="Bawah (+Z)">
+                                <i class="fa-solid fa-arrow-down"></i>
+                            </button>
+                            <button onclick="move3DObject(0.3, 0)" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-lg transition flex items-center justify-center" title="Kanan (+X)">
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Rotasi -->
+                    <div>
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1.5">Rotasi Y</label>
+                        <div class="flex items-center gap-2 mb-2">
+                            <button onclick="rotate3DObject(-15)" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 font-bold py-2 px-3 rounded-lg transition" title="Putar CCW -15°">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </button>
+                            <button onclick="rotate3DObject(15)" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 font-bold py-2 px-3 rounded-lg transition" title="Putar CW +15°">
+                                <i class="fa-solid fa-rotate-right"></i>
+                            </button>
+                            <span id="val-3d-rotation" class="text-[11px] font-mono font-bold text-gray-700 ml-1">0°</span>
+                        </div>
+                        <input type="range" min="0" max="360" step="1" value="0" id="slider-3d-rotation" oninput="set3DRotation(this.value)" class="w-full accent-[#3b4cb8]">
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex gap-2 pt-1">
+                        <button onclick="reset3DObjectPosition()" class="flex-1 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-2 rounded-xl transition text-xs">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i> Reset Object Terpilih
+                        </button>
+                        <button onclick="save3DObjectToGraph()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl transition text-xs">
+                            <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan ke Graph
+                        </button>
+                    </div>
+                        </div>
+                    </details>
+                </div>
+            </div>
+            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col">
+                <details open>
+                    <summary class="text-base font-bold text-gray-800 mb-4 pb-3 border-b border-gray-200 flex items-center gap-2 cursor-pointer select-none">
+                        <i class="fa-solid fa-pen-to-square text-[#3b4cb8]"></i> Node Properties Inspector
+                        <span class="ml-auto text-[10px] text-gray-400 font-semibold">SECONDARY</span>
+                    </summary>
 
                 <div class="space-y-4 flex-1 text-xs text-gray-700">
                     <div>
@@ -202,6 +347,7 @@
                         </div>
                     </div>
                 </div>
+                </details>
             </div>
 
             <!-- Fleet Reset Action Card -->
@@ -215,87 +361,6 @@
                 </button>
             </div>
 
-            <!-- 3D Object Control Panel (Lantai 2 only) -->
-            <div id="panel-3d-controls" class="hidden bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
-                <h3 class="text-base font-bold text-gray-800 mb-2 flex items-center gap-2">
-                    <i class="fa-solid fa-cube text-[#3b4cb8]"></i> 3D Object Control
-                </h3>
-                <p class="text-xs text-gray-500 mb-4">Pilih robot untuk manual drive, atau klik object (node/robot) di canvas 3D untuk editor.</p>
-
-                <div class="space-y-4 text-xs">
-                    <!-- ROBOT CONTROL -->
-                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
-                        <div class="flex items-center justify-between">
-                            <label class="font-bold text-gray-500 uppercase tracking-wider">Robot Control</label>
-                            <span id="robot-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">-</span>
-                        </div>
-                        <select id="robot-selector" onchange="setActiveRobot(Number(this.value))" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-bold text-gray-800 focus:outline-none">
-                            <option value="">Memuat robot...</option>
-                        </select>
-                        <div id="robot-active-name" class="font-bold text-gray-800 text-[13px]">-</div>
-                        <div>
-                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Posisi Runtime (X/Y/Z)</label>
-                            <div id="drive-readout" class="bg-slate-900 text-emerald-300 border border-slate-700 rounded-xl px-3 py-2 font-mono text-[11px]">R- (model 3D belum siap)</div>
-                        </div>
-                        <p class="text-[10px] text-gray-400">W/S=Z world · A/D=X world · Q/E=Y testing (snap saat dilepas) · Shift=4x · tanpa rotasi/collision/route/simpan</p>
-                        <button onclick="resetActiveRobotPosition()" class="w-full bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-2 rounded-xl transition text-xs">
-                            <i class="fa-solid fa-arrows-rotate mr-1"></i> Reset Posisi Robot Aktif
-                        </button>
-                    </div>
-
-                    <!-- NODE / OBJECT TERPILIH (editor) -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Node / Object Terpilih (Editor)</label>
-                        <div id="selected-3d-info" class="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 font-mono text-gray-800">Tidak ada object dipilih</div>
-                    </div>
-
-                    <!-- D-Pad 4 arah -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1.5">Gerak (X/Z World)</label>
-                        <div class="grid grid-cols-3 gap-1.5 max-w-[180px]">
-                            <div></div>
-                            <button onclick="move3DObject(0, -0.3)" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-lg transition flex items-center justify-center" title="Atas (-Z)">
-                                <i class="fa-solid fa-arrow-up"></i>
-                            </button>
-                            <div></div>
-                            <button onclick="move3DObject(-0.3, 0)" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-lg transition flex items-center justify-center" title="Kiri (-X)">
-                                <i class="fa-solid fa-arrow-left"></i>
-                            </button>
-                            <button onclick="move3DObject(0, 0.3)" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-lg transition flex items-center justify-center" title="Bawah (+Z)">
-                                <i class="fa-solid fa-arrow-down"></i>
-                            </button>
-                            <button onclick="move3DObject(0.3, 0)" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-lg transition flex items-center justify-center" title="Kanan (+X)">
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Rotasi -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1.5">Rotasi Y</label>
-                        <div class="flex items-center gap-2 mb-2">
-                            <button onclick="rotate3DObject(-15)" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 font-bold py-2 px-3 rounded-lg transition" title="Putar CCW -15°">
-                                <i class="fa-solid fa-rotate-left"></i>
-                            </button>
-                            <button onclick="rotate3DObject(15)" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 font-bold py-2 px-3 rounded-lg transition" title="Putar CW +15°">
-                                <i class="fa-solid fa-rotate-right"></i>
-                            </button>
-                            <span id="val-3d-rotation" class="text-[11px] font-mono font-bold text-gray-700 ml-1">0°</span>
-                        </div>
-                        <input type="range" min="0" max="360" step="1" value="0" id="slider-3d-rotation" oninput="set3DRotation(this.value)" class="w-full accent-[#3b4cb8]">
-                    </div>
-
-                    <!-- Actions -->
-                    <div class="flex gap-2 pt-1">
-                        <button onclick="reset3DObjectPosition()" class="flex-1 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-2 rounded-xl transition text-xs">
-                            <i class="fa-solid fa-arrows-rotate mr-1"></i> Reset Object Terpilih
-                        </button>
-                        <button onclick="save3DObjectToGraph()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl transition text-xs">
-                            <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan ke Graph
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </div>
@@ -303,11 +368,16 @@
 
 @section('scripts')
 <script>
-    const floor1Img = "{{ asset('images/floor1.jpeg') }}";
-    const floor2Img = "{{ asset('images/floor2.jpeg') }}";
+    const floor1ModelUrl = "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
     const floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
     const MODEL_CACHE_NAME = 'robopath-glb-cache-v1';
     let threeBotCtrl = null;
+    let threeBotCtrlF1 = null;
+    let modelLoadedByFloor = {1:false,2:false};
+    function activeBotViewer(){ return Number(currentFloor)===1 ? threeBotCtrlF1 : threeBotCtrl; }
+    function allBotViewers(){ return [threeBotCtrl, threeBotCtrlF1].filter(Boolean); }
+    function parkCoordsForFloor(f){ return f===1 ? {x:72.1,y:85.71} : {x:72.3,y:66.3}; }
+    function viewerOfHolder(holder){ if(!holder) return activeBotViewer(); if(threeBotCtrlF1 && holder.parent && threeBotCtrlF1.robotsGroup && holder.parent===threeBotCtrlF1.robotsGroup) return threeBotCtrlF1; if(threeBotCtrl && holder.parent && threeBotCtrl.robotsGroup && holder.parent===threeBotCtrl.robotsGroup) return threeBotCtrl; return activeBotViewer(); }
     let labelScaleMultiplier = {{ $labelScale ?? 1.0 }};
     let settings3D = @json($settings3D ?? []);
     let current3DSettings = {
@@ -474,11 +544,12 @@
         } catch (e) { loc._fy = 0.05; }
         return true;
     }
-    function resolveAllObjectAnchors(store, model, size) {
+    function resolveAllObjectAnchors(store, model, size, floorNum) {
+        const f = floorNum!=null ? Number(floorNum) : 2;
         let ok = 0; const miss = [];
         for (const id in store) {
             const loc = store[id];
-            if (Number(loc.floor) !== 2 || !loc.objectName) continue;
+            if (Number(loc.floor) !== f || !loc.objectName) continue;
             if (resolveObjectAnchor(loc, model, size)) ok++;
             else miss.push(id + ' (' + loc.objectName + ')');
         }
@@ -542,7 +613,7 @@
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
 
-        let cleanText = String(text).replace(/^2_/, '');
+        let cleanText = String(text).replace(/^[12]_/, '');
         if (cleanText.length > 20) cleanText = cleanText.substring(0, 18) + '...';
         ctx.fillText(cleanText, 52, canvas.height / 2);
 
@@ -554,33 +625,75 @@
         return sprite;
     }
 
-    // Helper: Cached GLB buffer loader
-    async function fetchGLBBufferWithCache(url) {
+    // Helper: Cached GLB buffer loader with progress (Streaming + CacheStorage)
+    async function fetchGLBBufferWithCache(url, onProgress) {
         if ('caches' in window) {
             try {
                 const cache = await caches.open(MODEL_CACHE_NAME);
                 const cachedResponse = await cache.match(url);
-                if (cachedResponse) return await cachedResponse.arrayBuffer();
-            } catch (e) {}
+                if (cachedResponse) {
+                    if (onProgress) onProgress(1, 1, true);
+                    return await cachedResponse.arrayBuffer();
+                }
+            } catch (e) {
+                console.warn('[Robopath Cache] read bypass:', e);
+            }
         }
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const contentLength = response.headers.get('content-length');
+        const totalBytes = contentLength ? parseInt(contentLength, 10) : (url.includes('Lantai_1') ? 8750000 : 14080452);
+        let loadedBytes = 0;
+        if (response.body && response.body.getReader && onProgress) {
+            const reader = response.body.getReader();
+            const chunks = [];
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                loadedBytes += value.length;
+                onProgress(loadedBytes, totalBytes, false);
+            }
+            const all = new Uint8Array(loadedBytes);
+            let pos = 0; for (const c of chunks) { all.set(c, pos); pos += c.length; }
+            const buffer = all.buffer;
+            if ('caches' in window) {
+                try {
+                    const cache = await caches.open(MODEL_CACHE_NAME);
+                    const cacheResponse = new Response(buffer.slice(0), { headers: { 'Content-Type': 'model/gltf-binary', 'Content-Length': String(buffer.byteLength) } });
+                    await cache.put(url, cacheResponse);
+                } catch (e) {}
+            }
+            return buffer;
+        }
         const buffer = await response.arrayBuffer();
         if ('caches' in window) {
             try {
                 const cache = await caches.open(MODEL_CACHE_NAME);
-                const cacheResponse = new Response(buffer.slice(0), {
-                    headers: { 'Content-Type': 'model/gltf-binary', 'Content-Length': String(buffer.byteLength) }
-                });
+                const cacheResponse = new Response(buffer.slice(0), { headers: { 'Content-Type': 'model/gltf-binary', 'Content-Length': String(buffer.byteLength) } });
                 await cache.put(url, cacheResponse);
             } catch (e) {}
         }
         return buffer;
     }
 
-    function initThreeViewer(containerId) {
+    function initThreeViewer(containerId, floorNum) {
         const container = document.getElementById(containerId);
         if (!container) return null;
+        floorNum = Number(floorNum) === 1 ? 1 : 2;
+        const modelUrl = floorNum === 1 ? floor1ModelUrl : floor2ModelUrl;
+        const _loaderEl = document.getElementById('botctrl-3d-loader');
+        const _loaderBar = document.getElementById('botctrl-3d-loader-bar');
+        const _loaderPct = document.getElementById('botctrl-3d-loader-pct');
+        const _loaderStatus = document.getElementById('botctrl-3d-loader-status');
+        const _loaderTitle = document.getElementById('botctrl-3d-loader-title');
+        if (_loaderEl && !modelLoadedByFloor[floorNum]) {
+            _loaderEl.classList.remove('hidden');
+            if (_loaderTitle) _loaderTitle.textContent = `Memuat Model 3D Lantai ${floorNum}...`;
+            if (_loaderStatus) _loaderStatus.textContent = `Mengunduh aset GLB (${floorNum===1?'8':'14'} MB)...`;
+            if (_loaderBar) _loaderBar.style.width = '5%';
+            if (_loaderPct) _loaderPct.textContent = '5%';
+        }
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0f172a);
@@ -832,9 +945,9 @@
             const y = (_bcSize.y || 0.4) + 0.06;
             const seen = new Set();
             for (const a in adjData) {
-                if (!locationsData[a] || Number(locationsData[a].floor) !== 2) continue;
+                if (!locationsData[a] || Number(locationsData[a].floor) !== floorNum) continue;
                 for (const b of (adjData[a] || [])) {
-                    if (!locationsData[b] || Number(locationsData[b].floor) !== 2) continue;
+                    if (!locationsData[b] || Number(locationsData[b].floor) !== floorNum) continue;
                     const key = [a, b].sort().join('|');
                     if (seen.has(key)) continue; seen.add(key);
                     const pA = worldPosForLoc(locationsData[a], _bcSize); pA.y = y;
@@ -846,10 +959,10 @@
             }
         }
 
-        // Hook raycaster ke renderer canvas
-        renderer.domElement.addEventListener('pointerdown', (e) => { if (currentFloor === 2) handle3DPick(e); });
-        window.addEventListener('pointermove', (e) => { if (currentFloor === 2) handle3DDragMove(e); });
-        window.addEventListener('pointerup', () => { if (currentFloor === 2) handle3DDragUp(); });
+        // Hook raycaster ke renderer canvas — hanya aktif jika viewer lantai ini yang sedang tampil
+        renderer.domElement.addEventListener('pointerdown', (e) => { if (Number(currentFloor) === floorNum) handle3DPick(e); });
+        window.addEventListener('pointermove', (e) => { if (Number(currentFloor) === floorNum) handle3DDragMove(e); });
+        window.addEventListener('pointerup', () => { if (Number(currentFloor) === floorNum) handle3DDragUp(); });
 
 
         const gltfLoader = new THREE.GLTFLoader();
@@ -860,8 +973,22 @@
         }
 
         let _bcModel = null; let _bcSize = new THREE.Vector3();
-        fetchGLBBufferWithCache(floor2ModelUrl).then(buffer => {
+        let _defaultCamTarget = new THREE.Vector3(0,0,0);
+        fetchGLBBufferWithCache(modelUrl, (loadedBytes, totalBytes, fromCache) => {
+            if (!_loaderEl) return;
+            if (fromCache) {
+                if (_loaderBar) _loaderBar.style.width = '90%';
+                if (_loaderPct) _loaderPct.textContent = '90%';
+                if (_loaderStatus) _loaderStatus.textContent = 'Memuat dari Cache Lokal (Instan)...';
+            } else {
+                const pct = Math.min(Math.round((loadedBytes/totalBytes)*100),99);
+                if (_loaderBar) _loaderBar.style.width = pct+'%';
+                if (_loaderPct) _loaderPct.textContent = pct+'%';
+                if (_loaderStatus) _loaderStatus.textContent = `Mengunduh: ${(loadedBytes/1048576).toFixed(1)} MB / ${(totalBytes/1048576).toFixed(1)} MB`;
+            }
+        }).then(buffer => {
             gltfLoader.parse(buffer, '', (gltf) => {
+                modelLoadedByFloor[floorNum]=true;
                 const model = gltf.scene;
                 _bcModel = model;
                 const box = new THREE.Box3().setFromObject(model);
@@ -884,26 +1011,27 @@
                 scene.add(model);
 
                 // Resolve posisi destination dari nama object Blender (Box3 center). Fallback x/y bila tak ketemu.
-                try { resolveAllObjectAnchors(locationsData, model, _bcSize); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
+                try { resolveAllObjectAnchors(locationsData, model, _bcSize, floorNum); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
 
-                // Add 3D Room labels — nempel atap (y = roof+0.32)
+                // Add 3D Room labels — per lantai aktif, stagger Y anti-tumpuk
+                let _labelIdx=0;
                 for (let id in locationsData) {
                     const loc = locationsData[id];
-                    if (Number(loc.floor) !== 2) continue;
+                    if (Number(loc.floor) !== floorNum) continue;
                     const isStairs = id.includes('Stairs');
                     if (!loc.is_destination && !isStairs && loc.hidden) continue;
-
                     const sprite = createRoomLabelSprite(loc.name || id, loc.is_destination, isStairs);
                     const wp0 = worldPosForLoc(loc, _bcSize);
-                    const posY = (size.y || 0.22) + 0.32;
+                    const posY = (size.y || 0.22) + 0.32 + (_labelIdx%5)*0.22;
+                    _labelIdx++;
                     sprite.position.set(wp0.x, posY, wp0.z);
                     labelsGroup.add(sprite);
                 }
 
-                // Eager-create semua node mesh 3D Lantai 2
+                // Eager-create semua node mesh per lantai
                 for (const id in locationsData) {
                     const loc = locationsData[id];
-                    if (Number(loc.floor) !== 2) continue;
+                    if (Number(loc.floor) !== floorNum) continue;
                     const mesh = getOrCreateNodeMesh(id);
                     if (mesh) {
                         const wp = worldPosForLoc(loc, _bcSize);
@@ -912,27 +1040,46 @@
                 }
                 build3DEdges();
 
-                // Eager-create semua robot mesh (avatar robot.glb)
+                // Eager-create semua robot mesh (avatar robot.glb) — visible hanya robot yg floor == floorNum viewer ini
                 robotsData.forEach(r => {
                     const holder = getOrCreateRobotMesh(r);
                     const wp = worldPosForLoc({ x: r.current_x ?? 80.6, y: r.current_y ?? 68.48 }, _bcSize);
                     holder.position.set(wp.x, 0.02, wp.z);
                     holder.rotation.y = -((r.rotation || 0) * Math.PI / 180);
-                    holder.visible = (Number(r.floor) === 2);
+                    holder.visible = (Number(r.floor) === floorNum);
                 });
-                console.log('[Robopath bot_control] nodeMeshes:', nodeMeshes.size, 'robotMeshes:', robotMeshes.size);
-                refreshRobotSelector();
-                updateDriveReadout();
-
+                console.log('[Robopath bot_control] floor',floorNum,'nodeMeshes:', nodeMeshes.size, 'robotMeshes:', robotMeshes.size);
+                try{ refreshRobotSelector(); updateDriveReadout(); }catch(e){}
+                // Guard hide loader: hanya jika lantai aktif masih viewer ini
+                if (_loaderEl && Number(currentFloor)===floorNum) {
+                    if (_loaderBar) _loaderBar.style.width='100%';
+                    if (_loaderPct) _loaderPct.textContent='100%';
+                    if (_loaderStatus) _loaderStatus.textContent='Model siap!';
+                    setTimeout(()=>{ if(Number(currentFloor)===floorNum && _loaderEl) _loaderEl.classList.add('hidden'); },200);
+                }
                 const maxDim = Math.max(size.x, size.z);
+                // Centering via Box3
+                try{
+                    const bbox = new THREE.Box3().setFromObject(model);
+                    if(!bbox.isEmpty()){
+                        const c=bbox.getCenter(new THREE.Vector3());
+                        _defaultCamTarget.set(c.x, c.y*0.5, c.z);
+                    } else _defaultCamTarget.set(0,size.y*0.15,0);
+                } catch(e){ _defaultCamTarget.set(0,size.y*0.15,0); }
                 const savedDistVal = parseFloat(current3DSettings.camera.dist ?? 5.0);
                 const savedDist = 5 + (savedDistVal / 10) * 115;
                 const dir0 = new THREE.Vector3(0, maxDim*0.45, maxDim*0.55).normalize();
-                camera.position.copy(dir0.multiplyScalar(savedDist));
-                controls.target.set(0, size.y * 0.15, 0);
+                camera.position.copy(_defaultCamTarget.clone().add(dir0.multiplyScalar(savedDist)));
+                controls.target.copy(_defaultCamTarget);
                 controls.update();
-            }, undefined, (err) => console.error('Error parsing GLB model Lantai 2:', err));
-        }).catch(err => console.error('Error fetching GLB:', err));
+            }, undefined, (err) => {
+                console.error('Error parsing GLB model Lantai '+floorNum+':', err);
+                if (_loaderStatus) _loaderStatus.textContent='Gagal memproses model 3D!';
+            });
+        }).catch(err => {
+            console.error('Error fetching GLB Lantai '+floorNum+':', err);
+            if (_loaderStatus) _loaderStatus.textContent='Gagal mengunduh aset 3D!';
+        });
 
         let animationFrameId = null;
         const driveClock = new THREE.Clock();
@@ -1002,7 +1149,9 @@
             robotsGroup, nodesGroup, edgesGroup,
             robotMeshes, nodeMeshes,
             getOrCreateRobotMesh, getOrCreateNodeMesh, build3DEdges,
-            getModelSize: () => _bcSize
+            getModelSize: () => _bcSize,
+            floor: floorNum,
+            getDefaultCamTarget: () => _defaultCamTarget.clone()
         };
     }
 
@@ -1065,16 +1214,17 @@
         if (!selected3DObject) { alert('Pilih object di canvas 3D dulu.'); return; }
         selected3DObject.position.x += dx;
         selected3DObject.position.z += dz;
-        // sync ke locationsData bila node
-        if (selected3DObject.userData.type === 'node' && threeBotCtrl) {
-            const sz = threeBotCtrl.getModelSize();
+        if (selected3DObject.userData.type === 'node') {
+            const vw = viewerOfHolder(selected3DObject);
+            const sz = vw ? vw.getModelSize() : (activeBotViewer()?activeBotViewer().getModelSize():null);
+            if (!sz) { updateSelected3DObjectUI(); return; }
             const pct = locFromWorld(selected3DObject.position.x, selected3DObject.position.z, sz);
             const nodeId = selected3DObject.userData.nodeId;
             if (locationsData[nodeId]) {
                 locationsData[nodeId].x = pct.x;
                 locationsData[nodeId].y = pct.y;
                 if (selectedNodeId === nodeId) inspectNode(nodeId);
-                if (threeBotCtrl.build3DEdges) threeBotCtrl.build3DEdges();
+                if (vw && vw.build3DEdges) vw.build3DEdges();
                 renderEditorMap();
             }
         }
@@ -1099,23 +1249,24 @@
         if (!selected3DObject) return;
         const x = parseFloat(val); if (isNaN(x)) return;
         selected3DObject.position.x = x;
-        if (selected3DObject.userData.type === 'node' && threeBotCtrl) {
-            const sz = threeBotCtrl.getModelSize();
+        if (selected3DObject.userData.type === 'node') {
+            const vw = viewerOfHolder(selected3DObject);
+            const sz = vw ? vw.getModelSize() : null; if(!sz) return;
             const pct = locFromWorld(x, selected3DObject.position.z, sz);
             const nodeId = selected3DObject.userData.nodeId;
-            if (locationsData[nodeId]) { locationsData[nodeId].x = pct.x; if (selectedNodeId === nodeId) inspectNode(nodeId); if (threeBotCtrl.build3DEdges) threeBotCtrl.build3DEdges(); renderEditorMap(); }
+            if (locationsData[nodeId]) { locationsData[nodeId].x = pct.x; if (selectedNodeId === nodeId) inspectNode(nodeId); if (vw.build3DEdges) vw.build3DEdges(); renderEditorMap(); }
         }
     }
-
     function set3DWorldZ(val) {
         if (!selected3DObject) return;
         const z = parseFloat(val); if (isNaN(z)) return;
         selected3DObject.position.z = z;
-        if (selected3DObject.userData.type === 'node' && threeBotCtrl) {
-            const sz = threeBotCtrl.getModelSize();
+        if (selected3DObject.userData.type === 'node') {
+            const vw = viewerOfHolder(selected3DObject);
+            const sz = vw ? vw.getModelSize() : null; if(!sz) return;
             const pct = locFromWorld(selected3DObject.position.x, z, sz);
             const nodeId = selected3DObject.userData.nodeId;
-            if (locationsData[nodeId]) { locationsData[nodeId].y = pct.y; if (selectedNodeId === nodeId) inspectNode(nodeId); if (threeBotCtrl.build3DEdges) threeBotCtrl.build3DEdges(); renderEditorMap(); }
+            if (locationsData[nodeId]) { locationsData[nodeId].y = pct.y; if (selectedNodeId === nodeId) inspectNode(nodeId); if (vw.build3DEdges) vw.build3DEdges(); renderEditorMap(); }
         }
     }
 
@@ -1128,13 +1279,13 @@
 
     function save3DObjectToGraph() {
         if (!selected3DObject) { alert('Pilih object dulu.'); return; }
-        if (selected3DObject.userData.type === 'node' && threeBotCtrl) {
-            const sz = threeBotCtrl.getModelSize();
-            const pct = locFromWorld(selected3DObject.position.x, selected3DObject.position.z, sz);
-            const nodeId = selected3DObject.userData.nodeId;
-            if (locationsData[nodeId]) {
-                locationsData[nodeId].x = pct.x;
-                locationsData[nodeId].y = pct.y;
+        if (selected3DObject.userData.type === 'node') {
+            const vw = viewerOfHolder(selected3DObject);
+            const sz = vw ? vw.getModelSize() : null;
+            if (sz) {
+                const pct = locFromWorld(selected3DObject.position.x, selected3DObject.position.z, sz);
+                const nodeId = selected3DObject.userData.nodeId;
+                if (locationsData[nodeId]) { locationsData[nodeId].x = pct.x; locationsData[nodeId].y = pct.y; }
             }
         }
         saveGraphToServer();
@@ -1145,42 +1296,57 @@
         document.getElementById('tab-floor-1').className = floorNum === 1 
             ? "px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white"
             : "px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200";
-            
         document.getElementById('tab-floor-2').className = floorNum === 2 
             ? "px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white"
             : "px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200";
-
         const editorContainer = document.getElementById('editor-map-container');
         const canvas3D = document.getElementById('botctrl-3d-canvas-container');
+        const canvas3DF1 = document.getElementById('botctrl-3d-canvas-f1');
         const hint3D = document.getElementById('botctrl-3d-hint');
-
+        const loaderEl = document.getElementById('botctrl-3d-loader');
+        // Both floors 3D
+        editorContainer.style.backgroundImage = 'none';
+        editorContainer.style.backgroundColor = '#0f172a';
         if (floorNum === 1) {
-            editorContainer.style.backgroundImage = `url('${floor1Img}')`;
-            editorContainer.style.backgroundColor = '';
-            document.getElementById('floor-badge').textContent = 'Showing Floor 1';
+            document.getElementById('floor-badge').textContent = 'Showing Floor 1 (3D)';
             if (canvas3D) canvas3D.classList.add('hidden');
-            if (hint3D) hint3D.classList.add('hidden');
+            if (canvas3DF1) {
+                canvas3DF1.classList.remove('hidden');
+                // show loader before init
+                if (loaderEl && !modelLoadedByFloor[1]) {
+                    loaderEl.classList.remove('hidden');
+                    const t=document.getElementById('botctrl-3d-loader-title'); if(t) t.textContent='Memuat Model 3D Lantai 1...';
+                    const s=document.getElementById('botctrl-3d-loader-status'); if(s) s.textContent='Mengunduh aset GLB (8 MB)...';
+                }
+                setTimeout(() => {
+                    if (!threeBotCtrlF1) {
+                        threeBotCtrlF1 = initThreeViewer('botctrl-3d-canvas-f1', 1);
+                    } else { threeBotCtrlF1.resize(); if(modelLoadedByFloor[1] && loaderEl) loaderEl.classList.add('hidden'); }
+                }, 50);
+            }
+            if (hint3D) hint3D.classList.remove('hidden');
             const panel3D = document.getElementById('panel-3d-controls');
-            if (panel3D) panel3D.classList.add('hidden');
+            if (panel3D) panel3D.classList.remove('hidden');
         } else {
-            editorContainer.style.backgroundImage = 'none';
-            editorContainer.style.backgroundColor = '#0f172a';
             document.getElementById('floor-badge').textContent = 'Showing Floor 2 (3D)';
+            if (canvas3DF1) canvas3DF1.classList.add('hidden');
             if (canvas3D) {
                 canvas3D.classList.remove('hidden');
+                if (loaderEl && !modelLoadedByFloor[2]) {
+                    loaderEl.classList.remove('hidden');
+                    const t=document.getElementById('botctrl-3d-loader-title'); if(t) t.textContent='Memuat Model 3D Lantai 2...';
+                    const s=document.getElementById('botctrl-3d-loader-status'); if(s) s.textContent='Mengunduh aset GLB (14 MB)...';
+                }
                 setTimeout(() => {
                     if (!threeBotCtrl) {
-                        threeBotCtrl = initThreeViewer('botctrl-3d-canvas-container');
-                    } else {
-                        threeBotCtrl.resize();
-                    }
+                        threeBotCtrl = initThreeViewer('botctrl-3d-canvas-container', 2);
+                    } else { threeBotCtrl.resize(); if(modelLoadedByFloor[2] && loaderEl) loaderEl.classList.add('hidden'); }
                 }, 50);
             }
             if (hint3D) hint3D.classList.remove('hidden');
             const panel3D = document.getElementById('panel-3d-controls');
             if (panel3D) panel3D.classList.remove('hidden');
         }
-
         selectedNodeId = null;
         clearInspector();
         renderEditorMap();
