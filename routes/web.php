@@ -38,4 +38,5 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::post('/system/reset', [TelemetryController::class, 'resetSystem'])->name('system.reset');
     Route::post('/system/autopilot', [TelemetryController::class, 'toggleAutopilot'])->name('system.autopilot');
     Route::post('/graph/save', [TelemetryController::class, 'saveGraph'])->name('graph.save');
+    Route::post('/settings/label-scale', [TelemetryController::class, 'saveLabelScale'])->name('settings.label-scale');
 });

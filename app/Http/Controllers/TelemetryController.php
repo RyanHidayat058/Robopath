@@ -718,11 +718,26 @@ class TelemetryController extends Controller
             'adj' => 'required|array',
         ]);
 
-        $graphPath = base_path('graph.json');
+        $is3D = $request->boolean('is_3d') || ($request->input('mode') === '3d');
+        $graphPath = $is3D ? base_path('graph_3d.json') : base_path('graph.json');
+
+        $existing = file_exists($graphPath) ? json_decode(file_get_contents($graphPath), true) : [];
         $data = [
             'locations' => $request->locations,
             'adj' => $request->adj,
         ];
+        if (isset($existing['settings_3d'])) {
+            $data['settings_3d'] = $existing['settings_3d'];
+        }
+        if ($request->has('settings_3d')) {
+            $data['settings_3d'] = $request->input('settings_3d');
+        }
+        if (isset($existing['label_scale'])) {
+            $data['label_scale'] = $existing['label_scale'];
+        }
+        if ($request->has('label_scale')) {
+            $data['label_scale'] = (float) $request->input('label_scale');
+        }
 
         file_put_contents($graphPath, json_encode($data, JSON_PRETTY_PRINT));
 
@@ -730,6 +745,29 @@ class TelemetryController extends Controller
             'success' => true,
             'message' => 'Graph map data updated and saved successfully!',
             'total_nodes' => count($request->locations),
+        ]);
+    }
+
+    public function saveLabelScale(Request $request)
+    {
+        $graphPath = base_path('graph_3d.json');
+        $data = file_exists($graphPath) ? json_decode(file_get_contents($graphPath), true) : [];
+
+        if ($request->has('scale')) {
+            $data['label_scale'] = (float) $request->input('scale');
+        }
+
+        if ($request->has('settings_3d')) {
+            $data['settings_3d'] = $request->input('settings_3d');
+        }
+
+        file_put_contents($graphPath, json_encode($data, JSON_PRETTY_PRINT));
+
+        return response()->json([
+            'success' => true,
+            'scale' => $data['label_scale'] ?? 1.0,
+            'settings_3d' => $data['settings_3d'] ?? null,
+            'message' => '3D settings saved to graph_3d.json',
         ]);
     }
 

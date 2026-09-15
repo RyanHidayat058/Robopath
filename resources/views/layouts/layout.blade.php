@@ -9,17 +9,17 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Three.js 3D Rendering Engine & Draco Loaders -->
+    <!-- SweetAlert2 for Modern Alerts & Confirmations -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    @if(($viewMode ?? '2d') === '3d')
+    <!-- Three.js 3D Rendering Engine & Draco Loaders (Loaded only in 3D Mode) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
-
-    <!-- Google Model Viewer for 3D GLB with WebAssembly Draco Decompression -->
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
-
-    <!-- SweetAlert2 for Modern Alerts & Confirmations -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    @endif
 
     <script>
         tailwind.config = {
@@ -90,6 +90,30 @@
                 </a>
                 @endif
             </nav>
+
+            <!-- Mode Tampilan Switcher (2D / 3D) -->
+            <div class="px-4 pb-2">
+                <div class="p-3 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/15 shadow-inner">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-blue-100 flex items-center gap-1.5">
+                            <i class="fa-solid fa-layer-group text-sky-300"></i> Mode Tampilan
+                        </span>
+                        <span id="global-mode-badge" data-testid="view-mode-badge" class="view-mode-badge text-[9px] font-bold px-1.5 py-0.5 rounded-full {{ ($viewMode ?? '2d') === '3d' ? 'bg-emerald-400 text-slate-900' : 'bg-white/20 text-white' }} font-mono">
+                            {{ strtoupper($viewMode ?? '2d') }}
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-2 p-1 bg-black/20 rounded-xl gap-1">
+                        <button type="button" id="btn-view-mode-2d" data-testid="toggle-view-mode-2d" onclick="switchGlobalViewMode('2d')" 
+                                class="toggle-view-mode-2d py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 {{ ($viewMode ?? '2d') === '2d' ? 'shadow-sm bg-white text-brand-blue' : 'text-white/80 hover:text-white hover:bg-white/10' }}">
+                            <i class="fa-solid fa-map text-[10px]"></i> 2D
+                        </button>
+                        <button type="button" id="btn-view-mode-3d" data-testid="toggle-view-mode-3d" onclick="switchGlobalViewMode('3d')" 
+                                class="toggle-view-mode-3d py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 {{ ($viewMode ?? '2d') === '3d' ? 'shadow-sm bg-white text-brand-blue' : 'text-white/80 hover:text-white hover:bg-white/10' }}">
+                            <i class="fa-solid fa-cube text-[10px]"></i> 3D
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Sidebar Footer / System Health -->
@@ -272,6 +296,129 @@
         window.alert = function(message) {
             window.showWarningAlert('Pemberitahuan', message);
         };
+
+        // --- Persistent 3D Model Caching via Browser Cache Storage API ---
+        window.Robopath3DCache = {
+            CACHE_NAME: 'robopath-3d-cache-v1',
+
+            async getCache() {
+                if ('caches' in window) {
+                    try {
+                        return await caches.open(this.CACHE_NAME);
+                    } catch (e) {
+                        console.warn('[Robopath3DCache] Failed to open CacheStorage:', e);
+                    }
+                }
+                return null;
+            },
+
+            // Resolves model URL to a local Blob URL:
+            // Checks CacheStorage first. If hit -> 0-byte instant return from local disk/memory.
+            // If miss -> fetches from network, tracks download progress, puts in CacheStorage, and returns Blob URL.
+            async getModelBlobUrl(url, onProgress) {
+                const cache = await this.getCache();
+                if (cache) {
+                    try {
+                        const match = await cache.match(url);
+                        if (match) {
+                            console.log('[Robopath3DCache] Serving from cache (0 byte network transfer):', url);
+                            if (typeof onProgress === 'function') onProgress(100, 100);
+                            const blob = await match.blob();
+                            return URL.createObjectURL(blob);
+                        }
+                    } catch (e) {
+                        console.warn('[Robopath3DCache] Cache match error:', e);
+                    }
+                }
+
+                console.log('[Robopath3DCache] Fetching asset from network (first time download):', url);
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error ${response.status} when fetching ${url}`);
+                }
+
+                const contentLengthHeader = response.headers.get('content-length');
+                const total = contentLengthHeader ? parseInt(contentLengthHeader, 10) : 0;
+                let loaded = 0;
+                let blob;
+
+                if (response.body && total > 0 && typeof ReadableStream !== 'undefined') {
+                    const reader = response.body.getReader();
+                    const chunks = [];
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                        loaded += value.length;
+                        if (typeof onProgress === 'function') {
+                            onProgress(loaded, total);
+                        }
+                    }
+                    blob = new Blob(chunks);
+                } else {
+                    blob = await response.blob();
+                    if (typeof onProgress === 'function') onProgress(100, 100);
+                }
+
+                // Cache for all future route changes (deliveries, dashboard, bot control)
+                if (cache) {
+                    try {
+                        const cacheResponse = new Response(blob.slice(0), {
+                            headers: {
+                                'Content-Type': 'model/gltf-binary',
+                                'Content-Length': blob.size.toString(),
+                                'Cache-Control': 'public, max-age=31536000'
+                            }
+                        });
+                        await cache.put(url, cacheResponse);
+                        console.log('[Robopath3DCache] Stored in CacheStorage:', url, `${(blob.size / 1024 / 1024).toFixed(2)} MB`);
+                    } catch (e) {
+                        console.warn('[Robopath3DCache] Failed to write cache:', e);
+                    }
+                }
+
+                return URL.createObjectURL(blob);
+            },
+
+            async clear() {
+                if ('caches' in window) {
+                    await caches.delete(this.CACHE_NAME);
+                    console.log('[Robopath3DCache] Cache cleared');
+                }
+            }
+        };
+
+        // --- Global View Mode State & Switcher ---
+        window.getGlobalViewMode = function() {
+            const saved = localStorage.getItem('robopath_view_mode');
+            return (saved === '3d') ? '3d' : '2d';
+        };
+
+        window.switchGlobalViewMode = function(mode) {
+            if (mode !== '2d' && mode !== '3d') mode = '2d';
+            localStorage.setItem('robopath_view_mode', mode);
+            document.cookie = "robopath_view_mode=" + mode + "; path=/; max-age=31536000; SameSite=Lax";
+
+            const url = new URL(window.location.href);
+            if (url.searchParams.has('view_mode')) {
+                url.searchParams.set('view_mode', mode);
+                window.location.href = url.toString();
+            } else {
+                window.location.reload();
+            }
+        };
+
+        // Sync initial mode on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const currentServerMode = "{{ $viewMode ?? '2d' }}";
+            const localMode = localStorage.getItem('robopath_view_mode');
+            if (localMode && (localMode === '2d' || localMode === '3d') && localMode !== currentServerMode) {
+                document.cookie = "robopath_view_mode=" + localMode + "; path=/; max-age=31536000; SameSite=Lax";
+                window.location.reload();
+            } else if (!localMode) {
+                localStorage.setItem('robopath_view_mode', currentServerMode);
+            }
+        });
     </script>
     @yield('scripts')
 </body>

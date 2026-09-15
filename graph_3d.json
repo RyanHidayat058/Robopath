@@ -1,0 +1,22 @@
+{
+    "locations": {
+        "1_TEST": {
+            "id": "1_TEST",
+            "name": "Test Room",
+            "x": 10,
+            "y": 20,
+            "floor": 1
+        }
+    },
+    "adj": {
+        "1_TEST": []
+    },
+    "settings_3d": {
+        "camera": {
+            "dist": 6,
+            "fov": 6,
+            "preset": "iso"
+        }
+    },
+    "label_scale": 1.2
+}
