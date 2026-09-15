@@ -97,8 +97,8 @@
         <div class="flex items-center gap-2">
             <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">View</span>
             <!-- Show/Hide Transit Dots Toggle -->
-            <button onclick="toggleShowHiddenDots()" id="btn-toggle-hidden" class="bg-blue-50 border border-blue-300 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-eye text-[#3b4cb8]" id="icon-toggle-hidden"></i> <span id="text-toggle-hidden">Showing All Nodes</span>
+            <button onclick="toggleShowHiddenDots()" id="btn-toggle-hidden" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-eye-slash text-gray-600" id="icon-toggle-hidden"></i> <span id="text-toggle-hidden">Show Hidden Transit Nodes</span>
             </button>
         </div>
 
@@ -246,6 +246,20 @@
                         </div>
                     </div>
 
+                    <!-- Ketinggian / Elevasi Y -->
+                    <div>
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1.5">Ketinggian Object (Y Elev)</label>
+                        <div class="flex items-center gap-2">
+                            <button onclick="move3DObjectY(-0.05)" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 font-bold py-1.5 px-3 rounded-lg transition" title="Turun -0.05m">
+                                <i class="fa-solid fa-arrow-down mr-1"></i> -0.05m
+                            </button>
+                            <input type="number" step="0.05" id="input-3d-y" oninput="set3DWorldY(this.value)" class="w-24 bg-white border border-gray-300 rounded-lg px-2 py-1.5 font-mono font-bold text-center text-gray-800 focus:border-[#3b4cb8] focus:outline-none" placeholder="0.00">
+                            <button onclick="move3DObjectY(0.05)" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 font-bold py-1.5 px-3 rounded-lg transition" title="Naik +0.05m">
+                                <i class="fa-solid fa-arrow-up mr-1"></i> +0.05m
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Rotasi -->
                     <div>
                         <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1.5">Rotasi Y</label>
@@ -287,7 +301,7 @@
                         <input type="text" id="inspect-node-name" onchange="handleRenameNode(this.value)" placeholder="Click a node to edit name..." class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm font-bold text-gray-800 focus:bg-white focus:border-[#3b4cb8] focus:outline-none transition">
                     </div>
 
-                    <div class="grid grid-cols-3 gap-2">
+                    <div class="grid grid-cols-4 gap-2">
                         <div>
                             <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Floor</label>
                             <select id="inspect-floor" onchange="handleFloorChange(this.value)" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-2 py-2 font-bold text-gray-800 focus:outline-none">
@@ -302,6 +316,10 @@
                         <div>
                             <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Y (%)</label>
                             <input type="number" step="0.1" min="0" max="100" id="inspect-y" oninput="handleCoordinateChange()" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Elev (Y)</label>
+                            <input type="number" step="0.05" id="inspect-y-elev" oninput="handleElevationChange(this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition" placeholder="0.00">
                         </div>
                     </div>
 
@@ -383,7 +401,10 @@
     let current3DSettings = {
         camera: { dist: parseFloat(settings3D?.camera?.dist ?? 5.0), fov: parseFloat(settings3D?.camera?.fov ?? 5.0), preset: settings3D?.camera?.preset ?? 'iso' },
         lighting: { ambient: parseFloat(settings3D?.lighting?.ambient ?? 1.4), sun: parseFloat(settings3D?.lighting?.sun ?? 1.8), exposure: parseFloat(settings3D?.lighting?.exposure ?? 1.0), fill: parseFloat(settings3D?.lighting?.fill ?? 0.8) },
-        model_scale: parseFloat(settings3D?.model_scale ?? 1.0)
+        model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
+        robot_scale: parseFloat(settings3D?.robot_scale ?? 0.6),
+        node_scale: parseFloat(settings3D?.node_scale ?? 0.6),
+        node_color: settings3D?.node_color ?? '#ef4444'
     };
 
     // === 3D Robot Avatar & Node Editor State ===
@@ -507,11 +528,12 @@
         return colors[robotId] || '#3b82f6';
     }
 
-    // Helper: mapping 2D percent -> 3D world (XZ plane, y=0)
+    // Helper: mapping 2D percent -> 3D world (XZ plane + Y elevation)
     // _u/_v runtime (hasil resolveObjectAnchor dari Box3 GLB) diutamakan; fallback x/y persen.
     function worldPosForLoc(loc, size) {
         const u = (loc._u ?? loc.x / 100), v = (loc._v ?? loc.y / 100);
-        return new THREE.Vector3((u - 0.5) * (size.x * 0.95), 0, (v - 0.5) * (size.z * 0.95));
+        const yElev = (loc.y_elev !== undefined && loc.y_elev !== null) ? Number(loc.y_elev) : (loc._fy ?? 0);
+        return new THREE.Vector3((u - 0.5) * (size.x * 0.95), yElev, (v - 0.5) * (size.z * 0.95));
     }
 
     // Helper: reverse mapping 3D world -> 2D percent
@@ -592,7 +614,7 @@
         canvas.height = 96;
 
         const bgFill = isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.90)' : 'rgba(30, 41, 59, 0.85)');
-        const borderColor = isStairs ? '#fbbf24' : (isDest ? '#38bdf8' : '#94a3b8');
+        const borderColor = isStairs ? '#fbbf24' : (isDest ? '#ef4444' : '#94a3b8');
 
         const radius = 18;
         ctx.fillStyle = bgFill;
@@ -766,13 +788,14 @@
             holder.userData.type = 'node';
 
             // 1. Base floor pad (disc) menempel langsung di lantai
-            const radius = (isDest || isStairs) ? 0.28 : 0.16;
-            const discGeo = new THREE.CylinderGeometry(radius, radius, 0.02, 24);
-            const baseCol = isStairs ? 0xf59e0b : (isDest ? 0x2563eb : 0x64748b);
+            // Ukuran kompak: 0.10 untuk destination/stairs, 0.05 untuk transit dot
+            const radius = (isDest || isStairs) ? 0.10 : 0.05;
+            const discGeo = new THREE.CylinderGeometry(radius, radius, 0.015, 20);
+            const baseCol = isStairs ? 0xf59e0b : (isDest ? 0xef4444 : 0x64748b);
             const discMat = new THREE.MeshStandardMaterial({
                 color: baseCol,
                 emissive: baseCol,
-                emissiveIntensity: isHidden ? 0.15 : 0.35,
+                emissiveIntensity: isHidden ? 0.15 : 0.45,
                 roughness: 0.35,
                 transparent: isHidden,
                 opacity: isHidden ? 0.6 : 1.0
@@ -781,28 +804,24 @@
             discMesh.position.y = 0.01;
             discMesh.castShadow = true;
             discMesh.receiveShadow = true;
-            discMesh.userData.nodeId = id;
-            discMesh.userData.type = 'node';
             holder.add(discMesh);
             holder.userData.discMesh = discMesh;
 
             // 2. Center beacon pin (sphere)
-            const sphereRad = (isDest || isStairs) ? 0.09 : 0.06;
+            const sphereRad = (isDest || isStairs) ? 0.04 : 0.025;
             const sphereGeo = new THREE.SphereGeometry(sphereRad, 16, 16);
             const sphereMesh = new THREE.Mesh(sphereGeo, discMat);
-            sphereMesh.position.y = 0.07;
+            sphereMesh.position.y = 0.04;
             sphereMesh.castShadow = true;
-            sphereMesh.userData.nodeId = id;
-            sphereMesh.userData.type = 'node';
             holder.add(sphereMesh);
             holder.userData.sphereMesh = sphereMesh;
 
             // 3. Selection ring di lantai
-            const ringGeo = new THREE.RingGeometry(radius + 0.04, radius + 0.11, 24);
+            const ringGeo = new THREE.RingGeometry(radius + 0.02, radius + 0.06, 24);
             const ringMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide });
             const ringMesh = new THREE.Mesh(ringGeo, ringMat);
             ringMesh.rotation.x = -Math.PI / 2;
-            ringMesh.position.y = 0.022;
+            ringMesh.position.y = 0.018;
             ringMesh.visible = (selectedNodeId === id);
             holder.add(ringMesh);
             holder.userData.selectionRing = ringMesh;
@@ -819,7 +838,7 @@
             }
 
             const wp = worldPosForLoc(loc, _bcSize);
-            holder.position.set(wp.x, 0, wp.z);
+            holder.position.set(wp.x, wp.y, wp.z);
             holder.visible = (!isHidden || showHiddenDots);
 
             nodesGroup.add(holder);
@@ -846,6 +865,8 @@
             const holder = new THREE.Group();
             holder.userData.robotId = id;
             holder.userData.type = 'robot';
+            const rSc = parseFloat(current3DSettings.robot_scale ?? 0.6);
+            holder.scale.set(rSc, rSc, rSc);
             // placeholder box
             const boxMesh = new THREE.Mesh(
                 new THREE.BoxGeometry(0.35, 0.5, 0.35),
@@ -902,7 +923,10 @@
             const hits = raycaster.intersectObjects(pickTargets, false);
             if (hits.length > 0) {
                 let target = hits[0].object;
-                while (target && !target.userData?.type && target.parent) target = target.parent;
+                while (target && target.parent && target.parent !== nodesGroup && target.parent !== robotsGroup) {
+                    if (target.userData?.type === 'node' || target.userData?.type === 'robot') break;
+                    target = target.parent;
+                }
                 selected3DObject = target;
                 updateSelected3DObjectUI();
                 // Klik robot di canvas = shortcut pilih robot: sinkronkan selector + activeRobot.
@@ -1013,8 +1037,11 @@
             dragged3D.position.z = newPos.z;
             // sync ke locationsData bila node
             if (dragged3D.userData.type === 'node') {
-                dragged3D.position.y = 0;
                 const nodeId = dragged3D.userData.nodeId;
+                const curY = (locationsData[nodeId]?.y_elev !== undefined && locationsData[nodeId]?.y_elev !== null)
+                    ? Number(locationsData[nodeId].y_elev)
+                    : (locationsData[nodeId]?._fy ?? 0);
+                dragged3D.position.y = curY;
                 const pct = locFromWorld(newPos.x, newPos.z, _bcSize);
                 locationsData[nodeId].x = parseFloat(pct.x.toFixed(2));
                 locationsData[nodeId].y = parseFloat(pct.y.toFixed(2));
@@ -1026,8 +1053,10 @@
                 delete locationsData[nodeId]._fy;
                 const inpX = document.getElementById('inspect-x');
                 const inpY = document.getElementById('inspect-y');
+                const inpElev = document.getElementById('inspect-y-elev');
                 if (inpX) inpX.value = locationsData[nodeId].x;
                 if (inpY) inpY.value = locationsData[nodeId].y;
+                if (inpElev) inpElev.value = curY.toFixed(2);
                 build3DEdges();
                 updateSelected3DObjectUI();
             } else if (dragged3D.userData.type === 'robot') {
@@ -1052,7 +1081,6 @@
         function build3DEdges() {
             if (!edgesGroup) return;
             edgesGroup.clear();
-            const y = 0.025; // Menempel langsung di atas lantai 3D
             const seen = new Set();
             for (const a in adjData) {
                 if (!locationsData[a] || Number(locationsData[a].floor) !== floorNum) continue;
@@ -1060,8 +1088,8 @@
                     if (!locationsData[b] || Number(locationsData[b].floor) !== floorNum) continue;
                     const key = [a, b].sort().join('|');
                     if (seen.has(key)) continue; seen.add(key);
-                    const pA = worldPosForLoc(locationsData[a], _bcSize); pA.y = y;
-                    const pB = worldPosForLoc(locationsData[b], _bcSize); pB.y = y;
+                    const pA = worldPosForLoc(locationsData[a], _bcSize); pA.y += 0.015;
+                    const pB = worldPosForLoc(locationsData[b], _bcSize); pB.y += 0.015;
                     const geo = new THREE.BufferGeometry().setFromPoints([pA, pB]);
                     const isConnected = (selectedNodeId === a || selectedNodeId === b || connectStart3DNode === a || connectStart3DNode === b);
                     const mat = new THREE.LineBasicMaterial({
@@ -1257,7 +1285,7 @@
 
     let currentFloor = 1;
     let currentTool = 'move';
-    let showHiddenDots = true;
+    let showHiddenDots = false;
     let selectedNodeId = null;
     let connectStartNodeId = null;
     let draggedNodeId = null;
@@ -1290,6 +1318,8 @@
         const valRot = document.getElementById('val-3d-rotation');
         const inpX = document.getElementById('input-3d-x');
         const inpZ = document.getElementById('input-3d-z');
+        const inp3DY = document.getElementById('input-3d-y');
+        const inpElev = document.getElementById('inspect-y-elev');
         if (!info) return;
         if (!selected3DObject) {
             info.textContent = 'Tidak ada object dipilih';
@@ -1297,6 +1327,7 @@
             if (valRot) valRot.textContent = '0°';
             if (inpX) inpX.value = '';
             if (inpZ) inpZ.value = '';
+            if (inp3DY) inp3DY.value = '';
             return;
         }
         const t = selected3DObject.userData?.type;
@@ -1304,6 +1335,8 @@
         info.textContent = `${t?.toUpperCase()}: ${id}`;
         if (inpX) inpX.value = selected3DObject.position.x.toFixed(2);
         if (inpZ) inpZ.value = selected3DObject.position.z.toFixed(2);
+        if (inp3DY) inp3DY.value = selected3DObject.position.y.toFixed(2);
+        if (inpElev && t === 'node') inpElev.value = selected3DObject.position.y.toFixed(2);
         const rotDeg = (selected3DObject.rotation.y * 180 / Math.PI) % 360;
         if (slider) slider.value = Math.round(rotDeg);
         if (valRot) valRot.textContent = Math.round(rotDeg) + '°';
@@ -1340,6 +1373,57 @@
             updateDriveReadout();
         }
         updateSelected3DObjectUI();
+    }
+
+    function move3DObjectY(dy) {
+        if (!selected3DObject) { alert('Pilih object di canvas 3D dulu.'); return; }
+        selected3DObject.position.y = parseFloat((selected3DObject.position.y + dy).toFixed(2));
+        const vw = viewerOfHolder(selected3DObject);
+        if (selected3DObject.userData.type === 'node') {
+            const nodeId = selected3DObject.userData.nodeId;
+            if (locationsData[nodeId]) {
+                locationsData[nodeId].y_elev = selected3DObject.position.y;
+                const inpElev = document.getElementById('inspect-y-elev');
+                if (inpElev) inpElev.value = selected3DObject.position.y.toFixed(2);
+                if (vw && vw.build3DEdges) vw.build3DEdges();
+            }
+        } else if (selected3DObject.userData.type === 'robot') {
+            updateDriveReadout();
+        }
+        updateSelected3DObjectUI();
+    }
+
+    function set3DWorldY(val) {
+        if (!selected3DObject) return;
+        const y = parseFloat(val); if (isNaN(y)) return;
+        selected3DObject.position.y = y;
+        const vw = viewerOfHolder(selected3DObject);
+        if (selected3DObject.userData.type === 'node') {
+            const nodeId = selected3DObject.userData.nodeId;
+            if (locationsData[nodeId]) {
+                locationsData[nodeId].y_elev = y;
+                const inpElev = document.getElementById('inspect-y-elev');
+                if (inpElev) inpElev.value = y.toFixed(2);
+                if (vw && vw.build3DEdges) vw.build3DEdges();
+            }
+        } else if (selected3DObject.userData.type === 'robot') {
+            updateDriveReadout();
+        }
+    }
+
+    function handleElevationChange(val) {
+        if (!selectedNodeId || !locationsData[selectedNodeId]) return;
+        const y = parseFloat(val);
+        const numY = isNaN(y) ? 0 : y;
+        locationsData[selectedNodeId].y_elev = numY;
+        const vw = activeBotViewer();
+        if (vw && vw.nodeMeshes && vw.nodeMeshes.has(selectedNodeId)) {
+            const holder = vw.nodeMeshes.get(selectedNodeId);
+            holder.position.y = numY;
+            if (vw.build3DEdges) vw.build3DEdges();
+        }
+        const inpY = document.getElementById('input-3d-y');
+        if (inpY) inpY.value = numY.toFixed(2);
     }
 
     function rotate3DObject(deltaDeg) {
@@ -1399,7 +1483,7 @@
 
     function reset3DObjectPosition() {
         if (!selected3DObject) { alert('Pilih object dulu.'); return; }
-        selected3DObject.position.set(0, selected3DObject.position.y, 0);
+        selected3DObject.position.set(0, 0, 0);
         selected3DObject.rotation.y = 0;
         updateSelected3DObjectUI();
     }
@@ -1412,7 +1496,11 @@
             if (sz) {
                 const pct = locFromWorld(selected3DObject.position.x, selected3DObject.position.z, sz);
                 const nodeId = selected3DObject.userData.nodeId;
-                if (locationsData[nodeId]) { locationsData[nodeId].x = pct.x; locationsData[nodeId].y = pct.y; }
+                if (locationsData[nodeId]) {
+                    locationsData[nodeId].x = pct.x;
+                    locationsData[nodeId].y = pct.y;
+                    locationsData[nodeId].y_elev = parseFloat(selected3DObject.position.y.toFixed(2));
+                }
             }
             saveGraphToServer();
         } else if (selected3DObject.userData.type === 'robot') {
@@ -1442,6 +1530,19 @@
             })
             .then(res => res.json())
             .then(d => {
+                // Sync settings_3d juga
+                fetch('/api/settings/label-scale', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        scale: labelScaleMultiplier,
+                        settings_3d: current3DSettings
+                    })
+                }).catch(e => console.warn('Sync settings_3d fail:', e));
                 alert(`✓ Posisi Robot #${rid} berhasil disimpan di database!`);
             })
             .catch(err => {
@@ -1721,6 +1822,11 @@
         document.getElementById('inspect-floor').value = loc.floor || 1;
         document.getElementById('inspect-x').value = loc.x;
         document.getElementById('inspect-y').value = loc.y;
+        const elev = (loc.y_elev !== undefined && loc.y_elev !== null) ? loc.y_elev : (loc._fy ?? 0);
+        const inpElev = document.getElementById('inspect-y-elev');
+        if (inpElev) inpElev.value = Number(elev).toFixed(2);
+        const inp3DY = document.getElementById('input-3d-y');
+        if (inp3DY) inp3DY.value = Number(elev).toFixed(2);
         document.getElementById('inspect-is-destination').checked = !!loc.is_destination;
         document.getElementById('inspect-hidden').checked = !!loc.hidden;
 
@@ -1765,6 +1871,10 @@
         document.getElementById('inspect-node-name').value = '';
         document.getElementById('inspect-x').value = '';
         document.getElementById('inspect-y').value = '';
+        const inpElev = document.getElementById('inspect-y-elev');
+        if (inpElev) inpElev.value = '';
+        const inp3DY = document.getElementById('input-3d-y');
+        if (inp3DY) inp3DY.value = '';
         document.getElementById('inspect-is-destination').checked = false;
         document.getElementById('inspect-hidden').checked = false;
         const objSel = document.getElementById('inspect-object');
@@ -1926,6 +2036,7 @@
                 name: locationsData[id].name || id,
                 x: locationsData[id].x,
                 y: locationsData[id].y,
+                ...(locationsData[id].y_elev !== undefined && locationsData[id].y_elev !== null ? { y_elev: Number(locationsData[id].y_elev) } : {}),
                 floor: locationsData[id].floor || 1,
                 hidden: !!locationsData[id].hidden,
                 is_destination: !!locationsData[id].is_destination,
@@ -1941,8 +2052,10 @@
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
+                is_3d: true,
                 locations: formattedLocations,
-                adj: adjData
+                adj: adjData,
+                settings_3d: current3DSettings
             })
         })
         .then(res => res.json())

@@ -235,11 +235,16 @@ class DashboardController extends Controller
                 'name' => $loc['name'] ?? $loc['id'],
                 'x' => $loc['x'] ?? 0,
                 'y' => $loc['y'] ?? 0,
+                'y_elev' => isset($loc['y_elev']) ? (float) $loc['y_elev'] : (isset($loc['z']) ? (float) $loc['z'] : null),
                 'floor' => $loc['floor'] ?? 1,
                 'hidden' => $loc['hidden'] ?? false,
                 'is_destination' => $loc['is_destination'] ?? false,
                 'objectName' => $loc['objectName'] ?? null,
             ];
+        }
+
+        if (count($locations) < 2 && $graphPath !== base_path('graph.json')) {
+            return $this->getLocationsData();
         }
 
         return $locations;
@@ -255,8 +260,13 @@ class DashboardController extends Controller
             return [];
         }
         $data = json_decode(file_get_contents($graphPath), true);
+        $adj = $data['adj'] ?? [];
 
-        return $data['adj'] ?? [];
+        if (empty($adj) && $graphPath !== base_path('graph.json')) {
+            return $this->getAdjData();
+        }
+
+        return $adj;
     }
 
     private function getLabelScale()
@@ -284,7 +294,7 @@ class DashboardController extends Controller
         }
         $data = json_decode(file_get_contents($graphPath), true);
 
-        return $data['settings_3d'] ?? [
+        $default = [
             'camera' => [
                 'dist' => 5.0,
                 'fov' => 5.0,
@@ -297,6 +307,11 @@ class DashboardController extends Controller
                 'fill' => 0.8,
             ],
             'model_scale' => 1.0,
+            'robot_scale' => 0.6,
+            'node_scale' => 0.6,
+            'node_color' => '#ef4444',
         ];
+
+        return array_replace_recursive($default, $data['settings_3d'] ?? []);
     }
 }
