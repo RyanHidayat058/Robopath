@@ -1,19 +1,10 @@
 {
     "locations": [
         {
-            "id": "1_Ruang Meeting 3",
-            "name": "Ruang Meeting 3",
-            "x": 54.98,
-            "y": 53.48,
-            "floor": 1,
-            "hidden": false,
-            "is_destination": true
-        },
-        {
             "id": "1_N1",
             "name": "N1",
-            "x": 62.38,
-            "y": 68.13,
+            "x": 67.52,
+            "y": 37.96,
             "floor": 1,
             "hidden": true,
             "is_destination": false
@@ -44,15 +35,6 @@
             "floor": 1,
             "hidden": true,
             "is_destination": false
-        },
-        {
-            "id": "1_Pintu Masuk/Keluar",
-            "name": "Pintu Masuk/Keluar",
-            "x": 68.11,
-            "y": 60.16,
-            "floor": 1,
-            "hidden": false,
-            "is_destination": true
         },
         {
             "id": "1_N5",
@@ -201,8 +183,8 @@
         {
             "id": "1_N22",
             "name": "N22",
-            "x": 33.85,
-            "y": 57.86,
+            "x": 41.97,
+            "y": 55.68,
             "floor": 1,
             "hidden": true,
             "is_destination": false
@@ -219,38 +201,11 @@
         {
             "id": "1_N24",
             "name": "N24",
-            "x": 26.92,
-            "y": 58.33,
+            "x": 40.82,
+            "y": 66.93,
             "floor": 1,
             "hidden": true,
             "is_destination": false
-        },
-        {
-            "id": "1_N25",
-            "name": "N25",
-            "x": 19.64,
-            "y": 58.48,
-            "floor": 1,
-            "hidden": true,
-            "is_destination": false
-        },
-        {
-            "id": "1_Ruang Meeting 1",
-            "name": "Ruang Meeting 1",
-            "x": 19.28,
-            "y": 53.01,
-            "floor": 1,
-            "hidden": false,
-            "is_destination": true
-        },
-        {
-            "id": "1_Kasir",
-            "name": "Kasir",
-            "x": 16.06,
-            "y": 53.48,
-            "floor": 1,
-            "hidden": false,
-            "is_destination": true
         },
         {
             "id": "1_N26",
@@ -269,42 +224,6 @@
             "floor": 1,
             "hidden": true,
             "is_destination": false
-        },
-        {
-            "id": "1_Resepsionis",
-            "name": "Resepsionis",
-            "x": 69.07,
-            "y": 67.98,
-            "floor": 1,
-            "hidden": false,
-            "is_destination": true
-        },
-        {
-            "id": "1_Office",
-            "name": "Office",
-            "x": 54.86,
-            "y": 68.17,
-            "floor": 1,
-            "hidden": false,
-            "is_destination": true
-        },
-        {
-            "id": "1_Museum",
-            "name": "Museum",
-            "x": 87.1,
-            "y": 70.48,
-            "floor": 1,
-            "hidden": false,
-            "is_destination": true
-        },
-        {
-            "id": "1_Parquet",
-            "name": "Parquet",
-            "x": 88.17,
-            "y": 59.85,
-            "floor": 1,
-            "hidden": false,
-            "is_destination": true
         },
         {
             "id": "1_N28",
@@ -631,15 +550,6 @@
             "is_destination": true
         },
         {
-            "id": "1_Stairs",
-            "name": "Stairs",
-            "x": 72.41,
-            "y": 79.54,
-            "floor": 1,
-            "hidden": false,
-            "is_destination": false
-        },
-        {
             "id": "2_N287",
             "name": "N287",
             "x": 64.77,
@@ -647,40 +557,21 @@
             "floor": 2,
             "hidden": true,
             "is_destination": false
-        },
-        {
-            "id": "1_Ruang Meeting 6",
-            "name": "Ruang Meeting 6",
-            "x": 62.02,
-            "y": 63.6,
-            "floor": 1,
-            "hidden": false,
-            "is_destination": true
         }
     ],
     "adj": {
-        "1_Kasir": [
-            "1_N26"
-        ],
-        "1_Museum": [
-            "1_N9"
-        ],
         "1_N1": [
             "1_N11",
-            "1_N2",
-            "1_Ruang Meeting 6"
+            "1_N2"
         ],
         "1_N10": [
-            "1_N9",
-            "1_Parquet"
+            "1_N9"
         ],
         "1_N11": [
-            "1_N1",
-            "1_Office"
+            "1_N1"
         ],
         "1_N13": [
-            "1_N14",
-            "1_Office"
+            "1_N14"
         ],
         "1_N14": [
             "1_N13",
@@ -688,8 +579,7 @@
         ],
         "1_N15": [
             "1_N14",
-            "1_N17",
-            "1_Ruang Meeting 3"
+            "1_N17"
         ],
         "1_N16": [
             "1_N18",
@@ -731,22 +621,12 @@
             "1_N23",
             "1_N27"
         ],
-        "1_N25": [
-            "1_N26",
-            "1_N27",
-            "1_Ruang Meeting 1"
-        ],
-        "1_N26": [
-            "1_Kasir",
-            "1_N25"
-        ],
+        "1_N26": [],
         "1_N27": [
-            "1_N24",
-            "1_N25"
+            "1_N24"
         ],
         "1_N28": [
-            "1_N6",
-            "1_Stairs"
+            "1_N6"
         ],
         "1_N3": [
             "1_N2",
@@ -754,9 +634,7 @@
         ],
         "1_N4": [
             "1_N3",
-            "1_N5",
-            "1_Pintu Masuk/Keluar",
-            "1_Resepsionis"
+            "1_N5"
         ],
         "1_N5": [
             "1_N4",
@@ -776,31 +654,8 @@
             "1_N9"
         ],
         "1_N9": [
-            "1_Museum",
             "1_N10",
             "1_N8"
-        ],
-        "1_Office": [
-            "1_N11",
-            "1_N13"
-        ],
-        "1_Parquet": [
-            "1_N10"
-        ],
-        "1_Pintu Masuk/Keluar": [
-            "1_N4"
-        ],
-        "1_Resepsionis": [
-            "1_N4"
-        ],
-        "1_Ruang Meeting 1": [
-            "1_N25"
-        ],
-        "1_Ruang Meeting 3": [
-            "1_N15"
-        ],
-        "1_Stairs": [
-            "1_N28"
         ],
         "2_Direktur 1": [
             "2_N228"
@@ -943,9 +798,6 @@
             "2_N213",
             "2_N208",
             "2_Ruang Sekertaris"
-        ],
-        "1_Ruang Meeting 6": [
-            "1_N1"
         ]
     },
     "settings_3d": {
