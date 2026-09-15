@@ -379,7 +379,10 @@ class TelemetryController extends Controller
         ]);
 
         $graphPath = base_path('graph.json');
+        $existing = file_exists($graphPath) ? json_decode(file_get_contents($graphPath), true) : [];
         $data = [
+            'label_scale' => $request->input('label_scale', $existing['label_scale'] ?? 1.0),
+            'settings_3d' => $existing['settings_3d'] ?? ['camera'=>['dist'=>5,'fov'=>5,'preset'=>'iso'],'lighting'=>['ambient'=>1.4,'sun'=>1.8,'exposure'=>1,'fill'=>0.8],'model_scale'=>1.0],
             'locations' => $request->locations,
             'adj' => $request->adj,
         ];
@@ -390,6 +393,29 @@ class TelemetryController extends Controller
             'success' => true,
             'message' => 'Graph map data updated and saved successfully!',
             'total_nodes' => count($request->locations),
+        ]);
+    }
+
+    public function saveLabelScale(Request $request)
+    {
+        $graphPath = base_path('graph.json');
+        $data = file_exists($graphPath) ? json_decode(file_get_contents($graphPath), true) : [];
+
+        if ($request->has('scale')) {
+            $data['label_scale'] = (float) $request->input('scale');
+        }
+
+        if ($request->has('settings_3d')) {
+            $data['settings_3d'] = $request->input('settings_3d');
+        }
+
+        file_put_contents($graphPath, json_encode($data, JSON_PRETTY_PRINT));
+
+        return response()->json([
+            'success' => true,
+            'scale' => $data['label_scale'] ?? 1.0,
+            'settings_3d' => $data['settings_3d'] ?? null,
+            'message' => '3D settings saved to graph.json',
         ]);
     }
 

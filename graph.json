@@ -1,4 +1,5 @@
 {
+  "label_scale": 0.3,
   "locations": [
     {
       "id": "1_Ruang Meeting 3",
@@ -7,7 +8,8 @@
       "y": 49.44,
       "floor": 1,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI1_MEETING_03"
     },
     {
       "id": "1_Waiting Room",
@@ -16,7 +18,8 @@
       "y": 68.48,
       "floor": 1,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI1_WAITING_ROOM_01"
     },
     {
       "id": "1_N1",
@@ -61,7 +64,8 @@
       "y": 62,
       "floor": 1,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI1_LOBY_01"
     },
     {
       "id": "1_N5",
@@ -250,7 +254,8 @@
       "y": 49.44,
       "floor": 1,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI1_MEETING_01"
     },
     {
       "id": "1_Kasir",
@@ -259,7 +264,8 @@
       "y": 49.44,
       "floor": 1,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI1_KASIR_01"
     },
     {
       "id": "1_N26",
@@ -286,7 +292,8 @@
       "y": 74.33,
       "floor": 1,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI1_RECEPTIONIST_01"
     },
     {
       "id": "1_Office",
@@ -295,7 +302,8 @@
       "y": 74.33,
       "floor": 1,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI1_OFFICE_01"
     },
     {
       "id": "1_Museum",
@@ -304,7 +312,8 @@
       "y": 74.33,
       "floor": 1,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI1_MUSEUM_01"
     },
     {
       "id": "1_Parquet",
@@ -313,7 +322,8 @@
       "y": 62,
       "floor": 1,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI1_MULTIFUNCTION_01"
     },
     {
       "id": "1_N28",
@@ -619,7 +629,8 @@
       "y": 48.09,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_MEETING_01"
     },
     {
       "id": "2_Ruang Meeting 2",
@@ -628,7 +639,8 @@
       "y": 48.09,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_MEETING_02"
     },
     {
       "id": "2_Ruang Meeting 3",
@@ -637,7 +649,8 @@
       "y": 60.3,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_MEETING_03"
     },
     {
       "id": "2_Ruang Meeting 4",
@@ -646,7 +659,8 @@
       "y": 60.3,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_MEETING_04"
     },
     {
       "id": "2_Ruang Meeting 7",
@@ -655,7 +669,8 @@
       "y": 37.1,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_MEETING_07"
     },
     {
       "id": "2_Lounge",
@@ -664,7 +679,8 @@
       "y": 37.1,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_LOUNGE_01"
     },
     {
       "id": "2_Stairs",
@@ -682,7 +698,8 @@
       "y": 72.8,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_MEETING_05"
     },
     {
       "id": "2_Ruang Meeting 6",
@@ -691,7 +708,8 @@
       "y": 62.4,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_MEETING_06"
     },
     {
       "id": "2_Ruang VIP",
@@ -700,7 +718,8 @@
       "y": 37.1,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_VIP_ROOM_01"
     },
     {
       "id": "2_Ruang Sekertaris",
@@ -718,7 +737,8 @@
       "y": 37.1,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_DIREKSI_01"
     },
     {
       "id": "2_Presdir",
@@ -727,7 +747,8 @@
       "y": 37.1,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_PRESDIR_01"
     },
     {
       "id": "2_Vice President",
@@ -736,7 +757,8 @@
       "y": 37.1,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_VICE_PRESIDENT_01"
     },
     {
       "id": "2_Private Meeting Room",
@@ -745,7 +767,8 @@
       "y": 37.1,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_PRIVATE_MEETING_01"
     },
     {
       "id": "2_Direktur 1",
@@ -754,7 +777,8 @@
       "y": 37.1,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_DIREKTUR_01"
     },
     {
       "id": "2_Direktur 2",
@@ -763,7 +787,8 @@
       "y": 37.1,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_DIREKTUR_02"
     },
     {
       "id": "2_R. Perpus",
@@ -772,7 +797,8 @@
       "y": 37.1,
       "floor": 2,
       "hidden": false,
-      "is_destination": true
+      "is_destination": true,
+      "objectName": "LANTAI2_PERPUS_01"
     },
     {
       "id": "1_Stairs",
@@ -782,6 +808,166 @@
       "floor": 1,
       "hidden": false,
       "is_destination": false
+    },
+    {
+      "id": "2_UPS",
+      "name": "UPS",
+      "x": 9.64,
+      "y": 60.97,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_UPS_01"
+    },
+    {
+      "id": "2_Server",
+      "name": "Server",
+      "x": 12.95,
+      "y": 60.97,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_SERVER_01"
+    },
+    {
+      "id": "2_Pantry",
+      "name": "Pantry",
+      "x": 19.96,
+      "y": 77.05,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_PANTRY_01"
+    },
+    {
+      "id": "2_Toilet Pria 1",
+      "name": "Toilet Pria 1",
+      "x": 74.31,
+      "y": 77.96,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_TOILET_PRIA_01"
+    },
+    {
+      "id": "2_Toilet Pria 2",
+      "name": "Toilet Pria 2",
+      "x": 11.89,
+      "y": 85.11,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_TOILET_PRIA_02"
+    },
+    {
+      "id": "2_Toilet Wanita 1",
+      "name": "Toilet Wanita 1",
+      "x": 84.52,
+      "y": 80.35,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_TOILET_WANITA_01"
+    },
+    {
+      "id": "2_Toilet Wanita 2",
+      "name": "Toilet Wanita 2",
+      "x": 20.93,
+      "y": 91.34,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_TOILET_WANITA_02"
+    },
+    {
+      "id": "2_Toilet Direksi",
+      "name": "Toilet Direksi",
+      "x": 22.76,
+      "y": 77.05,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_TOILET_DIREKSI_01"
+    },
+    {
+      "id": "2_Jonathan 1",
+      "name": "Jonathan 1",
+      "x": 22.65,
+      "y": 47.08,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_JONATHAN_01"
+    },
+    {
+      "id": "2_Jonathan 2",
+      "name": "Jonathan 2",
+      "x": 18.08,
+      "y": 77.05,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_JONATHAN_02"
+    },
+    {
+      "id": "2_Gudang Sekertaris",
+      "name": "Gudang Sekertaris",
+      "x": 70.77,
+      "y": 57.17,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_GUDANG_SEKERTARIS_01"
+    },
+    {
+      "id": "2_Gudang Janitor",
+      "name": "Gudang Janitor",
+      "x": 14.11,
+      "y": 93.4,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_GUDANG_JANITOR_01"
+    },
+    {
+      "id": "2_Gudang Direksi",
+      "name": "Gudang Direksi",
+      "x": 67.08,
+      "y": 57.11,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_GUDANG_DIREKSI_01"
+    },
+    {
+      "id": "2_Gudang Accounting",
+      "name": "Gudang Accounting",
+      "x": 35.2,
+      "y": 94.75,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_GUDANG_ACCOUNTING_01"
+    },
+    {
+      "id": "2_Dikri 1",
+      "name": "Dikri 1",
+      "x": 85.65,
+      "y": 68.78,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_DIKRI_01"
+    },
+    {
+      "id": "2_Dikri 2",
+      "name": "Dikri 2",
+      "x": 74.31,
+      "y": 54.49,
+      "floor": 2,
+      "hidden": false,
+      "is_destination": true,
+      "objectName": "LANTAI2_DIKRI_02"
     }
   ],
   "adj": {
@@ -943,7 +1129,8 @@
     ],
     "2_N201": [
       "2_N207",
-      "2_Stairs"
+      "2_Stairs",
+      "2_Toilet Wanita 1"
     ],
     "2_N202": [
       "2_N206",
@@ -966,12 +1153,15 @@
     ],
     "2_N206": [
       "2_N202",
-      "2_N203"
+      "2_N203",
+      "2_Dikri 1"
     ],
     "2_N207": [
       "2_N201",
       "2_N210",
-      "2_N214"
+      "2_N214",
+      "2_Gudang Sekertaris",
+      "2_Dikri 2"
     ],
     "2_N208": [
       "2_N209",
@@ -989,7 +1179,8 @@
     "2_N212": [
       "2_N208",
       "2_N215",
-      "2_Ruang Sekertaris"
+      "2_Ruang Sekertaris",
+      "2_Gudang Direksi"
     ],
     "2_N213": [
       "2_N221",
@@ -1056,12 +1247,15 @@
     ],
     "2_N227": [
       "2_N225",
-      "2_N226"
+      "2_N226",
+      "2_Gudang Accounting"
     ],
     "2_N228": [
       "2_Direktur 1",
       "2_N229",
-      "2_N231"
+      "2_N231",
+      "2_Toilet Direksi",
+      "2_Jonathan 1"
     ],
     "2_N229": [
       "2_N226",
@@ -1070,15 +1264,22 @@
     "2_N230": [
       "2_Direktur 2",
       "2_N231",
-      "2_N232"
+      "2_N232",
+      "2_Server"
     ],
     "2_N231": [
       "2_N228",
-      "2_N230"
+      "2_N230",
+      "2_Pantry",
+      "2_Toilet Wanita 2",
+      "2_Jonathan 2",
+      "2_Gudang Janitor"
     ],
     "2_N232": [
       "2_N230",
-      "2_R. Perpus"
+      "2_R. Perpus",
+      "2_UPS",
+      "2_Toilet Pria 2"
     ],
     "2_N393": [
       "2_N223",
@@ -1124,10 +1325,77 @@
       "2_N216"
     ],
     "2_Stairs": [
-      "2_N201"
+      "2_N201",
+      "2_Toilet Pria 1"
     ],
     "2_Vice President": [
       "2_N225"
+    ],
+    "2_UPS": [
+      "2_N232"
+    ],
+    "2_Server": [
+      "2_N230"
+    ],
+    "2_Pantry": [
+      "2_N231"
+    ],
+    "2_Toilet Pria 1": [
+      "2_Stairs",
+      "2_Toilet Wanita 1"
+    ],
+    "2_Toilet Pria 2": [
+      "2_N232"
+    ],
+    "2_Toilet Wanita 1": [
+      "2_Toilet Pria 1",
+      "2_N201"
+    ],
+    "2_Toilet Wanita 2": [
+      "2_N231",
+      "2_Gudang Janitor"
+    ],
+    "2_Toilet Direksi": [
+      "2_N228"
+    ],
+    "2_Jonathan 1": [
+      "2_N228"
+    ],
+    "2_Jonathan 2": [
+      "2_N231"
+    ],
+    "2_Gudang Sekertaris": [
+      "2_N207"
+    ],
+    "2_Gudang Janitor": [
+      "2_Toilet Wanita 2",
+      "2_N231"
+    ],
+    "2_Gudang Direksi": [
+      "2_N212"
+    ],
+    "2_Gudang Accounting": [
+      "2_N227"
+    ],
+    "2_Dikri 1": [
+      "2_N206"
+    ],
+    "2_Dikri 2": [
+      "2_N207"
     ]
+  },
+  "settings_3d": {
+    "camera": {
+      "dist": 0,
+      "fov": 5.2,
+      "preset": "top"
+    },
+    "lighting": {
+      "ambient": 0.3,
+      "sun": 1.4,
+      "exposure": 0.8,
+      "fill": 2
+    },
+    "model_scale": 3
   }
 }

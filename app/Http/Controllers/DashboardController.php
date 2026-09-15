@@ -42,22 +42,24 @@ class DashboardController extends Controller
 
         $locations = $this->getLocationsData();
         $adj = $this->getAdjData();
+        $labelScale = $this->getLabelScale();
+        $settings3D = $this->get3DSettings();
         $activeDeliveries = Delivery::with('robot')->where('status', 'In Progress')->get();
 
-        return Inertia::render('Dashboard', [
-            'robots' => $robots,
-            'activeRobotsCount' => $activeRobotsCount,
-            'totalRobotsCount' => $totalRobotsCount,
-            'deliveriesTodayCount' => $deliveriesTodayCount,
-            'activeDeliveriesCount' => $activeDeliveriesCount,
-            'successRate' => $successRate,
-            'activeAlertsCount' => $activeAlertsCount,
-            'recentDeliveries' => $recentDeliveries,
-            'recentReports' => $recentReports,
-            'locations' => $locations,
-            'adj' => $adj,
-            'activeDeliveries' => $activeDeliveries,
-        ]);
+        return view('dashboard', compact(
+            'robots',
+            'activeRobotsCount',
+            'totalRobotsCount',
+            'deliveriesTodayCount',
+            'activeDeliveriesCount',
+            'successRate',
+            'activeAlertsCount',
+            'recentDeliveries',
+            'recentReports',
+            'locations',
+            'adj',
+            'activeDeliveries'
+        ));
     }
 
     public function deliveries()
@@ -67,19 +69,15 @@ class DashboardController extends Controller
 
         $locations = $this->getLocationsData();
         $adj = $this->getAdjData();
+        $labelScale = $this->getLabelScale();
+        $settings3D = $this->get3DSettings();
 
         $recentActivity = Delivery::with('robot')
             ->orderBy('updated_at', 'desc')
             ->limit(10)
             ->get();
 
-        return Inertia::render('Deliveries', [
-            'robots' => $robots,
-            'activeDeliveries' => $activeDeliveries,
-            'locations' => $locations,
-            'adj' => $adj,
-            'recentActivity' => $recentActivity,
-        ]);
+        return view('deliveries', compact('robots', 'activeDeliveries', 'locations', 'adj', 'recentActivity'));
     }
 
     public function botControl()
@@ -87,12 +85,10 @@ class DashboardController extends Controller
         $robots = Robot::all();
         $locations = $this->getLocationsData();
         $adj = $this->getAdjData();
+        $labelScale = $this->getLabelScale();
+        $settings3D = $this->get3DSettings();
 
-        return Inertia::render('BotControl', [
-            'robots' => $robots,
-            'locations' => $locations,
-            'adj' => $adj,
-        ]);
+        return view('bot_control', compact('robots', 'locations', 'adj'));
     }
 
     public function history()
@@ -134,6 +130,7 @@ class DashboardController extends Controller
                 'floor' => $loc['floor'] ?? 1,
                 'hidden' => $loc['hidden'] ?? false,
                 'is_destination' => $loc['is_destination'] ?? false,
+                'objectName' => $loc['objectName'] ?? null,
             ];
         }
 
@@ -149,5 +146,40 @@ class DashboardController extends Controller
         $data = json_decode(file_get_contents($graphPath), true);
 
         return $data['adj'] ?? [];
+    }
+
+    private function getLabelScale()
+    {
+        $graphPath = base_path('graph.json');
+        if (! file_exists($graphPath)) {
+            return 1.0;
+        }
+        $data = json_decode(file_get_contents($graphPath), true);
+
+        return (float) ($data['label_scale'] ?? 1.0);
+    }
+
+    private function get3DSettings()
+    {
+        $graphPath = base_path('graph.json');
+        if (! file_exists($graphPath)) {
+            return [];
+        }
+        $data = json_decode(file_get_contents($graphPath), true);
+
+        return $data['settings_3d'] ?? [
+            'camera' => [
+                'dist' => 5.0,
+                'fov' => 5.0,
+                'preset' => 'iso'
+            ],
+            'lighting' => [
+                'ambient' => 1.4,
+                'sun' => 1.8,
+                'exposure' => 1.0,
+                'fill' => 0.8
+            ],
+            'model_scale' => 1.0
+        ];
     }
 }

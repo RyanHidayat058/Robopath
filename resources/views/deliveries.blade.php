@@ -8,7 +8,7 @@
 <style>
     .map-container {
         position: relative;
-        background-image: url('{{ asset("images/floor1.jpeg") }}');
+        background-color: #0f172a;
         background-size: 100% 100%;
         background-repeat: no-repeat;
         background-position: center;
@@ -16,26 +16,24 @@
         border: 1px solid #e5e7eb;
         border-radius: 12px;
         box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    #deliv-3d-canvas-container, #deliv-3d-canvas-f1 {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+    }
+    #deliv-3d-canvas-container canvas, #deliv-3d-canvas-f1 canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
     }
     .location-pin {
         position: absolute;
         transform: translate(-50%, -50%);
         cursor: pointer;
-    }
-    .robot-marker {
-        position: absolute;
-        transform: translate(-50%, -50%);
-        transition: left 0.05s linear, top 0.05s linear;
-        z-index: 30;
-    }
-    .path-svg {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 10;
     }
 </style>
 @endsection
@@ -193,15 +191,32 @@
                 </div>
             </div>
 
-            <!-- The Map -->
-            <div class="map-container relative overflow-hidden" id="map-container">
-                <svg class="path-svg" id="path-svg"></svg>
-                
-                <!-- Locations pins -->
-                <div id="locations-overlay"></div>
-                
-                <!-- Robot markers -->
-                <div id="robots-overlay"></div>
+            <!-- The Map — kedua lantai murni 3D -->
+            <div class="map-container relative overflow-hidden" id="map-container" style="background-color:#0f172a;">
+                <!-- 3D Canvas Layer for Floor 1 -->
+                <div id="deliv-3d-canvas-f1" class="absolute inset-0 z-0 hidden pointer-events-auto"></div>
+                <!-- 3D Canvas Layer for Floor 2 -->
+                <div id="deliv-3d-canvas-container" class="absolute inset-0 z-0 hidden pointer-events-auto"></div>
+
+                <!-- 3D Loading Overlay (dipakai bergantian per lantai aktif) -->
+                <div id="deliv-3d-loader" class="absolute inset-0 z-30 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center text-white">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#3b4cb8] to-sky-400 p-0.5 shadow-2xl mb-4 animate-bounce">
+                        <div class="w-full h-full bg-slate-900 rounded-2xl flex items-center justify-center">
+                            <i class="fa-solid fa-cube text-2xl text-sky-400 animate-spin"></i>
+                        </div>
+                    </div>
+                    <h4 class="font-bold text-sm tracking-wide text-gray-100 mb-1" id="deliv-3d-loader-title">Memuat Model 3D Lantai 1...</h4>
+                    <p class="text-xs text-gray-400 mb-4" id="deliv-3d-loader-status">Mengunduh aset GLB (8 MB)...</p>
+                    <div class="w-56 bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+                        <div id="deliv-3d-loader-bar" class="bg-gradient-to-r from-[#3b4cb8] to-sky-400 h-2 rounded-full transition-all duration-200" style="width:5%"></div>
+                    </div>
+                    <span id="deliv-3d-loader-pct" class="text-[11px] font-mono text-sky-400 font-bold mt-2">5%</span>
+                </div>
+
+                <!-- 3D Hint Badge -->
+                <div id="deliv-3d-hint" class="hidden absolute bottom-2 right-2 z-30 bg-slate-900/80 backdrop-blur-md text-white px-2.5 py-1 rounded-lg text-[10px] font-semibold border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
+                    <i class="fa-solid fa-cube text-sky-400"></i> Model 3D Aktif &bull; Putar (Drag) &bull; Zoom (Scroll)
+                </div>
             </div>
         </div>
 
@@ -234,8 +249,426 @@
 
 @section('scripts')
 <script>
-    const floor1Img = "{{ asset('images/floor1.jpeg') }}";
-    const floor2Img = "{{ asset('images/floor2.jpeg') }}";
+    const floor1ModelUrl = "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
+    const floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
+    const robotModelUrl = "{{ asset('models/robot.glb') }}";
+    const MODEL_CACHE_NAME = 'robopath-glb-cache-v1';
+    let threeDeliv = null;
+    let threeDelivF1 = null;
+    let modelLoadedByFloor = { 1: false, 2: false };
+    let labelScaleMultiplier = {{ $labelScale ?? 1.0 }};
+    let settings3D = @json($settings3D ?? []);
+    let current3DSettings = {
+        camera: { dist: parseFloat(settings3D?.camera?.dist ?? 5.0), fov: parseFloat(settings3D?.camera?.fov ?? 5.0), preset: settings3D?.camera?.preset ?? 'iso' },
+        lighting: { ambient: parseFloat(settings3D?.lighting?.ambient ?? 1.4), sun: parseFloat(settings3D?.lighting?.sun ?? 1.8), exposure: parseFloat(settings3D?.lighting?.exposure ?? 1.0), fill: parseFloat(settings3D?.lighting?.fill ?? 0.8) },
+        model_scale: parseFloat(settings3D?.model_scale ?? 1.0)
+    };
+    // robot template shared (same as dashboard)
+    let robotTemplate = null, robotTemplateReady = false, robotTemplateLoading = false, robotTemplateFailed = false;
+    let robotTemplateCallbacks = [], robotTemplateTries = 0;
+    function activeDelivViewer(){ return Number(liveCurrentFloor)===1 ? threeDelivF1 : threeDeliv; }
+    function allDelivViewers(){ return [threeDeliv, threeDelivF1].filter(Boolean); }
+    function parkCoordsForFloor(f){ return f===1 ? {x:72.1,y:85.71} : {x:72.3,y:66.3}; }
+    function viewerOfHolder(holder){
+        if(!holder) return null;
+        for(const v of allDelivViewers()){ if(v && v.robotMeshes && v.robotMeshes.has(Number(holder.userData?.robotId))) return v; }
+        return activeDelivViewer();
+    }
+
+    // Helper: Create room label sprite (compact & sleek)
+    function createRoomLabelSprite(text, isDest = true, isStairs = false) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 384;
+        canvas.height = 96;
+
+        const bgFill = isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.90)' : 'rgba(30, 41, 59, 0.85)');
+        const borderColor = isStairs ? '#fbbf24' : (isDest ? '#38bdf8' : '#94a3b8');
+
+        const radius = 18;
+        ctx.fillStyle = bgFill;
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(8, 8, canvas.width - 16, canvas.height - 16, radius);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = borderColor;
+        ctx.beginPath();
+        ctx.arc(32, canvas.height / 2, 7, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+
+        let cleanText = String(text).replace(/^[12]_/, '');
+        if (cleanText.length > 20) cleanText = cleanText.substring(0, 18) + '...';
+        ctx.fillText(cleanText, 52, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false });
+        const sprite = new THREE.Sprite(spriteMaterial);
+        sprite.scale.set(3.6 * labelScaleMultiplier, 0.9 * labelScaleMultiplier, 1);
+        sprite.renderOrder = 999;
+        return sprite;
+    }
+    function worldPosForLoc(loc, size){
+        const u=(loc._u ?? loc.x/100), v=(loc._v ?? loc.y/100);
+        return new THREE.Vector3((u-0.5)*(size.x*0.95),0,(v-0.5)*(size.z*0.95));
+    }
+
+    // Helper: Cached GLB buffer loader (with progress cb)
+    async function fetchGLBBufferWithCache(url, onProgress) {
+        if ('caches' in window) {
+            try {
+                const cache = await caches.open(MODEL_CACHE_NAME);
+                const cachedResponse = await cache.match(url);
+                if (cachedResponse) {
+                    if (onProgress) onProgress(1,1,true);
+                    return await cachedResponse.arrayBuffer();
+                }
+            } catch (e) { console.warn('[Robopath Cache] read bypass', e); }
+        }
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const contentLength = response.headers.get('content-length');
+        const totalBytes = contentLength ? parseInt(contentLength,10) : 8000000;
+        let loadedBytes=0; const reader=response.body.getReader(); const chunks=[];
+        while(true){
+            const {done,value}=await reader.read();
+            if(done) break;
+            chunks.push(value); loadedBytes+=value.length;
+            if(onProgress) onProgress(loadedBytes,totalBytes,false);
+        }
+        const all=new Uint8Array(loadedBytes); let pos=0; for(const c of chunks){ all.set(c,pos); pos+=c.length; }
+        const buffer=all.buffer;
+        if ('caches' in window) {
+            try {
+                const cache = await caches.open(MODEL_CACHE_NAME);
+                const headers=new Headers(); headers.append('Content-Type','model/gltf-binary'); headers.append('Content-Length', String(buffer.byteLength));
+                const cacheResponse = new Response(buffer.slice(0), { headers });
+                await cache.put(url, cacheResponse);
+            } catch (e) {}
+        }
+        return buffer;
+    }
+    function ensureRobotTemplate(cb){
+        if(robotTemplateReady){ cb(robotTemplate); return; }
+        if(robotTemplateFailed){ cb(null); return; }
+        robotTemplateCallbacks.push(cb);
+        if(robotTemplateLoading) return;
+        robotTemplateLoading=true; robotTemplateTries++;
+        fetchGLBBufferWithCache(robotModelUrl).then(buf=>{
+            const loader=new THREE.GLTFLoader();
+            if(typeof THREE.DRACOLoader!=='undefined'){ const d=new THREE.DRACOLoader(); d.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.3/'); loader.setDRACOLoader(d); }
+            loader.parse(buf,'',(gltf)=>{
+                const root=gltf.scene;
+                const box=new THREE.Box3().setFromObject(root); const sz=box.getSize(new THREE.Vector3()); const ctr=box.getCenter(new THREE.Vector3());
+                root.position.x-=ctr.x; root.position.z-=ctr.z; root.position.y-=box.min.y;
+                const targetH=0.55; const s=sz.y>0.01?(targetH/sz.y):0.35; root.scale.set(s,s,s);
+                root.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; }});
+                robotTemplate=root; robotTemplateReady=true; robotTemplateLoading=false;
+                robotTemplateCallbacks.forEach(fn=>{ try{fn(robotTemplate);}catch(e){} }); robotTemplateCallbacks=[];
+            },()=>{ robotTemplateLoading=false; if(robotTemplateTries<3) setTimeout(()=>ensureRobotTemplate(()=>{}),1500); else { robotTemplateFailed=true; robotTemplateCallbacks.forEach(fn=>{try{fn(null);}catch(e){}}); robotTemplateCallbacks=[]; }});
+        }).catch(e=>{ robotTemplateLoading=false; if(robotTemplateTries<3) setTimeout(()=>ensureRobotTemplate(()=>{}),1500); else { robotTemplateFailed=true; robotTemplateCallbacks.forEach(fn=>{try{fn(null);}catch(e){}}); robotTemplateCallbacks=[]; }});
+    }
+    // ObjectName anchor: posisi runtime dari Box3 center geometri GLB (GLB = source of truth).
+    // Hasil di field runtime _u/_v/_fy — tidak pernah persist ke graph.json. Fallback x/y bila Not found.
+    function locUV(loc) {
+        return { u: (loc._u ?? loc.x / 100), v: (loc._v ?? loc.y / 100) };
+    }
+    function resolveObjectAnchor(loc, model, size) {
+        if (!loc || !loc.objectName || !model || !size || !(size.x > 0.1)) return false;
+        const obj = model.getObjectByName(loc.objectName);
+        if (!obj) { console.warn('[Robopath] objectName tidak ditemukan di GLB:', loc.objectName); return false; }
+        const box = new THREE.Box3().setFromObject(obj);
+        if (box.isEmpty()) return false;
+        const c = box.getCenter(new THREE.Vector3());
+        const clamp01 = v => Math.max(0, Math.min(1, v));
+        loc._u = clamp01(c.x / (size.x * 0.95) + 0.5);
+        loc._v = clamp01(c.z / (size.z * 0.95) + 0.5);
+        try {
+            const rc = new THREE.Raycaster(new THREE.Vector3(c.x, c.y + 5, c.z), new THREE.Vector3(0, -1, 0), 0, 20);
+            const hits = rc.intersectObject(model, true);
+            loc._fy = hits.length ? hits[0].point.y : 0.05;
+        } catch (e) { loc._fy = 0.05; }
+        return true;
+    }
+    function resolveAllObjectAnchors(store, model, size, floorNum) {
+        const f = floorNum!=null ? Number(floorNum) : 2;
+        let ok = 0; const miss = [];
+        for (const id in store) {
+            const loc = store[id];
+            if (Number(loc.floor) !== f || !loc.objectName) continue;
+            if (resolveObjectAnchor(loc, model, size)) ok++;
+            else miss.push(id + ' (' + loc.objectName + ')');
+        }
+        console.log('[Robopath] object anchors resolved:', ok, miss.length ? ('NOT FOUND: ' + miss.join(', ')) : '');
+    }
+
+    function initThreeViewer(containerId, floorNum) {
+        floorNum = Number(floorNum)===1 ? 1 : 2;
+        const modelUrl = floorNum===1 ? floor1ModelUrl : floor2ModelUrl;
+        const container = document.getElementById(containerId);
+        if (!container) return null;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0f172a);
+        const width = container.clientWidth || 800;
+        const height = container.clientHeight || 450;
+
+        const initFovVal = parseFloat(current3DSettings.camera.fov ?? 5.0);
+        const initFov = 20 + (initFovVal / 10) * 70;
+        const camera = new THREE.PerspectiveCamera(initFov, width / height, 0.1, 1000);
+        camera.position.set(0, 38, 48);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = parseFloat(current3DSettings.lighting.exposure ?? 1.0);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.innerHTML = '';
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2.05;
+        controls.minDistance = 2;
+        controls.maxDistance = 200;
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, parseFloat(current3DSettings.lighting.ambient ?? 1.4));
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, parseFloat(current3DSettings.lighting.sun ?? 1.8));
+        dirLight.position.set(30, 50, 30);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+        const fillLight = new THREE.DirectionalLight(0x93c5fd, parseFloat(current3DSettings.lighting.fill ?? 0.8));
+        fillLight.position.set(-30, 20, -30);
+        scene.add(fillLight);
+        scene.add(fillLight);
+
+        const grid = new THREE.GridHelper(80, 40, 0x3b4cb8, 0x334155);
+        grid.position.y = -0.05;
+        scene.add(grid);
+
+        const labelsGroup = new THREE.Group();
+        scene.add(labelsGroup);
+        const robotsGroup = new THREE.Group();
+        scene.add(robotsGroup);
+        const robotMeshes = new Map();
+        const activePathGroup = new THREE.Group();
+        scene.add(activePathGroup);
+
+        let defaultCamTarget = new THREE.Vector3(0,0,0);
+        let defaultCamPos = new THREE.Vector3(0,38,48);
+        let loadedModel = null;
+        let modelSize = new THREE.Vector3();
+
+        function snapRobot3D(holder, worldPct, sz){
+            const wp = worldPosForLoc(worldPct, sz);
+            holder.position.set(wp.x, 0.02, wp.z);
+            if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3();
+            holder.userData.targetWp.copy(holder.position);
+            return wp;
+        }
+        function smoothFaceTowards(holder, deg){
+            const rad = -(deg||0)*Math.PI/180;
+            holder.rotation.y += (rad - holder.rotation.y)*0.2;
+        }
+        function updateRobotStatusSprite(holder, robot, delivery, hasIssue, destName){
+            if(!holder.userData.statusSprite) return;
+            const spr=holder.userData.statusSprite; const tex=spr.material.map; if(!tex || !spr.userData.canvas) return;
+            const c=spr.userData.canvas, ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
+            let label='', bg='';
+            if(hasIssue){ label='⚠ '+(robot._activeIssue||'ISSUE').toString().toUpperCase(); bg='rgba(225,29,72,0.94)'; }
+            else if(robot.status==='Delivering' && delivery){ label='▶ MENGANTAR → '+(destName||delivery.destination_location||''); bg='rgba(59,130,246,0.94)'; }
+            else if(robot.status==='Charging'){ label='⚡ CHARGING'; bg='rgba(234,88,12,0.94)'; }
+            else if(robot.status==='Maintenance'){ label='🔧 MAINTENANCE'; bg='rgba(225,29,72,0.94)'; }
+            else { label='● IDLE'; bg='rgba(16,185,129,0.94)'; }
+            ctx.font='bold 30px Segoe UI, sans-serif'; const pad=26, h=50, tw=Math.min(512-16, ctx.measureText(label).width+52), radius=h/2;
+            const x0=(512-tw)/2, y0=(72-h)/2;
+            ctx.fillStyle=bg; ctx.beginPath(); ctx.roundRect(x0,y0,tw,h,radius); ctx.fill();
+            ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=3; ctx.stroke();
+            ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,256,36);
+            tex.needsUpdate=true; spr.visible=true;
+        }
+        function getOrCreateRobotMesh(robot){
+            const rid=Number(robot.id);
+            if(robotMeshes.has(rid)) return robotMeshes.get(rid);
+            const holder=new THREE.Group(); holder.userData.robotId=rid;
+            const boxGeo=new THREE.BoxGeometry(0.5,0.5,0.5);
+            const boxMat=new THREE.MeshStandardMaterial({color:getRobotColor(rid)});
+            const box=new THREE.Mesh(boxGeo, boxMat); box.position.y=0.25; holder.add(box);
+            const c2=document.createElement('canvas'); c2.width=512; c2.height=96;
+            const sMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c2), transparent:true, depthTest:false, depthWrite:false});
+            const nameSprite=new THREE.Sprite(sMat); nameSprite.scale.set(1.4,0.26,1); nameSprite.position.set(0,1.35,0); nameSprite.renderOrder=999;
+            nameSprite.userData={canvas:c2, texture:sMat.map}; holder.add(nameSprite); holder.userData.nameSprite=nameSprite;
+            const c3=document.createElement('canvas'); c3.width=512; c3.height=72;
+            const stMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c3), transparent:true, depthTest:false, depthWrite:false});
+            const stSpr=new THREE.Sprite(stMat); stSpr.scale.set(1.35,0.2,1); stSpr.position.set(0,1.78,0); stSpr.renderOrder=1000; stSpr.visible=false;
+            stSpr.userData={canvas:c3, texture:stMat.map}; holder.add(stSpr); holder.userData.statusSprite=stSpr;
+            holder.userData.boxMesh=box; holder.visible=false;
+            const swap=(tpl)=>{
+                if(!tpl || !holder.userData.boxMesh) return;
+                try{ const clone=tpl.clone(true); clone.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; }}); holder.remove(holder.userData.boxMesh); holder.add(clone); holder.userData.glbClone=clone; }catch(e){}
+            };
+            if(robotTemplateReady) swap(robotTemplate); else try{ ensureRobotTemplate(swap);}catch(e){}
+            // update name sprite text
+            try{ const ctx=c2.getContext('2d'); ctx.clearRect(0,0,512,96); ctx.fillStyle='rgba(15,23,42,0.9)'; ctx.beginPath(); ctx.roundRect(8,8,496,80,18); ctx.fill(); ctx.strokeStyle='#38bdf8'; ctx.lineWidth=3; ctx.stroke(); ctx.fillStyle='#fff'; ctx.font='bold 28px Segoe UI'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(String(robot.name||('Robot '+rid)),256,48); sMat.map.needsUpdate=true; }catch(e){}
+            robotsGroup.add(holder); robotMeshes.set(rid, holder); return holder;
+        }
+        function updateRobot3DAvatar(viewer, robot, coords, destName){
+            if(!viewer || !viewer.getModelSize || !viewer.robotMeshes) return false;
+            const sz=viewer.getModelSize(); if(!sz||sz.x<=0.1) return false;
+            const holder=viewer.getOrCreateRobotMesh(robot); snapRobot3D(holder, coords, sz); holder.visible=true; try{holder.rotation.y=-((robot.rotation||0)*Math.PI/180);}catch(e){}
+            const d=(robot.status==='Delivering') ? (robot._activeDelivery||null) : null;
+            try{ updateRobotStatusSprite(holder, robot, d, !!robot.hasIssue, destName);}catch(e){}
+            return true;
+        }
+
+        const loaderEl = document.getElementById('deliv-3d-loader');
+        const loaderBar = document.getElementById('deliv-3d-loader-bar');
+        const loaderPct = document.getElementById('deliv-3d-loader-pct');
+        const loaderStatus = document.getElementById('deliv-3d-loader-status');
+        const loaderTitle = document.getElementById('deliv-3d-loader-title');
+        if(loaderEl && !modelLoadedByFloor[floorNum]){
+            loaderEl.classList.remove('hidden');
+            if(loaderTitle) loaderTitle.textContent=`Memuat Model 3D Lantai ${floorNum}...`;
+            if(loaderStatus) loaderStatus.textContent=`Mengunduh aset GLB (${floorNum===1?'8':'14'} MB)...`;
+            if(loaderBar) loaderBar.style.width='5%';
+            if(loaderPct) loaderPct.textContent='5%';
+        }
+
+        const gltfLoader = new THREE.GLTFLoader();
+        if (typeof THREE.DRACOLoader !== 'undefined') {
+            const dracoLoader = new THREE.DRACOLoader();
+            dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.3/');
+            gltfLoader.setDRACOLoader(dracoLoader);
+        }
+
+        let _delivModel = null;
+        let _delivSize = new THREE.Vector3();
+        fetchGLBBufferWithCache(modelUrl, (loadedBytes,totalBytes,fromCache)=>{
+            if(!loaderEl || Number(currentDashboardFloor||liveCurrentFloor)===floorNum && modelLoadedByFloor[floorNum]) return;
+            if(fromCache){ if(loaderBar) loaderBar.style.width='90%'; if(loaderPct) loaderPct.textContent='90%'; if(loaderStatus) loaderStatus.textContent='Memuat dari Cache Lokal (Instan)...'; }
+            else { const pct=Math.min(Math.round((loadedBytes/totalBytes)*100),99); if(loaderBar) loaderBar.style.width=pct+'%'; if(loaderPct) loaderPct.textContent=pct+'%'; if(loaderStatus) loaderStatus.textContent=`Mengunduh: ${(loadedBytes/1048576).toFixed(1)} MB / ${(totalBytes/1048576).toFixed(1)} MB`; }
+        }).then(buffer => {
+            gltfLoader.parse(buffer, '', (gltf) => {
+                const model = gltf.scene;
+                _delivModel = model; loadedModel=model;
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                _delivSize.copy(size); modelSize.copy(size);
+
+                model.position.x -= center.x;
+                model.position.y -= box.min.y;
+                model.position.z -= center.z;
+                const mScale = parseFloat(current3DSettings.model_scale ?? 1.0);
+                model.scale.set(mScale,mScale,mScale);
+                const scaledBox = new THREE.Box3().setFromObject(model);
+                const scaledSize = scaledBox.getSize(new THREE.Vector3());
+                if(scaledSize.x>0.1) { size.copy(scaledSize); _delivSize.copy(scaledSize); modelSize.copy(scaledSize); }
+
+                model.traverse((child) => {
+                    if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+                });
+                scene.add(model);
+                modelLoadedByFloor[floorNum]=true;
+                try { resolveAllObjectAnchors(locations, model, _delivSize, floorNum); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
+
+                labelsGroup.clear();
+                let labelIdx=0;
+                for (let id in locations) {
+                    const loc = locations[id];
+                    if (Number(loc.floor) !== floorNum) continue;
+                    const isStairs = id.includes('Stairs');
+                    if (!loc.is_destination && !isStairs) continue;
+                    const sprite = createRoomLabelSprite(loc.name || id, loc.is_destination, isStairs);
+                    const wp = worldPosForLoc(loc, _delivSize);
+                    sprite.position.set(wp.x, (_delivSize.y||0.22)+0.32+(labelIdx%5)*0.22, wp.z);
+                    labelIdx++; labelsGroup.add(sprite);
+                }
+
+                try{
+                    const park=parkCoordsForFloor(floorNum); const parkX=park.x, parkY=park.y;
+                    robots.forEach((r,idx)=>{
+                        const holder=getOrCreateRobotMesh(r);
+                        const offX=(idx-(robots.length-1)/2)*2.0;
+                        const wp=worldPosForLoc({x:parkX+offX,y:parkY}, _delivSize);
+                        holder.position.set(wp.x,0.02,wp.z);
+                        if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3();
+                        holder.userData.targetWp.copy(holder.position);
+                        holder.rotation.y=-((r.rotation||0)*Math.PI/180);
+                        holder.visible=true;
+                    });
+                }catch(e){}
+
+                const maxDim = Math.max(_delivSize.x, _delivSize.z);
+                try{
+                    const bbox=new THREE.Box3().setFromObject(model);
+                    if(!bbox.isEmpty()){ const c=bbox.getCenter(new THREE.Vector3()); defaultCamTarget.set(c.x,c.y*0.5,c.z); } else defaultCamTarget.set(0,_delivSize.y*0.15,0);
+                }catch(e){ defaultCamTarget.set(0,_delivSize.y*0.15,0); }
+                defaultCamPos.set(defaultCamTarget.x, defaultCamTarget.y+maxDim*0.45, defaultCamTarget.z+maxDim*0.55);
+                const savedDistVal = parseFloat(current3DSettings.camera.dist ?? 5.0);
+                const savedDist = 5 + (savedDistVal / 10) * 115;
+                const dir0 = defaultCamPos.clone().sub(defaultCamTarget).normalize();
+                camera.position.copy(defaultCamTarget).add(dir0.multiplyScalar(savedDist));
+                controls.target.copy(defaultCamTarget);
+                controls.update();
+                if(loaderEl && Number(liveCurrentFloor)===floorNum){
+                    if(loaderBar) loaderBar.style.width='100%'; if(loaderPct) loaderPct.textContent='100%'; if(loaderStatus) loaderStatus.textContent='Model siap!';
+                    setTimeout(()=>{ if(Number(liveCurrentFloor)===floorNum) loaderEl.classList.add('hidden'); },200);
+                }
+            }, undefined, (err) => { console.error('Error parsing GLB model Lantai '+floorNum+':', err); if(loaderStatus) loaderStatus.textContent='Gagal memproses model 3D!'; });
+        }).catch(err => { console.error('Error fetching GLB:', err); if(loaderStatus) loaderStatus.textContent='Gagal mengunduh aset 3D!'; });
+
+        const raycaster=new THREE.Raycaster(); const mouse=new THREE.Vector2();
+        renderer.domElement.addEventListener('click',(e)=>{
+            const rect=renderer.domElement.getBoundingClientRect();
+            mouse.x=((e.clientX-rect.left)/rect.width)*2-1; mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
+            raycaster.setFromCamera(mouse,camera);
+            const targets=[]; robotMeshes.forEach(h=>{ if(h.visible) targets.push(h); });
+            const hits=raycaster.intersectObjects(targets,true);
+            if(hits.length){
+                let obj=hits[0].object; while(obj && obj.parent && !obj.userData.robotId) obj=obj.parent;
+                const rid=obj?.userData?.robotId ?? hits[0].object?.parent?.userData?.robotId;
+                let holder=obj; while(holder && !robotMeshes.has(Number(holder.userData?.robotId))) holder=holder.parent;
+                if(holder && holder.userData.robotId) { if(typeof focusDelivRobot==='function') focusDelivRobot(Number(holder.userData.robotId)); }
+                else if(rid && typeof focusDelivRobot==='function') focusDelivRobot(Number(rid));
+            }
+        });
+
+        let animationFrameId = null;
+        function animate() {
+            animationFrameId = requestAnimationFrame(animate);
+            robotMeshes.forEach(holder=>{ const tgt=holder.userData.targetWp; if(tgt) holder.position.lerp(tgt, 0.25); });
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        function onResize() {
+            if (!container || container.clientWidth === 0) return;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+        window.addEventListener('resize', onResize);
+
+        return { scene,camera,renderer,controls,labelsGroup,robotsGroup,activePathGroup,robotMeshes,getOrCreateRobotMesh,updateRobot3DAvatar,snapRobot3D,resize: onResize, getModelSize:()=>modelSize.clone(), getDefaultCamTarget:()=>defaultCamTarget.clone(), destroy: () => { if (animationFrameId) cancelAnimationFrame(animationFrameId); window.removeEventListener('resize', onResize); renderer.dispose(); } };
+    }
 
     const locations = {
         @foreach($locations as $id => $loc)
@@ -246,7 +679,8 @@
             y: {{ $loc['y'] }}, 
             floor: {{ $loc['floor'] ?? 1 }},
             hidden: {{ ($loc['hidden'] ?? false) ? 'true' : 'false' }},
-            is_destination: {{ ($loc['is_destination'] ?? false) ? 'true' : 'false' }}
+            is_destination: {{ ($loc['is_destination'] ?? false) ? 'true' : 'false' }},
+            objectName: {!! isset($loc['objectName']) && $loc['objectName'] ? ("'" . addslashes($loc['objectName']) . "'") : 'null' !!}
         },
         @endforeach
     };
@@ -274,22 +708,56 @@
         const map = document.getElementById('map-container');
         const title = document.getElementById('live-map-title');
         const subtitle = document.getElementById('live-map-subtitle');
-        
+        const canvas3D = document.getElementById('deliv-3d-canvas-container');
+        const canvas3DF1 = document.getElementById('deliv-3d-canvas-f1');
+        const hint3D = document.getElementById('deliv-3d-hint');
+        const loaderEl = document.getElementById('deliv-3d-loader');
+        map.style.backgroundImage = 'none';
+        map.style.backgroundColor = '#0f172a';
+        if (hint3D) hint3D.classList.remove('hidden');
         if (floorNum === 1) {
             btnF1.className = "px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition";
             btnF2.className = "px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-            map.style.backgroundImage = `url('${floor1Img}')`;
-            if (title) title.innerHTML = '<i class="fa-solid fa-layer-group text-[#3b4cb8] mr-1"></i> Live Active Tracking - Lantai 1';
-            if (subtitle) subtitle.textContent = 'Lantai 1 (Ground Floor - Lobby, Office & Receptionist)';
+            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-emerald-400 mr-1"></i> Live Active Tracking - Lantai 1 <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/30 ml-1">3D</span>';
+            if (subtitle) subtitle.textContent = 'Lantai 1 (Ground Floor - Lobby, Office & Receptionist) [3D Mode]';
+            if (canvas3D) canvas3D.classList.add('hidden');
+            if (canvas3DF1) {
+                canvas3DF1.classList.remove('hidden');
+                if (loaderEl && !modelLoadedByFloor[1]) { loaderEl.classList.remove('hidden'); const t=document.getElementById('deliv-3d-loader-title'); if(t) t.textContent='Memuat Model 3D Lantai 1...'; const s=document.getElementById('deliv-3d-loader-status'); if(s) s.textContent='Mengunduh aset GLB (8 MB)...'; }
+                setTimeout(() => {
+                    if (!threeDelivF1) {
+                        threeDelivF1 = initThreeViewer('deliv-3d-canvas-f1', 1);
+                    } else {
+                        try{ threeDelivF1.resize(); }catch(e){}
+                        if(!modelLoadedByFloor[1]){
+                            try{ const c=document.getElementById('deliv-3d-canvas-f1'); if(c) c.innerHTML=''; }catch(e){}
+                            threeDelivF1 = initThreeViewer('deliv-3d-canvas-f1', 1);
+                        }
+                    }
+                }, 50);
+            }
         } else {
             btnF2.className = "px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition";
             btnF1.className = "px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-            map.style.backgroundImage = `url('${floor2Img}')`;
-            if (title) title.innerHTML = '<i class="fa-solid fa-layer-group text-[#3b4cb8] mr-1"></i> Live Active Tracking - Lantai 2';
+            if (canvas3DF1) canvas3DF1.classList.add('hidden');
+            if (canvas3D) {
+                canvas3D.classList.remove('hidden');
+                if (loaderEl && !modelLoadedByFloor[2]) { loaderEl.classList.remove('hidden'); const t=document.getElementById('deliv-3d-loader-title'); if(t) t.textContent='Memuat Model 3D Lantai 2...'; const s=document.getElementById('deliv-3d-loader-status'); if(s) s.textContent='Mengunduh aset GLB (14 MB)...'; }
+                setTimeout(() => {
+                    if (!threeDeliv) {
+                        threeDeliv = initThreeViewer('deliv-3d-canvas-container', 2);
+                    } else {
+                        try{ threeDeliv.resize(); }catch(e){}
+                        if(!modelLoadedByFloor[2]){
+                            try{ const c=document.getElementById('deliv-3d-canvas-container'); if(c) c.innerHTML=''; }catch(e){}
+                            threeDeliv = initThreeViewer('deliv-3d-canvas-container', 2);
+                        }
+                    }
+                }, 50);
+            }
+            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-sky-400 mr-1"></i> Live Active Tracking - Lantai 2 <span class="text-[10px] bg-sky-500/20 text-sky-400 px-1.5 py-0.5 rounded-full border border-sky-500/30 ml-1">3D</span>';
             if (subtitle) subtitle.textContent = 'Lantai 2 (Upper Floor - Direksi, Lounge & Meeting Rooms)';
         }
-        
-        drawLocationPins();
         drawRobotPaths();
         runSimulationStep();
     }
@@ -440,43 +908,6 @@
             errDiv.textContent = 'A network error occurred. Please try again.';
             errDiv.classList.remove('hidden');
         });
-    }
-
-    function drawLocationPins() {
-        const overlay = document.getElementById('locations-overlay');
-        if (!overlay) return;
-        overlay.innerHTML = '';
-        
-        for (let id in locations) {
-            const loc = locations[id];
-            if (Number(loc.floor) !== Number(liveCurrentFloor)) continue;
-            if (loc.hidden && !loc.is_destination) continue;
-            
-            const pin = document.createElement('div');
-            pin.className = 'location-pin group z-20 cursor-pointer';
-            pin.style.left = `${loc.x}%`;
-            pin.style.top = `${loc.y}%`;
-            
-            const isStairs = id.includes('Stairs');
-            const pinColor = isStairs ? 'bg-amber-500 ring-2 ring-amber-300' : (loc.is_destination ? 'bg-blue-600 ring-2 ring-blue-300' : 'bg-gray-400');
-            
-            pin.innerHTML = `
-                <div class="w-3.5 h-3.5 rounded-full ${pinColor} border border-white shadow transition group-hover:scale-125 flex items-center justify-center">
-                    ${isStairs ? '<i class="fa-solid fa-stairs text-[7px] text-white"></i>' : ''}
-                </div>
-                <div class="absolute bottom-5 left-1/2 -translate-x-1/2 bg-gray-900/90 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-lg opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-30">
-                    ${loc.name} ${isStairs ? '(Pindah Lantai)' : ''}
-                </div>
-            `;
-            
-            pin.addEventListener('click', () => {
-                const destSelect = document.getElementById('dispatch-dest');
-                if (destSelect && destSelect.querySelector(`option[value="${id}"]`)) {
-                    destSelect.value = id;
-                }
-            });
-            overlay.appendChild(pin);
-        }
     }
 
     function parseServerDate(dateStr) {
@@ -677,127 +1108,80 @@
     }
 
     function drawRobotPaths() {
-        const svg = document.getElementById('path-svg');
-        if (!svg) return;
-        svg.innerHTML = '';
-        
+        const viewers = allDelivViewers().filter(v=>v&&v.activePathGroup);
+        viewers.forEach(v=>v.activePathGroup.clear());
+        function drawPath3D(pts, color, dashed){
+            if(pts.length<2) return;
+            viewers.forEach(v=>{
+                const sz=v.getModelSize(); if(!sz||sz.x<=0.1) return;
+                const floorNum=v.floor||2;
+                const hasPt = pts.some(p=> Number((locations[p]||p).floor||floorNum)===floorNum);
+                if(!hasPt && pts[0] && typeof pts[0]==='object' && pts[0].x!=null){
+                    // pts includes robot current_x/y which may be on other floor - skip if floor mismatch
+                }
+                const vecs=pts.map(p=>{
+                    const loc = typeof p==='string' ? locations[p] : p;
+                    if(!loc) return null;
+                    // filter by viewer floor: if loc is node id, check floor
+                    if(loc.floor!=null && Number(loc.floor)!==floorNum) return null;
+                    const wp=worldPosForLoc(loc, sz);
+                    return new THREE.Vector3(wp.x, 0.06, wp.z);
+                }).filter(Boolean);
+                if(vecs.length<2) return;
+                const geo=new THREE.BufferGeometry().setFromPoints(vecs);
+                const mat=new THREE.LineDashedMaterial({color:color, linewidth:1, scale:1, dashSize: dashed?0.6:0, gapSize: dashed?0.4:0, transparent:true, opacity:0.9});
+                const line=new THREE.Line(geo, mat);
+                line.computeLineDistances();
+                v.activePathGroup.add(line);
+            });
+        }
         const now = new Date(new Date().getTime() + serverClientOffset);
-        
-        // 1. Draw delivery paths (with trimming)
         activeDeliveries.forEach(delivery => {
             const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
             if (!robot || (robot.status !== 'Delivering' && delivery.status !== 'Pending')) return;
-            
             const mission = getDeliveryMission(delivery, robot);
             if (!mission || !mission.stages) return;
-
             const robotColor = getRobotColor(robot.id);
             const startedTime = parseServerDate(delivery.started_at);
             const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
-
             mission.stages.forEach(st => {
                 if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
-                if (Number(st.floor) !== Number(liveCurrentFloor)) return;
-                
                 const stageEndMs = st.startMs + st.durationMs;
                 if (elapsedMs >= stageEndMs && delivery.status !== 'Pending') return;
-
                 const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs) || delivery.status === 'Pending';
                 const isFutureStage = (elapsedMs < st.startMs);
-
-                const remainingPts = [];
+                let remainingPts=[];
                 if (isCurrentActive) {
-                    remainingPts.push({ x: robot.current_x, y: robot.current_y });
+                    remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: robot.floor });
                     const segIdx = robot.currentSegIdx || 0;
-                    for (let i = segIdx + 1; i < st.path.length; i++) {
-                        if (locations[st.path[i]]) remainingPts.push(locations[st.path[i]]);
-                    }
+                    for (let i = segIdx + 1; i < st.path.length; i++) if (locations[st.path[i]]) remainingPts.push(st.path[i]);
                 } else if (isFutureStage) {
-                    st.path.forEach(nodeId => {
-                        if (locations[nodeId]) remainingPts.push(locations[nodeId]);
-                    });
-                } else {
-                    return;
-                }
-
+                    st.path.forEach(nodeId => { if (locations[nodeId]) remainingPts.push(nodeId); });
+                } else return;
                 if (remainingPts.length < 2) return;
-
-                const container = document.getElementById('map-container');
-                if (!container) return;
-                
-                let pointsStr = '';
-                remainingPts.forEach(pt => {
-                    const px = (pt.x / 100) * container.clientWidth;
-                    const py = (pt.y / 100) * container.clientHeight;
-                    pointsStr += `${px},${py} `;
-                });
-                
-                if (pointsStr.trim()) {
-                    const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-                    polyline.setAttribute('points', pointsStr.trim());
-                    polyline.setAttribute('stroke', robotColor);
-                    polyline.setAttribute('stroke-width', '2.5');
-                    polyline.setAttribute('stroke-dasharray', delivery.status === 'Pending' ? '3,3' : '6,6');
-                    polyline.setAttribute('fill', 'none');
-                    polyline.setAttribute('opacity', delivery.status === 'Pending' ? '0.5' : '0.85');
-                    svg.appendChild(polyline);
-                }
+                drawPath3D(remainingPts, robotColor, delivery.status==='Pending');
             });
         });
-
-        // 2. Draw return paths for returning idle robots (with trimming)
         robots.forEach(robot => {
             if (robot.status === 'Idle' && robot.returnMission && robot.returnMission.stages) {
                 const robotColor = getRobotColor(robot.id);
                 const elapsedMs = now.getTime() - robot.returnMission.startedAt;
-
                 robot.returnMission.stages.forEach(st => {
                     if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
-                    if (Number(st.floor) !== Number(liveCurrentFloor)) return;
-                    
                     const stageEndMs = st.startMs + st.durationMs;
                     if (elapsedMs >= stageEndMs) return;
-
                     const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
                     const isFutureStage = (elapsedMs < st.startMs);
-
-                    const remainingPts = [];
+                    let remainingPts=[];
                     if (isCurrentActive) {
-                        remainingPts.push({ x: robot.current_x, y: robot.current_y });
+                        remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: robot.floor });
                         const segIdx = robot.returnSegIdx || 0;
-                        for (let i = segIdx + 1; i < st.path.length; i++) {
-                            if (locations[st.path[i]]) remainingPts.push(locations[st.path[i]]);
-                        }
+                        for (let i = segIdx + 1; i < st.path.length; i++) if (locations[st.path[i]]) remainingPts.push(st.path[i]);
                     } else if (isFutureStage) {
-                        st.path.forEach(nodeId => {
-                            if (locations[nodeId]) remainingPts.push(locations[nodeId]);
-                        });
-                    } else {
-                        return;
-                    }
-
+                        st.path.forEach(nodeId => { if (locations[nodeId]) remainingPts.push(nodeId); });
+                    } else return;
                     if (remainingPts.length < 2) return;
-                    
-                    const container = document.getElementById('map-container');
-                    if (!container) return;
-                    
-                    let pointsStr = '';
-                    remainingPts.forEach(pt => {
-                        const px = (pt.x / 100) * container.clientWidth;
-                        const py = (pt.y / 100) * container.clientHeight;
-                        pointsStr += `${px},${py} `;
-                    });
-                    
-                    if (pointsStr.trim()) {
-                        const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-                        polyline.setAttribute('points', pointsStr.trim());
-                        polyline.setAttribute('stroke', robotColor);
-                        polyline.setAttribute('stroke-width', '2');
-                        polyline.setAttribute('stroke-dasharray', '4,4');
-                        polyline.setAttribute('fill', 'none');
-                        polyline.setAttribute('opacity', '0.85');
-                        svg.appendChild(polyline);
-                    }
+                    drawPath3D(remainingPts, robotColor, true);
                 });
             }
         });
@@ -805,11 +1189,6 @@
 
     function runSimulationStep() {
         const now = new Date(new Date().getTime() + serverClientOffset);
-        drawRobotPaths();
-        
-        const overlay = document.getElementById('robots-overlay');
-        if (overlay) overlay.innerHTML = '';
-        
         robots.forEach(robot => {
             const delivery = activeDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending'));
             let coords = { x: robot.current_x, y: robot.current_y };
@@ -1020,64 +1399,54 @@
                 }
             }
             
-            if (overlay && Number(floorNum) === Number(liveCurrentFloor)) {
-                const isTransit = taskText.includes('Transit Tangga');
-                const isPickingUp = taskText.includes('Mengambil');
-                const isDroppingOff = taskText.includes('Menyerahkan');
-                const isReturning = taskText.includes('Kembali ke Markas') || taskText.includes('Selesai antar');
-
-                let ringClass = 'border-gray-300';
-                let actionIcon = 'fa-robot';
-                let iconColor = 'text-green-600';
-
-                if (hasIssue) {
-                    ringClass = 'border-red-500 ring-4 ring-red-400 animate-bounce';
-                    actionIcon = 'fa-triangle-exclamation text-red-600';
-                } else if (isTransit) {
-                    ringClass = 'border-amber-400 ring-2 ring-amber-300';
-                    actionIcon = 'fa-stairs text-amber-500 animate-bounce';
-                } else if (isPickingUp) {
-                    ringClass = 'border-blue-400 ring-4 ring-blue-300 animate-pulse';
-                    actionIcon = 'fa-box-open text-blue-600 animate-bounce';
-                } else if (isDroppingOff) {
-                    ringClass = 'border-emerald-400 ring-4 ring-emerald-300 animate-pulse';
-                    actionIcon = 'fa-dolly text-emerald-600 animate-bounce';
-                } else if (isReturning) {
-                    ringClass = 'border-indigo-400 ring-2 ring-indigo-300';
-                    actionIcon = 'fa-arrow-rotate-left text-indigo-600';
-                } else if (robot.status === 'Delivering') {
-                    ringClass = 'border-blue-400 ring-2 ring-blue-200';
-                    actionIcon = 'fa-robot text-[#3b4cb8]';
-                } else if (robot.status === 'Charging') {
-                    ringClass = 'border-orange-400 ring-2 ring-orange-200';
-                    actionIcon = 'fa-bolt text-orange-400 animate-pulse';
-                } else if (robot.status === 'Maintenance') {
-                    ringClass = 'border-red-500 ring-2 ring-red-300';
-                    actionIcon = 'fa-wrench text-red-500';
-                } else {
-                    ringClass = 'border-gray-300';
-                    actionIcon = 'fa-robot text-green-600';
+            // 3D avatar update per floor
+            robot._activeDelivery = delivery || null;
+            const _activeDeliv = delivery||null;
+            const destIdForBadge = (_activeDeliv && _activeDeliv.destination_location) ? _activeDeliv.destination_location : (delivery && delivery.destination_location);
+            const destNameForBadge = destIdForBadge ? (locations[destIdForBadge]?.name || destIdForBadge) : null;
+            const _knownIssue = hasIssue;
+            const _floorNum = Number(floorNum)||1;
+            function delivSyncAvatar(viewer, robot, coords, destName){
+                if(!viewer || !viewer.getOrCreateRobotMesh) return;
+                const sz=viewer.getModelSize ? viewer.getModelSize() : null;
+                if(!sz || sz.x<=0.1) return;
+                const holder=viewer.getOrCreateRobotMesh(robot);
+                const wp=worldPosForLoc(coords, sz);
+                holder.position.set(wp.x, 0.02, wp.z);
+                if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3();
+                holder.userData.targetWp.copy(holder.position);
+                holder.rotation.y=-((robot.rotation||0)*Math.PI/180);
+                holder.visible=true;
+                try{
+                    if(holder.userData.statusSprite && holder.userData.statusSprite.userData.canvas){
+                        const spr=holder.userData.statusSprite, c=spr.userData.canvas, ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
+                        let label='', bg='';
+                        if(_knownIssue){ label='⚠ '+(robot._activeIssue||'ISSUE').toString().toUpperCase(); bg='rgba(225,29,72,0.94)'; }
+                        else if(robot.status==='Delivering' && _activeDeliv){ label='▶ MENGANTAR → '+(destName||_activeDeliv.destination_location||''); bg='rgba(59,130,246,0.94)'; }
+                        else if(robot.status==='Charging'){ label='⚡ CHARGING'; bg='rgba(234,88,12,0.94)'; }
+                        else if(robot.status==='Maintenance'){ label='🔧 MAINTENANCE'; bg='rgba(225,29,72,0.94)'; }
+                        else { label='● IDLE'; bg='rgba(16,185,129,0.94)'; }
+                        ctx.font='bold 30px Segoe UI, sans-serif'; const pad=26,h=50,tw=Math.min(512-16, ctx.measureText(label).width+52),r=h/2, x0=(512-tw)/2, y0=(72-h)/2;
+                        ctx.fillStyle=bg; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(x0,y0,tw,h,r); else { ctx.moveTo(x0+r,y0); ctx.arcTo(x0+tw,y0,x0+tw,y0+h,r); ctx.arcTo(x0+tw,y0+h,x0,y0+h,r); ctx.arcTo(x0,y0+h,x0,y0,r); ctx.arcTo(x0,y0,x0+tw,y0,r); } ctx.fill();
+                        ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=3; ctx.stroke();
+                        ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,256,36);
+                        spr.material.map.needsUpdate=true; spr.visible=true;
+                    }
+                }catch(e){}
+            }
+            if(_floorNum===2){
+                if(threeDeliv) delivSyncAvatar(threeDeliv, robot, coords, destNameForBadge);
+                if(threeDelivF1 && threeDelivF1.robotMeshes && threeDelivF1.robotMeshes.has(Number(robot.id))){
+                    try{ const h=threeDelivF1.robotMeshes.get(Number(robot.id)); h.visible=false; }catch(e){}
                 }
-
-                const marker = document.createElement('div');
-                marker.className = 'robot-marker z-30';
-                marker.style.left = `${coords.x}%`;
-                marker.style.top = `${coords.y}%`;
-                
-                marker.innerHTML = `
-                    <div class="relative flex items-center justify-center">
-                        <span class="animate-ping absolute inline-flex h-10 w-10 rounded-full ${hasIssue ? 'bg-red-500 ring-4 ring-red-400' : statusColor} opacity-40"></span>
-                        <div class="relative w-8 h-8 rounded-xl bg-white border ${ringClass} flex items-center justify-center shadow-lg transition duration-200 hover:scale-110" style="transform: rotate(${robot.rotation || 0}deg);">
-                            <i class="fa-solid ${actionIcon} text-xs"></i>
-                        </div>
-                        <div class="absolute -top-6 ${hasIssue ? 'bg-red-600 text-white border-red-700' : 'bg-white/95 text-gray-700 border-gray-200'} border text-[8px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap pointer-events-none">
-                            ${robot.name.split(' ')[1]} (${robot.battery_level}%)${hasIssue ? ' [PROBLEM]' : ''}
-                        </div>
-                    </div>
-                `;
-                overlay.appendChild(marker);
+            } else {
+                if(threeDelivF1) delivSyncAvatar(threeDelivF1, robot, coords, destNameForBadge);
+                if(threeDeliv && threeDeliv.robotMeshes && threeDeliv.robotMeshes.has(Number(robot.id))){
+                    try{ const h=threeDeliv.robotMeshes.get(Number(robot.id)); h.visible=false; }catch(e){}
+                }
             }
         });
+        drawRobotPaths();
         runAutopilotManager();
     }
 
@@ -1404,7 +1773,6 @@
     });
 
     document.addEventListener('DOMContentLoaded', () => {
-        drawLocationPins();
         fetchData();
         reloadPageDropdowns();
         
