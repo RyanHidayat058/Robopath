@@ -677,6 +677,7 @@
     let robots = @json($robots);
     let activeDeliveries = @json($activeDeliveries);
     let activeAlerts = @json($activeAlerts ?? []);
+    let isAutopilotEnabled = {{ Illuminate\Support\Facades\Cache::get('autopilot_enabled', false) ? 'true' : 'false' }};
     let settings3D = @json($settings3D ?? []);
     let current3DSettings = {
         camera: {
