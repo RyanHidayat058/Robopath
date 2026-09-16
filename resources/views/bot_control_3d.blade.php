@@ -6,6 +6,10 @@
 
 @section('styles')
 <style>
+    /* Hide navigation sidebar on this view to maximize editor width */
+    body > aside {
+        display: none !important;
+    }
     .editor-map-container {
         position: relative;
         background-size: 100% 100%;
@@ -137,9 +141,9 @@
         <!-- VIEW -->
         <div class="flex items-center gap-2">
             <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">View</span>
-            <!-- Toggle Robot Avatar (Default: Sembunyi saat pengeditan node) -->
-            <button type="button" onclick="toggleShowRobots()" id="btn-toggle-robots" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-500 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Avatar Robot 3D">
-                <i class="fa-solid fa-robot text-gray-400" id="icon-toggle-robots"></i> <span id="text-toggle-robots">Robot: Sembunyi</span>
+            <!-- Toggle Robot Avatar (Default: Tampil) -->
+            <button type="button" onclick="toggleShowRobots()" id="btn-toggle-robots" class="bg-blue-50 border border-blue-300 text-[#3b4cb8] font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Avatar Robot 3D">
+                <i class="fa-solid fa-robot text-[#3b4cb8]" id="icon-toggle-robots"></i> <span id="text-toggle-robots">Robot: Tampil</span>
             </button>
             <!-- Robot Scale Controller (Gede/Kecil Robot 3D) -->
             <div class="flex items-center gap-1 bg-gray-100 border border-gray-300 px-2.5 py-1.5 rounded-xl text-xs font-bold" title="Sesuaikan Ukuran Robot 3D">
@@ -182,12 +186,9 @@
         </div>
     </div>
 
-    <!-- Main Workspace: Interactive Map Canvas (Left) & Inspector (Right) -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        <!-- Interactive Map Canvas (2/3 Width) -->
-        <div class="lg:col-span-2 space-y-4">
-            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl transition-all" id="editor-map-card">
+    <!-- Main Workspace: Interactive Map Canvas (Full Width) -->
+    <div class="w-full space-y-4">
+        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl transition-all" id="editor-map-card">
                 <!-- Dedicated Top Bar for Full Map Mode -->
                 <div id="fullmap-top-bar" class="hidden flex flex-wrap items-center justify-between gap-3 pb-3 mb-2 border-b border-slate-700/60 select-none">
                     <!-- Left: Floor Switcher -->
@@ -224,8 +225,8 @@
                     <!-- Right: Robots toggle, Label scale, Transit toggle, Edit Manual XYZ button, Save, Exit Full Map -->
                     <div class="flex items-center gap-2">
                         <!-- Toggle Robot Avatar in Full Map -->
-                        <button type="button" onclick="toggleShowRobots()" id="fullmap-btn-toggle-robots" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Avatar Robot 3D">
-                            <i class="fa-solid fa-robot text-gray-400" id="fullmap-icon-toggle-robots"></i> <span id="fullmap-text-toggle-robots">Robot: Sembunyi</span>
+                        <button type="button" onclick="toggleShowRobots()" id="fullmap-btn-toggle-robots" class="bg-sky-950/80 border border-sky-500/40 text-sky-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Avatar Robot 3D">
+                            <i class="fa-solid fa-robot text-sky-400" id="fullmap-icon-toggle-robots"></i> <span id="fullmap-text-toggle-robots">Robot: Tampil</span>
                         </button>
 
                         <!-- Robot Scale Controller in Full Map -->
@@ -347,12 +348,13 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- Node Inspector & Configuration Panel (1/3 Width) -->
-        <div class="space-y-6">
-            <!-- ROBOT CONTROL (Lantai 2 only) -->
-            <div id="panel-3d-controls" class="hidden bg-white border border-gray-200 p-5 rounded-2xl shadow-xl">
-                <h3 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
+    <!-- Bottom Controls: 3 Columns for Robot Control, Node Properties Inspector, & Fleet System Controls -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Col 1: ROBOT CONTROL (Always Visible) -->
+        <div id="panel-3d-controls" class="bg-white border border-gray-200 p-5 rounded-2xl shadow-xl">
+            <h3 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
                     <i class="fa-solid fa-robot text-[#3b4cb8]"></i> Robot Control
                 </h3>
                 <p class="text-xs text-gray-500 mb-4">Pilih robot, lihat status & posisi, lalu kendalikan manual.</p>
@@ -638,7 +640,7 @@
                 </div>
             </div>
 
-            <!-- Fleet Reset Action Card -->
+            <!-- Col 3: Fleet Reset Action Card -->
             <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
                 <h3 class="text-base font-bold text-gray-800 mb-2 flex items-center gap-2">
                     <i class="fa-solid fa-sliders text-amber-500"></i> Fleet System Controls
@@ -648,6 +650,7 @@
                     <i class="fa-solid fa-rotate-left mr-1"></i> Reset All Units to Home Base
                 </button>
             </div>
+        </div>
 
     <!-- Modal Tambah Node 3D (In-Page, Anti-Lock OrbitControls) -->
     <div id="modal-add-node-3d" class="hidden fixed inset-0 z-[10005] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 select-none">
@@ -745,7 +748,7 @@
         return activeBotViewer();
     }
     let labelScaleMultiplier = parseFloat(localStorage.getItem('robopath_label_scale') || '{{ $labelScale ?? 0.85 }}');
-    let showRobotsOnMap = false; // Default: sembunyikan avatar robot saat pengeditan node
+    let showRobotsOnMap = true; // Default: tampilkan avatar robot 3D di peta
     let settings3D = @json($settings3D ?? []);
     let current3DSettings = {
         camera: { dist: parseFloat(settings3D?.camera?.dist ?? 5.0), fov: parseFloat(settings3D?.camera?.fov ?? 5.0), preset: settings3D?.camera?.preset ?? 'iso' },
@@ -1463,7 +1466,7 @@
             });
         }
 
-        // Helper: buat/update mesh robot 3D (avatar robot.glb + name badge)
+        // Helper: buat/update mesh robot 3D (avatar robot.glb + 3D direction cone + name badge)
         function getOrCreateRobotMesh(robot) {
             const id = Number(robot.id);
             if (robotMeshes.has(id)) return robotMeshes.get(id);
@@ -1479,23 +1482,43 @@
             );
             boxMesh.position.y = 0.25; boxMesh.castShadow = true; boxMesh.receiveShadow = true;
             holder.add(boxMesh); holder.userData.boxMesh = boxMesh;
+
+            // Panah 3D ke bawah (cone) - indicator arah robot
+            const robotCol = getRobotColor(id);
+            const coneGeo = new THREE.ConeGeometry(0.14, 0.32, 8);
+            const coneMat = new THREE.MeshStandardMaterial({
+                color: robotCol,
+                emissive: robotCol,
+                emissiveIntensity: 0.35,
+                metalness: 0.3,
+                roughness: 0.5
+            });
+            const cone = new THREE.Mesh(coneGeo, coneMat);
+            cone.position.set(0, 1.0, 0);
+            cone.rotation.x = Math.PI; // flip to point down
+            cone.castShadow = true;
+            holder.add(cone); holder.userData.arrowCone = cone;
+
             // name badge sprite
             const c = document.createElement('canvas'); c.width = 256; c.height = 64;
             const cx = c.getContext('2d');
-            cx.fillStyle = 'rgba(15,23,42,0.92)'; cx.strokeStyle = getRobotColor(id); cx.lineWidth = 3;
+            cx.fillStyle = 'rgba(15,23,42,0.92)'; cx.strokeStyle = robotCol; cx.lineWidth = 3;
             cx.beginPath(); cx.roundRect(6, 6, 244, 52, 12); cx.fill(); cx.stroke();
             cx.fillStyle = '#fff'; cx.font = 'bold 22px sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
             cx.fillText(robot.name || ('Robot ' + id), 128, 32);
             const tex = new THREE.CanvasTexture(c); tex.minFilter = THREE.LinearFilter;
             const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false }));
-            spr.scale.set(1.2, 0.3, 1); spr.position.set(0, 1.05, 0); spr.renderOrder = 999;
-            holder.add(spr);
+            spr.scale.set(1.2, 0.3, 1); spr.position.set(0, 1.25, 0); spr.renderOrder = 999;
+            holder.add(spr); holder.userData.nameSprite = spr;
+
             robotsGroup.add(holder); robotMeshes.set(id, holder);
-            // replace placeholder with glb clone when ready
-            ensureRobotTemplate((tpl) => {
-                if (!holder.parent) return;
+
+            // replace placeholder with glb clone when ready (or immediately if ready)
+            const swapBoxForGlb = (tpl) => {
+                if (!tpl || !holder.parent) return;
+                if (holder.userData.glbClone) return;
                 const clone = tpl.clone(true);
-                const col = new THREE.Color(getRobotColor(id));
+                const col = new THREE.Color(robotCol);
                 clone.traverse(n => {
                     if (n.isMesh && n.material) {
                         n.material = n.material.clone();
@@ -1506,7 +1529,14 @@
                 clone.position.set(0, 0, 0);
                 holder.remove(boxMesh); boxMesh.geometry.dispose();
                 holder.add(clone); holder.userData.glbClone = clone;
-            });
+            };
+
+            if (robotTemplateReady) {
+                swapBoxForGlb(robotTemplate);
+            } else {
+                try { ensureRobotTemplate(swapBoxForGlb); } catch (e) {}
+            }
+
             return holder;
         }
 
