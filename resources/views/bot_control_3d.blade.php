@@ -233,7 +233,7 @@
                 </div>
 
                 <!-- Editor Canvas Container — kedua lantai 3D -->
-                <div class="editor-map-container shadow-inner border border-gray-300 overflow-hidden" id="editor-map-container" style="background-color:#0f172a;" onclick="handleMapClick(event)">
+                <div class="editor-map-container shadow-inner border border-gray-300 overflow-hidden" id="editor-map-container" style="background-color:#0f172a;">
                     <!-- 3D Canvas Layer for Floor 2 -->
                     <div id="botctrl-3d-canvas-container" class="absolute inset-0 z-0 hidden pointer-events-auto"></div>
                     <!-- 3D Canvas Layer for Floor 1 -->
@@ -532,6 +532,74 @@
                 </button>
             </div>
 
+    <!-- Modal Tambah Node 3D (In-Page, Anti-Lock OrbitControls) -->
+    <div id="modal-add-node-3d" class="hidden fixed inset-0 z-[10005] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 select-none">
+        <div class="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md p-6 text-white transform transition-all">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-sm">
+                        <i class="fa-solid fa-plus-circle"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-sm text-gray-100">Tambah Node Ruangan</h4>
+                        <p class="text-[11px] text-gray-400">Tentukan nama lokasi untuk titik baru di Lantai <span id="modal-add-floor-label" class="text-indigo-400 font-bold">1</span></p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeAddNodeModal()" class="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form onsubmit="confirmAddNodeModal(event)" class="mt-4 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">Nama Ruangan / Lokasi</label>
+                    <input type="text" id="modal-add-node-name" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 font-bold text-gray-100 text-sm focus:border-indigo-500 focus:outline-none transition" placeholder="Contoh: Ruang Meeting 1, Hall, dsb.">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-xs bg-slate-950/60 p-3 rounded-xl border border-slate-800 font-mono text-gray-400">
+                    <div>Koordinat X: <span id="modal-add-x" class="text-amber-400 font-bold">0%</span></div>
+                    <div>Koordinat Y: <span id="modal-add-y" class="text-amber-400 font-bold">0%</span></div>
+                </div>
+
+                <div class="flex items-center justify-end gap-2.5 pt-2">
+                    <button type="button" onclick="closeAddNodeModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-slate-800 transition">
+                        Batal (Esc)
+                    </button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-check"></i> Tambah Node
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Hapus Node 3D (In-Page, Anti-Lock OrbitControls) -->
+    <div id="modal-delete-node-3d" class="hidden fixed inset-0 z-[10005] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 select-none">
+        <div class="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-md p-6 text-white transform transition-all">
+            <div class="flex items-center gap-3 pb-3 border-b border-slate-800">
+                <div class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center text-lg shrink-0">
+                    <i class="fa-solid fa-trash-can"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-sm text-gray-100">Hapus Node Ruangan?</h4>
+                    <p class="text-[11px] text-gray-400">Tindakan ini juga akan memutus semua garis koneksi (edges) yang terhubung.</p>
+                </div>
+            </div>
+
+            <div class="my-4 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800 text-xs space-y-1">
+                <div class="text-gray-400">Node yang akan dihapus:</div>
+                <div class="font-bold text-rose-400 text-sm font-mono" id="modal-delete-node-name">-</div>
+                <div class="text-[11px] text-gray-500" id="modal-delete-node-details">-</div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2.5">
+                <button type="button" onclick="closeDeleteNodeModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-slate-800 transition">
+                    Batal (Esc)
+                </button>
+                <button type="button" onclick="confirmDeleteNodeModal()" class="px-5 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/30 flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-trash-can"></i> Hapus Sekarang
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -901,6 +969,13 @@
         controls.screenSpacePanning = true; // Pan terasa natural mengikuti layar
         controls.panSpeed = 1.2;
         controls.zoomSpeed = 1.3;
+        if (currentTool === 'hand') {
+            controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+            controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+        } else {
+            controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+            controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+        }
 
         const ambientLight = new THREE.AmbientLight(0xffffff, parseFloat(current3DSettings.lighting.ambient ?? 1.4));
         scene.add(ambientLight);
@@ -1059,10 +1134,8 @@
             return holder;
         }
 
-        // Raycaster pick handler (dipanggil dari renderer.domElement)
-        function handle3DPick(e) {
-            if (e.button !== 0) return; // Hanya tangani klik kiri (button 0)! Klik kanan khusus untuk pan/geser kamera OrbitControls
-            if (currentTool === 'hand') return; // Free Hand mode: abaikan klik/drag node agar bebas navigasi!
+        // Raycaster click action handler (dieksekusi saat pointerup tanpa pergeseran kamera)
+        function handle3DClickAction(e) {
             const rect = renderer.domElement.getBoundingClientRect();
             const mouse = new THREE.Vector2(
                 ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -1089,23 +1162,20 @@
                 if (target && target.userData && target.userData.type === 'robot') {
                     setActiveRobot(target.userData.robotId, { selectHolder: false });
                 } else if (target && target.userData && target.userData.type === 'node') {
-                    selectedNodeId = target.userData.nodeId;
+                    const nodeId = target.userData.nodeId;
+                    selectedNodeId = nodeId;
                     inspectNode(selectedNodeId);
                     updateNodeSelectionHighlights();
-                }
-                if (currentTool === 'move') {
-                    dragged3D = target;
-                    controls.enabled = false;
-                    const hitPoint = hits[0].point;
-                    dragOffset.copy(target.position).sub(hitPoint);
-                    dragOffset.y = 0; // drag strictly di lantai datar
-                } else if (currentTool === 'connect') {
-                    if (target.userData.type === 'node') {
-                        const nodeId = target.userData.nodeId;
+
+                    if (currentTool === 'connect') {
                         if (!connectStart3DNode) {
                             connectStart3DNode = nodeId;
                             updateNodeSelectionHighlights();
-                        } else if (connectStart3DNode !== nodeId) {
+                        } else if (connectStart3DNode === nodeId) {
+                            // Klik node yang sama -> batalkan pilihan koneksi
+                            connectStart3DNode = null;
+                            updateNodeSelectionHighlights();
+                        } else {
                             if (!adjData[connectStart3DNode]) adjData[connectStart3DNode] = [];
                             if (!adjData[nodeId]) adjData[nodeId] = [];
                             if (!adjData[connectStart3DNode].includes(nodeId)) adjData[connectStart3DNode].push(nodeId);
@@ -1115,23 +1185,10 @@
                             updateNodeSelectionHighlights();
                             build3DEdges();
                         }
-                    }
-                } else if (currentTool === 'delete') {
-                    if (target.userData.type === 'node') {
-                        const nodeId = target.userData.nodeId;
-                        if (confirm('Hapus node "' + (locationsData[nodeId]?.name || nodeId) + '"?')) {
-                            delete locationsData[nodeId];
-                            delete adjData[nodeId];
-                            for (let k in adjData) adjData[k] = adjData[k].filter(n => n !== nodeId);
-                            nodeMeshes.delete(nodeId);
-                            nodesGroup.remove(target);
-                            selectedNodeId = null;
-                            selected3DObject = null;
-                            connectStart3DNode = null;
-                            clearInspector();
-                            updateSelected3DObjectUI();
-                            build3DEdges();
-                        }
+                        return;
+                    } else if (currentTool === 'delete') {
+                        openDeleteNodeModal(nodeId);
+                        return;
                     }
                 }
             } else {
@@ -1140,36 +1197,14 @@
                     const hitPoint = raycaster.ray.intersectPlane(dragPlane, new THREE.Vector3());
                     if (hitPoint) {
                         const pct = locFromWorld(hitPoint.x, hitPoint.z, _bcSize);
-                        const name = prompt('Nama ruangan / node baru:', 'Ruang_' + Math.floor(Math.random() * 100));
-                        if (name && name.trim()) {
-                            const clean = name.trim();
-                            const key = `${currentFloor}_${clean}`;
-                            locationsData[key] = {
-                                id: key,
-                                name: clean,
-                                x: parseFloat(pct.x.toFixed(2)),
-                                y: parseFloat(pct.y.toFixed(2)),
-                                floor: currentFloor,
-                                hidden: false,
-                                is_destination: true
-                            };
-                            adjData[key] = [];
-                            const mesh = getOrCreateNodeMesh(key);
-                            if (mesh) {
-                                const w = worldPosForLoc(locationsData[key], _bcSize);
-                                mesh.position.set(w.x, 0, w.z);
-                            }
-                            selectedNodeId = key;
-                            selected3DObject = mesh;
-                            inspectNode(key);
-                            updateNodeSelectionHighlights();
-                            build3DEdges();
-                        }
+                        openAddNodeModal(floorNum, parseFloat(pct.x.toFixed(2)), parseFloat(pct.y.toFixed(2)));
                     }
                 } else {
+                    if (currentTool === 'connect') {
+                        connectStart3DNode = null;
+                    }
                     selectedNodeId = null;
                     selected3DObject = null;
-                    connectStart3DNode = null;
                     clearInspector();
                     updateSelected3DObjectUI();
                     updateNodeSelectionHighlights();
@@ -1262,15 +1297,95 @@
         // Disable context menu on canvas agar drag klik kanan (pan) lancar tanpa gangguan popup browser
         renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
-        // Hook raycaster ke renderer canvas — hanya aktif jika viewer lantai ini yang sedang tampil
+        // Hook raycaster ke renderer canvas — dengan pemisahan mutlak antara Click dan Drag/Orbit
+        let pointerDownPos = { x: 0, y: 0 };
+        let isPointerDown = false;
+        let pointerMoved = false;
+
         renderer.domElement.addEventListener('pointerdown', (e) => {
-            if (currentTool === 'hand') renderer.domElement.style.cursor = 'grabbing';
-            if (Number(currentFloor) === floorNum) handle3DPick(e);
+            if (Number(currentFloor) !== floorNum) return;
+            isPointerDown = true;
+            pointerMoved = false;
+            pointerDownPos = { x: e.clientX, y: e.clientY };
+
+            if (currentTool === 'hand') {
+                renderer.domElement.style.cursor = 'grabbing';
+                return;
+            }
+
+            // Tool 'move': jika klik kiri mengenai objek node/robot, kunci OrbitControls untuk geser objek di lantai
+            if (e.button === 0 && currentTool === 'move') {
+                const rect = renderer.domElement.getBoundingClientRect();
+                const mouse = new THREE.Vector2(
+                    ((e.clientX - rect.left) / rect.width) * 2 - 1,
+                    -((e.clientY - rect.top) / rect.height) * 2 + 1
+                );
+                raycaster.setFromCamera(mouse, camera);
+
+                const pickTargets = [];
+                nodesGroup.children.forEach(m => {
+                    if (m.isMesh) pickTargets.push(m);
+                    else if (m.isGroup) m.traverse(c => { if (c.isMesh) pickTargets.push(c); });
+                });
+                robotsGroup.children.forEach(g => { g.children.forEach(m => { if (m.isMesh) pickTargets.push(m); }); });
+
+                const hits = raycaster.intersectObjects(pickTargets, false);
+                if (hits.length > 0) {
+                    let target = hits[0].object;
+                    while (target && target.parent && target.parent !== nodesGroup && target.parent !== robotsGroup) {
+                        if (target.userData?.type === 'node' || target.userData?.type === 'robot') break;
+                        target = target.parent;
+                    }
+                    if (target) {
+                        dragged3D = target;
+                        controls.enabled = false; // Kunci kamera agar tidak berputar saat menggeser objek!
+                        dragOffset.copy(target.position).sub(hits[0].point);
+                        dragOffset.y = 0;
+                        selected3DObject = target;
+                        if (target.userData?.type === 'node') {
+                            selectedNodeId = target.userData.nodeId;
+                            inspectNode(selectedNodeId);
+                        } else if (target.userData?.type === 'robot') {
+                            setActiveRobot(target.userData.robotId, { selectHolder: false });
+                        }
+                        updateSelected3DObjectUI();
+                        updateNodeSelectionHighlights();
+                    }
+                }
+            }
         });
-        window.addEventListener('pointermove', (e) => { if (Number(currentFloor) === floorNum) handle3DDragMove(e); });
-        window.addEventListener('pointerup', () => {
-            if (currentTool === 'hand') renderer.domElement.style.cursor = 'grab';
-            if (Number(currentFloor) === floorNum) handle3DDragUp();
+
+        window.addEventListener('pointermove', (e) => {
+            if (Number(currentFloor) !== floorNum) return;
+            if (isPointerDown) {
+                if (Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y) > 6) {
+                    pointerMoved = true;
+                }
+            }
+            handle3DDragMove(e);
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            if (currentTool === 'hand') {
+                renderer.domElement.style.cursor = 'grab';
+            }
+            if (Number(currentFloor) !== floorNum) return;
+
+            const wasDraggingObject = !!dragged3D;
+            handle3DDragUp(); // Mereset dragged3D dan mengaktifkan kembali controls.enabled = true
+
+            if (!isPointerDown) return;
+            isPointerDown = false;
+
+            // Jika sedang menggeser objek, atau kursor bergerak >6px (kamera diputar/geser), JANGAN eksekusi klik tindakan
+            if (wasDraggingObject || pointerMoved || currentTool === 'hand') {
+                return;
+            }
+
+            // Hanya klik kiri murni (button 0) yang memicu pemilihan / penambahan / penghapusan
+            if (e.button !== 0) return;
+
+            handle3DClickAction(e);
         });
 
         // Zoom pintar mendekat ke arah kursor mouse saat scroll wheel ke dalam
@@ -1893,14 +2008,21 @@
             }
         });
 
-        // Switch OrbitControls left button behavior:
-        // In 'hand' mode, left click pans the map smoothly without touching/dragging nodes
+        // Switch OrbitControls button mapping:
+        // In 'hand' mode:
+        //   - LEFT drag: PAN (geser kanvas)
+        //   - RIGHT drag: ROTATE (putar sudut pandang 3D)
+        // In other modes ('move', 'add', 'connect', 'delete'):
+        //   - LEFT drag: ROTATE (putar 3D) / drag objek
+        //   - RIGHT drag: PAN (geser kamera)
         allBotViewers().forEach(vw => {
             if (vw && vw.controls) {
                 if (tool === 'hand') {
                     vw.controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+                    vw.controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
                 } else {
                     vw.controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+                    vw.controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
                 }
             }
             if (vw && vw.renderer && vw.renderer.domElement) {
@@ -1910,7 +2032,7 @@
 
         const hint = document.getElementById('editor-hint');
         if (hint) {
-            if (tool === 'hand') hint.textContent = "Tool Free Hand: Klik & geser (drag) di mana saja untuk menggeser (pan) kamera tanpa menyentuh atau memindahkan node.";
+            if (tool === 'hand') hint.textContent = "Tool Free Hand: Klik KIRI geser (pan), Klik KANAN putar (rotate) sudut pandang tanpa menyentuh node.";
             if (tool === 'move') hint.textContent = "Tool Move: Klik & drag node/robot di canvas 3D untuk pindah posisi. Gunakan D-pad di panel kontrol untuk presisi.";
             if (tool === 'add') hint.textContent = "Tool Add: Klik area kosong di canvas 3D untuk tambah node ruangan baru.";
             if (tool === 'connect') hint.textContent = "Tool Connect: Klik node A lalu node B di canvas 3D untuk hubungkan jalur.";
@@ -1920,6 +2042,125 @@
         connectStartNodeId = null;
         connectStart3DNode = null;
         renderEditorMap();
+    }
+
+    // === Add & Delete Node Modals (In-Page, Anti-Freeze, Anti-Lock) ===
+    let pendingAddNodeData = null;
+    let pendingDeleteNodeId = null;
+
+    function openAddNodeModal(floor, xPct, yPct) {
+        pendingAddNodeData = { floor: Number(floor) || 1, xPct: parseFloat(xPct), yPct: parseFloat(yPct) };
+        const modal = document.getElementById('modal-add-node-3d');
+        const input = document.getElementById('modal-add-node-name');
+        const floorLabel = document.getElementById('modal-add-floor-label');
+        const xLabel = document.getElementById('modal-add-x');
+        const yLabel = document.getElementById('modal-add-y');
+        if (!modal) return;
+
+        if (floorLabel) floorLabel.textContent = floor;
+        if (xLabel) xLabel.textContent = `${xPct.toFixed(2)}%`;
+        if (yLabel) yLabel.textContent = `${yPct.toFixed(2)}%`;
+        if (input) {
+            input.value = `Ruang_${Math.floor(Math.random() * 100)}`;
+        }
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            if (input) { input.focus(); input.select(); }
+        }, 50);
+    }
+
+    function closeAddNodeModal() {
+        const modal = document.getElementById('modal-add-node-3d');
+        if (modal) modal.classList.add('hidden');
+        pendingAddNodeData = null;
+        allBotViewers().forEach(vw => { if (vw && vw.controls) vw.controls.enabled = true; });
+    }
+
+    function confirmAddNodeModal(e) {
+        if (e) e.preventDefault();
+        if (!pendingAddNodeData) return;
+        const input = document.getElementById('modal-add-node-name');
+        const rawName = input ? input.value.trim() : '';
+        if (!rawName) return;
+
+        const { floor, xPct, yPct } = pendingAddNodeData;
+        const clean = rawName;
+        const key = `${floor}_${clean}`;
+
+        locationsData[key] = {
+            id: key,
+            name: clean,
+            x: xPct,
+            y: yPct,
+            floor: floor,
+            hidden: false,
+            is_destination: true
+        };
+        adjData[key] = [];
+
+        const vw = activeBotViewer();
+        if (vw && vw.getOrCreateNodeMesh) {
+            const mesh = vw.getOrCreateNodeMesh(key);
+            const sz = vw.getModelSize ? vw.getModelSize() : null;
+            if (mesh && sz) {
+                const w = worldPosForLoc(locationsData[key], sz);
+                mesh.position.set(w.x, 0, w.z);
+            }
+        }
+
+        selectedNodeId = key;
+        inspectNode(key);
+        renderEditorMap();
+        closeAddNodeModal();
+    }
+
+    function openDeleteNodeModal(nodeId) {
+        if (!locationsData[nodeId]) return;
+        pendingDeleteNodeId = nodeId;
+        const modal = document.getElementById('modal-delete-node-3d');
+        const nameEl = document.getElementById('modal-delete-node-name');
+        const detEl = document.getElementById('modal-delete-node-details');
+        if (!modal) return;
+
+        const loc = locationsData[nodeId];
+        if (nameEl) nameEl.textContent = loc.name || nodeId;
+        if (detEl) detEl.textContent = `Lantai ${loc.floor || 1} • X: ${loc.x}% • Y: ${loc.y}% • ${(adjData[nodeId] || []).length} koneksi`;
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeDeleteNodeModal() {
+        const modal = document.getElementById('modal-delete-node-3d');
+        if (modal) modal.classList.add('hidden');
+        pendingDeleteNodeId = null;
+        allBotViewers().forEach(vw => { if (vw && vw.controls) vw.controls.enabled = true; });
+    }
+
+    function confirmDeleteNodeModal() {
+        if (!pendingDeleteNodeId) return;
+        const nodeId = pendingDeleteNodeId;
+
+        delete locationsData[nodeId];
+        delete adjData[nodeId];
+        for (let k in adjData) {
+            adjData[k] = adjData[k].filter(n => n !== nodeId);
+        }
+
+        allBotViewers().forEach(vw => {
+            if (vw && vw.nodeMeshes && vw.nodeMeshes.has(nodeId)) {
+                const m = vw.nodeMeshes.get(nodeId);
+                if (m && m.parent) m.parent.remove(m);
+                vw.nodeMeshes.delete(nodeId);
+            }
+        });
+
+        selectedNodeId = null;
+        selected3DObject = null;
+        connectStart3DNode = null;
+        clearInspector();
+        updateSelected3DObjectUI();
+        renderEditorMap();
+        closeDeleteNodeModal();
     }
 
     let isFullMap = false;
@@ -2529,8 +2770,20 @@
         renderEditorMap();
     });
     window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && isFullMap) {
-            toggleFullMap(false);
+        if (e.key === 'Escape') {
+            const addModal = document.getElementById('modal-add-node-3d');
+            if (addModal && !addModal.classList.contains('hidden')) {
+                closeAddNodeModal();
+                return;
+            }
+            const delModal = document.getElementById('modal-delete-node-3d');
+            if (delModal && !delModal.classList.contains('hidden')) {
+                closeDeleteNodeModal();
+                return;
+            }
+            if (isFullMap) {
+                toggleFullMap(false);
+            }
         }
     });
 </script>
