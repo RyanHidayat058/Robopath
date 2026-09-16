@@ -144,11 +144,11 @@
             <!-- Label Size Controller (Perkecil/Perbesar Nama Ruangan) -->
             <div class="flex items-center gap-1 bg-gray-100 border border-gray-300 px-2.5 py-1.5 rounded-xl text-xs font-bold" title="Sesuaikan Ukuran Teks Nama Ruangan">
                 <span class="text-gray-500 flex items-center gap-1 text-[11px]"><i class="fa-solid fa-font text-[#3b4cb8]"></i> Label:</span>
-                <button type="button" onclick="adjustLabelScale(-0.15)" class="w-6 h-6 rounded-md bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perkecil Ukuran Label Teks">
+                <button type="button" onclick="adjustLabelScale(-0.1)" class="w-6 h-6 rounded-md bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perkecil Ukuran Label Teks">
                     <i class="fa-solid fa-minus text-[10px]"></i>
                 </button>
-                <span class="label-scale-val font-mono font-bold text-[#3b4cb8] w-9 text-center text-xs">0.9x</span>
-                <button type="button" onclick="adjustLabelScale(0.15)" class="w-6 h-6 rounded-md bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perbesar Ukuran Label Teks">
+                <span class="label-scale-val font-mono font-bold text-[#3b4cb8] w-9 text-center text-xs">0.8x</span>
+                <button type="button" onclick="adjustLabelScale(0.1)" class="w-6 h-6 rounded-md bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perbesar Ukuran Label Teks">
                     <i class="fa-solid fa-plus text-[10px]"></i>
                 </button>
             </div>
@@ -220,11 +220,11 @@
                         <!-- Label Size Controller in Full Map -->
                         <div class="flex items-center gap-1 bg-slate-900/90 border border-white/10 px-2 py-1 rounded-xl text-xs font-bold" title="Sesuaikan Ukuran Teks Nama Ruangan">
                             <span class="text-gray-400 flex items-center gap-1 text-[11px]"><i class="fa-solid fa-font text-indigo-400"></i> Label:</span>
-                            <button type="button" onclick="adjustLabelScale(-0.15)" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perkecil Ukuran Label Teks">
+                            <button type="button" onclick="adjustLabelScale(-0.1)" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perkecil Ukuran Label Teks">
                                 <i class="fa-solid fa-minus text-[9px]"></i>
                             </button>
-                            <span class="label-scale-val font-mono font-bold text-sky-400 w-8 text-center text-xs">0.9x</span>
-                            <button type="button" onclick="adjustLabelScale(0.15)" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perbesar Ukuran Label Teks">
+                            <span class="label-scale-val font-mono font-bold text-sky-400 w-8 text-center text-xs">0.8x</span>
+                            <button type="button" onclick="adjustLabelScale(0.1)" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perbesar Ukuran Label Teks">
                                 <i class="fa-solid fa-plus text-[9px]"></i>
                             </button>
                         </div>
@@ -896,14 +896,17 @@
         const texture = new THREE.CanvasTexture(canvas);
         const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false });
         const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(1.4 * labelScaleMultiplier, 0.35 * labelScaleMultiplier, 1);
+        sprite.scale.set(BASE_LABEL_W * labelScaleMultiplier, BASE_LABEL_H * labelScaleMultiplier, 1);
         sprite.renderOrder = 999;
         return sprite;
     }
 
-    // Helper: Dynamic Room Label Scaling
+    // Helper: Dynamic Room Label Scaling (Kecil, ringkas, dan dapat diskalakan hingga 0.1x)
+    const BASE_LABEL_W = 0.65;
+    const BASE_LABEL_H = 0.1625;
+
     function setLabelScale(val) {
-        val = Math.max(0.3, Math.min(2.5, parseFloat(Number(val).toFixed(2))));
+        val = Math.max(0.1, Math.min(2.5, parseFloat(Number(val).toFixed(2))));
         labelScaleMultiplier = val;
         try { localStorage.setItem('robopath_label_scale', String(val)); } catch (e) {}
 
@@ -915,7 +918,7 @@
             if (vw && vw.nodeMeshes) {
                 vw.nodeMeshes.forEach(holder => {
                     if (holder.userData && holder.userData.labelSprite) {
-                        holder.userData.labelSprite.scale.set(1.4 * labelScaleMultiplier, 0.35 * labelScaleMultiplier, 1);
+                        holder.userData.labelSprite.scale.set(BASE_LABEL_W * labelScaleMultiplier, BASE_LABEL_H * labelScaleMultiplier, 1);
                     }
                 });
             }
@@ -1114,12 +1117,12 @@
             holder.add(ringMesh);
             holder.userData.selectionRing = ringMesh;
 
-            // 4. Label teks ruangan menempel tepat di atas pin node (y = 0.16)
+            // 4. Label teks ruangan menempel tepat di atas pin node (y = 0.08)
             const isNamed = isDest || isStairs || !isHidden;
             if (isNamed) {
                 const sprite = createRoomLabelSprite(loc.name || id, isDest, isStairs);
-                sprite.scale.set(1.4 * labelScaleMultiplier, 0.35 * labelScaleMultiplier, 1);
-                sprite.position.set(0, 0.16, 0);
+                sprite.scale.set(BASE_LABEL_W * labelScaleMultiplier, BASE_LABEL_H * labelScaleMultiplier, 1);
+                sprite.position.set(0, 0.08, 0);
                 sprite.material.depthTest = true; // Mengikuti kedalaman 3D secara presisi
                 holder.add(sprite);
                 holder.userData.labelSprite = sprite;
