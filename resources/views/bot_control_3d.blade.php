@@ -141,6 +141,17 @@
             <button type="button" onclick="toggleShowRobots()" id="btn-toggle-robots" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-500 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Avatar Robot 3D">
                 <i class="fa-solid fa-robot text-gray-400" id="icon-toggle-robots"></i> <span id="text-toggle-robots">Robot: Sembunyi</span>
             </button>
+            <!-- Robot Scale Controller (Gede/Kecil Robot 3D) -->
+            <div class="flex items-center gap-1 bg-gray-100 border border-gray-300 px-2.5 py-1.5 rounded-xl text-xs font-bold" title="Sesuaikan Ukuran Robot 3D">
+                <span class="text-gray-500 flex items-center gap-1 text-[11px]"><i class="fa-solid fa-robot text-[#3b4cb8]"></i> Bot:</span>
+                <button type="button" onclick="changeRobotScale(-0.05)" class="w-6 h-6 rounded-md bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perkecil Ukuran Robot (-0.05x)">
+                    <i class="fa-solid fa-minus text-[10px]"></i>
+                </button>
+                <span id="robot-scale-val" class="font-mono font-bold text-[#3b4cb8] w-12 text-center text-xs">0.60x</span>
+                <button type="button" onclick="changeRobotScale(0.05)" class="w-6 h-6 rounded-md bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perbesar Ukuran Robot (+0.05x)">
+                    <i class="fa-solid fa-plus text-[10px]"></i>
+                </button>
+            </div>
             <!-- Label Size Controller (Perkecil/Perbesar Nama Ruangan) -->
             <div class="flex items-center gap-1 bg-gray-100 border border-gray-300 px-2.5 py-1.5 rounded-xl text-xs font-bold" title="Sesuaikan Ukuran Teks Nama Ruangan">
                 <span class="text-gray-500 flex items-center gap-1 text-[11px]"><i class="fa-solid fa-font text-[#3b4cb8]"></i> Label:</span>
@@ -216,6 +227,33 @@
                         <button type="button" onclick="toggleShowRobots()" id="fullmap-btn-toggle-robots" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Avatar Robot 3D">
                             <i class="fa-solid fa-robot text-gray-400" id="fullmap-icon-toggle-robots"></i> <span id="fullmap-text-toggle-robots">Robot: Sembunyi</span>
                         </button>
+
+                        <!-- Robot Scale Controller in Full Map -->
+                        <div class="flex items-center gap-1 bg-slate-900/90 border border-white/10 px-2 py-1 rounded-xl text-xs font-bold" title="Sesuaikan Ukuran Robot 3D">
+                            <span class="text-gray-400 flex items-center gap-1 text-[11px]"><i class="fa-solid fa-robot text-sky-400"></i> Bot:</span>
+                            <button type="button" onclick="changeRobotScale(-0.05)" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perkecil Ukuran Robot (-0.05x)">
+                                <i class="fa-solid fa-minus text-[9px]"></i>
+                            </button>
+                            <span id="fullmap-robot-scale-val" class="font-mono font-bold text-sky-400 w-11 text-center text-xs">0.60x</span>
+                            <button type="button" onclick="changeRobotScale(0.05)" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perbesar Ukuran Robot (+0.05x)">
+                                <i class="fa-solid fa-plus text-[9px]"></i>
+                            </button>
+                        </div>
+
+                        <!-- Robot Height / Z Controller in Full Map -->
+                        <div class="flex items-center gap-1 bg-slate-900/90 border border-white/10 px-2 py-1 rounded-xl text-xs font-bold" title="Ketinggian Robot di Lantai Ini (Roda Nempel Lantai)">
+                            <span class="text-gray-400 flex items-center gap-1 text-[11px]"><i class="fa-solid fa-arrows-up-down text-amber-400"></i> Z Bot (<span id="fullmap-label-robot-elev-floor">Lt 1</span>):</span>
+                            <button type="button" onclick="adjustRobotElevation(-0.005)" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Turun -0.005m">
+                                <i class="fa-solid fa-minus text-[9px]"></i>
+                            </button>
+                            <input type="number" step="any" id="fullmap-input-robot-elev" onchange="updateActiveRobotElevation(this.value, false)" oninput="updateActiveRobotElevation(this.value, false)" class="w-16 bg-slate-800 border border-slate-700 rounded px-1 text-center font-mono font-bold text-amber-300 text-xs focus:outline-none" value="0.019">
+                            <button type="button" onclick="adjustRobotElevation(0.005)" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Naik +0.005m">
+                                <i class="fa-solid fa-plus text-[9px]"></i>
+                            </button>
+                            <button type="button" onclick="lockRobotElevation()" class="bg-amber-600 hover:bg-amber-700 text-white px-2 py-0.5 rounded-lg text-[10px] font-bold shadow transition ml-0.5 flex items-center gap-1" title="Kunci Ketinggian Robot di Lantai Ini Secara Permanen">
+                                <i class="fa-solid fa-lock text-[9px]"></i> Kunci
+                            </button>
+                        </div>
 
                         <!-- Label Size Controller in Full Map -->
                         <div class="flex items-center gap-1 bg-slate-900/90 border border-white/10 px-2 py-1 rounded-xl text-xs font-bold" title="Sesuaikan Ukuran Teks Nama Ruangan">
@@ -320,6 +358,53 @@
                 <p class="text-xs text-gray-500 mb-4">Pilih robot, lihat status & posisi, lalu kendalikan manual.</p>
 
                 <div class="space-y-4 text-xs">
+                    <!-- Lantai Robot (Floor Selection) -->
+                    <div>
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Lantai Robot Aktif</label>
+                        <div class="grid grid-cols-2 gap-1.5 p-1 bg-gray-100 rounded-xl border border-gray-200">
+                            <button type="button" id="btn-robot-floor-1" onclick="setActiveRobotFloor(1)" class="py-1.5 rounded-lg font-bold text-xs transition bg-[#3b4cb8] text-white shadow-sm flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-layer-group text-[10px]"></i> Lantai 1
+                            </button>
+                            <button type="button" id="btn-robot-floor-2" onclick="setActiveRobotFloor(2)" class="py-1.5 rounded-lg font-bold text-xs transition text-gray-600 hover:bg-gray-200 flex items-center justify-center gap-1">
+                                <i class="fa-solid fa-layer-group text-[10px]"></i> Lantai 2
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Ukuran Robot (Scale) -->
+                    <div>
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Ukuran Robot (Scale)</label>
+                        <div class="flex items-center gap-1 bg-gray-50 border border-gray-200 p-1.5 rounded-xl">
+                            <button type="button" onclick="changeRobotScale(-0.05)" class="w-7 h-7 rounded-lg bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition shadow-sm active:scale-95" title="Perkecil Robot (-0.05x)">
+                                <i class="fa-solid fa-minus"></i>
+                            </button>
+                            <span id="sidebar-robot-scale-val" class="flex-1 text-center font-mono font-bold text-[#3b4cb8] text-xs">0.60x</span>
+                            <button type="button" onclick="changeRobotScale(0.05)" class="w-7 h-7 rounded-lg bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition shadow-sm active:scale-95" title="Perbesar Robot (+0.05x)">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Ketinggian Roda Robot (Z / Y Elevation) -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="font-bold text-gray-500 uppercase tracking-wider">Tinggi / Z Robot (<span id="sidebar-label-robot-elev-floor">Lt 1</span>)</label>
+                            <span class="text-[10px] text-gray-400">Roda nempel lantai</span>
+                        </div>
+                        <div class="flex items-center gap-1 bg-gray-50 border border-gray-200 p-1.5 rounded-xl">
+                            <button type="button" onclick="adjustRobotElevation(-0.005)" class="px-2 py-1.5 rounded-lg bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 font-mono font-bold text-[11px] transition shadow-sm active:scale-95" title="Turun -0.005m">
+                                -0.005
+                            </button>
+                            <input type="number" step="any" id="sidebar-input-robot-elev" onchange="updateActiveRobotElevation(this.value, false)" oninput="updateActiveRobotElevation(this.value, false)" class="flex-1 bg-white border border-gray-300 rounded-lg py-1 px-1 text-center font-mono font-bold text-amber-600 text-xs focus:outline-none focus:border-[#3b4cb8]" value="0.019">
+                            <button type="button" onclick="adjustRobotElevation(0.005)" class="px-2 py-1.5 rounded-lg bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 font-mono font-bold text-[11px] transition shadow-sm active:scale-95" title="Naik +0.005m">
+                                +0.005
+                            </button>
+                        </div>
+                        <button type="button" onclick="lockRobotElevation()" class="w-full mt-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-1.5 px-3 rounded-xl transition text-xs flex items-center justify-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-lock"></i> Kunci Ketinggian Robot
+                        </button>
+                    </div>
+
                     <!-- Robot -->
                     <div>
                         <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Robot</label>
@@ -667,6 +752,8 @@
         lighting: { ambient: parseFloat(settings3D?.lighting?.ambient ?? 1.4), sun: parseFloat(settings3D?.lighting?.sun ?? 1.8), exposure: parseFloat(settings3D?.lighting?.exposure ?? 1.0), fill: parseFloat(settings3D?.lighting?.fill ?? 0.8) },
         model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
         robot_scale: parseFloat(settings3D?.robot_scale ?? 0.6),
+        robot_elevation_f1: parseFloat(settings3D?.robot_elevation_f1 ?? 0.019),
+        robot_elevation_f2: parseFloat(settings3D?.robot_elevation_f2 ?? 0.073),
         node_scale: parseFloat(settings3D?.node_scale ?? 0.6),
         node_color: settings3D?.node_color ?? '#ff0000'
     };
@@ -741,7 +828,8 @@
     function resetActiveRobotPosition() {
         const t = getDriveTarget();
         if (!t) { alert('Model 3D belum siap.'); return; }
-        t.position.set(0, t.position.y, 0);
+        const floorElev = getRobotElevation(currentFloor);
+        t.position.set(0, floorElev, 0);
         t.rotation.y = 0;
         updateDriveReadout();
     }
@@ -936,6 +1024,157 @@
 
     function adjustLabelScale(delta) {
         setLabelScale(labelScaleMultiplier + delta);
+    }
+
+    // === Dynamic Robot Scale Controller (Gede/Kecil Robot 3D) ===
+    let robotScaleMultiplier = parseFloat(current3DSettings.robot_scale ?? 0.6);
+
+    function setRobotScale(val, persist = true) {
+        val = Math.max(0.15, Math.min(3.0, parseFloat(Number(val).toFixed(2))));
+        robotScaleMultiplier = val;
+        current3DSettings.robot_scale = val;
+
+        const valText = `${val.toFixed(2)}x`;
+        const elMain = document.getElementById('robot-scale-val');
+        if (elMain) elMain.textContent = valText;
+        const elFull = document.getElementById('fullmap-robot-scale-val');
+        if (elFull) elFull.textContent = valText;
+        const elSide = document.getElementById('sidebar-robot-scale-val');
+        if (elSide) elSide.textContent = valText;
+
+        allBotViewers().forEach(vw => {
+            if (vw && vw.robotMeshes) {
+                vw.robotMeshes.forEach(holder => {
+                    if (holder) {
+                        holder.scale.set(val, val, val);
+                    }
+                });
+            }
+        });
+
+        if (persist) {
+            save3DSettingsToServer();
+        }
+    }
+
+    function changeRobotScale(delta) {
+        setRobotScale(robotScaleMultiplier + delta, true);
+    }
+
+    // === Robot Elevation / Vertical Z Controller per Floor ===
+    let activeRobotFloor = 1;
+
+    function getRobotElevation(floorNum) {
+        const f = Number(floorNum) === 2 ? 2 : 1;
+        if (f === 2) {
+            return parseFloat(current3DSettings.robot_elevation_f2 ?? 0.073);
+        }
+        return parseFloat(current3DSettings.robot_elevation_f1 ?? 0.019);
+    }
+
+    function updateRobotElevationUI() {
+        const f = Number(activeRobotFloor) === 2 ? 2 : 1;
+        const val = getRobotElevation(f);
+        const fText = `Lt ${f}`;
+
+        const fmLabel = document.getElementById('fullmap-label-robot-elev-floor');
+        if (fmLabel) fmLabel.textContent = fText;
+        const fmInput = document.getElementById('fullmap-input-robot-elev');
+        if (fmInput) fmInput.value = val;
+
+        const sideLabel = document.getElementById('sidebar-label-robot-elev-floor');
+        if (sideLabel) sideLabel.textContent = fText;
+        const sideInput = document.getElementById('sidebar-input-robot-elev');
+        if (sideInput) sideInput.value = val;
+    }
+
+    function updateRobotFloorUI() {
+        const f = Number(activeRobotFloor) === 2 ? 2 : 1;
+        const b1 = document.getElementById('btn-robot-floor-1');
+        const b2 = document.getElementById('btn-robot-floor-2');
+        if (b1 && b2) {
+            if (f === 1) {
+                b1.className = "py-1.5 rounded-lg font-bold text-xs transition bg-[#3b4cb8] text-white shadow-sm flex items-center justify-center gap-1";
+                b2.className = "py-1.5 rounded-lg font-bold text-xs transition text-gray-600 hover:bg-gray-200 flex items-center justify-center gap-1";
+            } else {
+                b1.className = "py-1.5 rounded-lg font-bold text-xs transition text-gray-600 hover:bg-gray-200 flex items-center justify-center gap-1";
+                b2.className = "py-1.5 rounded-lg font-bold text-xs transition bg-[#3b4cb8] text-white shadow-sm flex items-center justify-center gap-1";
+            }
+        }
+        updateRobotElevationUI();
+    }
+
+    function setActiveRobotFloor(f) {
+        activeRobotFloor = Number(f) === 2 ? 2 : 1;
+        updateRobotFloorUI();
+        if (Number(currentFloor) !== activeRobotFloor) {
+            switchFloor(activeRobotFloor);
+        }
+    }
+
+    function updateActiveRobotElevation(val, persist = false) {
+        const num = parseFloat(val);
+        if (isNaN(num)) return;
+        const f = Number(activeRobotFloor) === 2 ? 2 : 1;
+        if (f === 2) {
+            current3DSettings.robot_elevation_f2 = num;
+        } else {
+            current3DSettings.robot_elevation_f1 = num;
+        }
+
+        const targetViewer = f === 1 ? threeBotCtrlF1 : threeBotCtrl;
+        if (targetViewer && targetViewer.robotMeshes) {
+            targetViewer.robotMeshes.forEach(holder => {
+                if (holder) holder.position.y = num;
+            });
+        }
+
+        const fmInput = document.getElementById('fullmap-input-robot-elev');
+        if (fmInput && fmInput.value != num) fmInput.value = num;
+        const sideInput = document.getElementById('sidebar-input-robot-elev');
+        if (sideInput && sideInput.value != num) sideInput.value = num;
+
+        updateDriveReadout();
+
+        if (persist) {
+            save3DSettingsToServer();
+        }
+    }
+
+    function adjustRobotElevation(delta) {
+        const f = Number(activeRobotFloor) === 2 ? 2 : 1;
+        const cur = getRobotElevation(f);
+        const next = Number(parseFloat((cur + delta).toFixed(4)));
+        updateActiveRobotElevation(next, false);
+    }
+
+    function lockRobotElevation() {
+        const f = Number(activeRobotFloor) === 2 ? 2 : 1;
+        const val = getRobotElevation(f);
+        save3DSettingsToServer(() => {
+            alert(`✓ Ketinggian robot Lantai ${f} berhasil dikunci permanen pada ${val}m!`);
+        });
+    }
+
+    function save3DSettingsToServer(onSuccess) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        fetch('/api/settings/label-scale', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                scale: labelScaleMultiplier,
+                settings_3d: current3DSettings
+            })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success && typeof onSuccess === 'function') onSuccess();
+        })
+        .catch(e => console.warn('[Robopath] Save 3D settings fail:', e));
     }
 
     // Helper: Cached GLB buffer loader with progress (Streaming + CacheStorage)
@@ -1618,13 +1857,23 @@
                 }
                 build3DEdges();
 
-                // Eager-create semua robot mesh (avatar robot.glb) — visible hanya robot yg floor == floorNum viewer ini
+                // Eager-create semua robot mesh (avatar robot.glb)
+                const floorElev = getRobotElevation(floorNum);
                 robotsData.forEach(r => {
                     const holder = getOrCreateRobotMesh(r);
-                    const wp = worldPosForLoc({ x: r.current_x ?? 80.6, y: r.current_y ?? 68.48 }, _bcSize);
-                    holder.position.set(wp.x, 0.02, wp.z);
+                    let targetCoords = { x: r.current_x ?? 80.6, y: r.current_y ?? 68.48 };
+                    // Bila robot tercatat di database berada di lantai lain, tempatkan di dekat Tangga lantai ini agar user bisa melihat robot
+                    if (Number(r.floor) !== floorNum) {
+                        const stairsKey = floorNum === 2 ? '2_Tangga' : '1_Tangga';
+                        if (locationsData[stairsKey]) {
+                            targetCoords = { x: locationsData[stairsKey].x, y: locationsData[stairsKey].y };
+                        }
+                    }
+                    const wp = worldPosForLoc(targetCoords, _bcSize);
+                    holder.position.set(wp.x, floorElev, wp.z);
                     holder.rotation.y = -((r.rotation || 0) * Math.PI / 180);
-                    holder.visible = (Number(r.floor) === floorNum);
+                    // Tampilkan robot di viewer lantai ini (dikontrol visibilitasnya oleh showRobotsOnMap)
+                    holder.visible = true;
                 });
                 console.log('[Robopath bot_control] floor',floorNum,'nodeMeshes:', nodeMeshes.size, 'robotMeshes:', robotMeshes.size);
                 try{ refreshRobotSelector(); updateDriveReadout(); }catch(e){}
@@ -1662,14 +1911,17 @@
         let animationFrameId = null;
         const driveClock = new THREE.Clock();
         function snapHolderToFloor(holder) {
-            if (!holder || !_bcModel) return;
+            if (!holder) return;
+            const targetFloorElev = getRobotElevation(floorNum);
+            if (!_bcModel) { holder.position.y = targetFloorElev; return; }
             try {
                 const rc = new THREE.Raycaster(
                     new THREE.Vector3(holder.position.x, holder.position.y + 5, holder.position.z),
                     new THREE.Vector3(0, -1, 0), 0, 20);
                 const hits = rc.intersectObject(_bcModel, true);
                 if (hits.length) holder.position.y = hits[0].point.y;
-            } catch (e) {}
+                else holder.position.y = targetFloorElev;
+            } catch (e) { holder.position.y = targetFloorElev; }
         }
         function stepManualDrive() {
             const dt = Math.min(driveClock.getDelta(), 0.05);
@@ -2206,6 +2458,9 @@
         }
         selectedNodeId = null;
         clearInspector();
+        activeRobotFloor = floorNum;
+        updateRobotFloorUI();
+        updateRobotElevationUI();
         syncFullMapControls();
         syncRobotVisibilityUI();
         renderEditorMap();
@@ -2989,6 +3244,9 @@
         syncRobotVisibilityUI();
         syncTransitVisibilityUI();
         setLabelScale(labelScaleMultiplier);
+        setRobotScale(robotScaleMultiplier, false);
+        updateRobotFloorUI();
+        updateRobotElevationUI();
         switchFloor(1);
     });
     window.addEventListener('resize', () => {
