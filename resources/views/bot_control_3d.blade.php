@@ -115,56 +115,58 @@
             </div>
         </div>
 
-        <!-- EDIT -->
+        <!-- MODE (RUANGAN VS ROBOT) -->
         <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Edit</span>
-            <div class="flex flex-wrap items-center gap-3">
-            <!-- Edit Target Selector (Node vs Robot) -->
-            <div class="relative">
-                <button type="button" onclick="toggleEditDropdown('main')" id="btn-edit-target-main" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-2 shadow-sm transition active:scale-95" title="Pilih Objek Yang Ingin Diedit (Node atau Robot)">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                    <span>Edit: <strong id="lbl-edit-target-main" class="font-black text-amber-300">Node Ruangan</strong></span>
-                    <i class="fa-solid fa-chevron-down text-[10px]"></i>
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mode</span>
+            <div class="flex items-center gap-1.5 bg-gray-100 p-1.5 rounded-xl border border-gray-200">
+                <button type="button" onclick="setEditTargetMode('node')" id="tab-mode-node" class="px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white flex items-center gap-1.5" title="Mode Edit Ruangan (Tambah node, hubungkan rute, atur transit)">
+                    <i class="fa-solid fa-circle-dot"></i> <span>Edit Ruangan</span>
                 </button>
-                <div id="dropdown-edit-target-main" class="hidden absolute left-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-200 p-1.5 z-50 text-xs">
-                    <button type="button" onclick="setEditTargetMode('node')" class="w-full text-left p-2.5 rounded-xl hover:bg-indigo-50 flex items-center gap-3 font-bold text-gray-700 hover:text-indigo-600 transition group">
-                        <div class="w-8 h-8 rounded-lg bg-indigo-100 group-hover:bg-indigo-200 flex items-center justify-center text-indigo-600 shrink-0">
-                            <i class="fa-solid fa-circle-dot text-sm"></i>
-                        </div>
-                        <div>
-                            <div class="font-black">Edit Node Ruangan</div>
-                            <div class="text-[10px] text-gray-400 font-normal">Nama ruangan, transit, rute, elevasi Z</div>
-                        </div>
-                    </button>
-                    <button type="button" onclick="setEditTargetMode('robot')" class="w-full text-left p-2.5 rounded-xl hover:bg-blue-50 flex items-center gap-3 font-bold text-gray-700 hover:text-blue-600 transition group mt-1">
-                        <div class="w-8 h-8 rounded-lg bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center text-blue-600 shrink-0">
-                            <i class="fa-solid fa-robot text-sm"></i>
-                        </div>
-                        <div>
-                            <div class="font-black">Edit Posisi Robot</div>
-                            <div class="text-[10px] text-gray-400 font-normal">Pilih robot, edit koordinat X, Y, Z & rotasi</div>
-                        </div>
-                    </button>
-                </div>
+                <button type="button" onclick="setEditTargetMode('robot')" id="tab-mode-robot" class="px-4 py-2 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200 flex items-center gap-1.5" title="Mode Edit Robot (Pilih robot, geser posisi X/Y, atur ketinggian Z & arah hadap)">
+                    <i class="fa-solid fa-robot"></i> <span>Edit Robot</span>
+                </button>
             </div>
+        </div>
 
-            <div class="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
+        <!-- CONTEXTUAL TOOLS (DEDICATED PER MODE) -->
+        <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tools</span>
+            <!-- 1. Tools Khusus NODE / RUANGAN -->
+            <div id="toolbar-node-tools" class="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
                 <button onclick="setEditorTool('hand')" id="tool-hand" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Free Hand (Pan): Geser kanvas bebas tanpa menyentuh node">
                     <i class="fa-solid fa-hand"></i> Free Hand
                 </button>
-                <button onclick="setEditorTool('move')" id="tool-move" class="px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition">
+                <button onclick="setEditorTool('move')" id="tool-move" class="px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Move: Geser posisi titik ruangan/node">
                     <i class="fa-solid fa-up-down-left-right"></i> Move Node
                 </button>
-                <button onclick="setEditorTool('add')" id="tool-add" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition">
+                <button onclick="setEditorTool('add')" id="tool-add" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Add: Tambah titik ruangan baru">
                     <i class="fa-solid fa-plus-circle"></i> Add Node
                 </button>
-                <button onclick="setEditorTool('connect')" id="tool-connect" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition">
+                <button onclick="setEditorTool('connect')" id="tool-connect" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Connect: Hubungkan jalur antar node">
                     <i class="fa-solid fa-diagram-project"></i> Connect Edges
                 </button>
-                <button onclick="setEditorTool('delete')" id="tool-delete" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition">
+                <button onclick="setEditorTool('delete')" id="tool-delete" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Delete: Hapus node ruangan">
                     <i class="fa-solid fa-trash-can"></i> Delete
                 </button>
             </div>
+
+            <!-- 2. Tools Khusus ROBOT (Hanya tampil saat Mode Robot aktif) -->
+            <div id="toolbar-robot-tools" class="hidden flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
+                <button onclick="setEditorTool('hand')" id="tool-robot-hand" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Free Hand (Pan): Geser kanvas bebas">
+                    <i class="fa-solid fa-hand"></i> Free Hand
+                </button>
+                <button onclick="setEditorTool('move')" id="tool-robot-move" class="px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Move Robot: Klik & geser robot langsung di kanvas 3D">
+                    <i class="fa-solid fa-arrows-up-down-left-right"></i> Move Robot
+                </button>
+                <button onclick="focusOnActiveSelection()" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Pusatkan kamera ke posisi robot aktif">
+                    <i class="fa-solid fa-crosshairs text-amber-500"></i> Fokus Robot
+                </button>
+                <button onclick="resetActiveRobotPosition()" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Kembalikan posisi robot ke tengah">
+                    <i class="fa-solid fa-arrows-rotate"></i> Reset
+                </button>
+                <button onclick="saveRobotPosition()" class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition shadow-sm ml-1" title="Simpan koordinat robot ke server">
+                    <i class="fa-solid fa-floppy-disk"></i> Simpan Posisi
+                </button>
             </div>
         </div>
 
@@ -233,44 +235,25 @@
                         </div>
                     </div>
 
-                    <!-- Center: Edit Target Selector & Editor Tools -->
+                    <!-- Center: Mode Switcher (Ruangan vs Robot) & Dedicated Contextual Tools -->
                     <div class="flex items-center gap-2">
-                        <!-- Edit Target Selector in Full Map -->
-                        <div class="relative">
-                            <button type="button" onclick="toggleEditDropdown('fullmap')" id="btn-edit-target-fullmap" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition active:scale-95" title="Pilih Objek Yang Ingin Diedit (Node atau Robot)">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                                <span>Edit: <strong id="lbl-edit-target-fullmap" class="font-black text-amber-300">Node</strong></span>
-                                <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                        <!-- Mode Selector in Full Map -->
+                        <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
+                            <button type="button" onclick="setEditTargetMode('node')" id="fullmap-tab-mode-node" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white shadow font-bold flex items-center gap-1.5 transition" title="Mode Edit Ruangan (Node, rute, elevasi Z)">
+                                <i class="fa-solid fa-circle-dot"></i> <span>Edit Ruangan</span>
                             </button>
-                            <div id="dropdown-edit-target-fullmap" class="hidden absolute left-0 top-full mt-2 w-64 bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-2xl border border-white/15 p-1.5 z-[10002] text-xs text-white">
-                                <button type="button" onclick="setEditTargetMode('node')" class="w-full text-left p-2.5 rounded-xl hover:bg-white/10 flex items-center gap-3 font-bold text-gray-200 hover:text-white transition group">
-                                    <div class="w-8 h-8 rounded-lg bg-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
-                                        <i class="fa-solid fa-circle-dot text-sm"></i>
-                                    </div>
-                                    <div>
-                                        <div class="font-black">Edit Node Ruangan</div>
-                                        <div class="text-[10px] text-gray-400 font-normal">Nama ruangan, transit, rute, elevasi Z</div>
-                                    </div>
-                                </button>
-                                <button type="button" onclick="setEditTargetMode('robot')" class="w-full text-left p-2.5 rounded-xl hover:bg-white/10 flex items-center gap-3 font-bold text-gray-200 hover:text-white transition group mt-1">
-                                    <div class="w-8 h-8 rounded-lg bg-sky-500/30 flex items-center justify-center text-sky-400 shrink-0">
-                                        <i class="fa-solid fa-robot text-sm"></i>
-                                    </div>
-                                    <div>
-                                        <div class="font-black">Edit Posisi Robot</div>
-                                        <div class="text-[10px] text-gray-400 font-normal">Pilih robot, edit koordinat X, Y, Z & rotasi</div>
-                                    </div>
-                                </button>
-                            </div>
+                            <button type="button" onclick="setEditTargetMode('robot')" id="fullmap-tab-mode-robot" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Mode Edit Robot (Pilih robot, geser X/Y, Z elevasi, rotasi)">
+                                <i class="fa-solid fa-robot"></i> <span>Edit Robot</span>
+                            </button>
                         </div>
 
-                        <!-- Editor Tools (Free Hand, Move, Add, Connect, Delete) -->
-                        <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
+                        <!-- 1. Dedicated Tools for Node Mode in Full Map -->
+                        <div id="fullmap-node-tools" class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
                             <button type="button" onclick="setEditorTool('hand')" id="fullmap-tool-hand" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Free Hand (Pan): Geser kanvas bebas tanpa menyentuh node">
                                 <i class="fa-solid fa-hand"></i> <span>Free Hand</span>
                             </button>
-                            <button type="button" onclick="setEditorTool('move')" id="fullmap-tool-move" class="px-3 py-1.5 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Move: Geser posisi node/robot">
-                                <i class="fa-solid fa-up-down-left-right"></i> <span>Move</span>
+                            <button type="button" onclick="setEditorTool('move')" id="fullmap-tool-move" class="px-3 py-1.5 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Move: Geser posisi node">
+                                <i class="fa-solid fa-up-down-left-right"></i> <span>Move Node</span>
                             </button>
                             <button type="button" onclick="setEditorTool('add')" id="fullmap-tool-add" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Add: Tambah node ruangan baru">
                                 <i class="fa-solid fa-plus-circle"></i> <span>Add</span>
@@ -280,6 +263,25 @@
                             </button>
                             <button type="button" onclick="setEditorTool('delete')" id="fullmap-tool-delete" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Delete: Hapus node">
                                 <i class="fa-solid fa-trash-can"></i> <span>Delete</span>
+                            </button>
+                        </div>
+
+                        <!-- 2. Dedicated Tools for Robot Mode in Full Map -->
+                        <div id="fullmap-robot-tools" class="hidden flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
+                            <button type="button" onclick="setEditorTool('hand')" id="fullmap-tool-robot-hand" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Free Hand (Pan): Geser kanvas bebas">
+                                <i class="fa-solid fa-hand"></i> <span>Free Hand</span>
+                            </button>
+                            <button type="button" onclick="setEditorTool('move')" id="fullmap-tool-robot-move" class="px-3 py-1.5 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Move Robot: Klik & geser avatar robot di canvas 3D">
+                                <i class="fa-solid fa-arrows-up-down-left-right"></i> <span>Move Robot</span>
+                            </button>
+                            <button type="button" onclick="focusOnActiveSelection()" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Pusatkan kamera ke posisi robot aktif">
+                                <i class="fa-solid fa-crosshairs text-amber-400"></i> <span>Fokus</span>
+                            </button>
+                            <button type="button" onclick="resetActiveRobotPosition()" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Reset posisi robot">
+                                <i class="fa-solid fa-arrows-rotate"></i> <span>Reset</span>
+                            </button>
+                            <button type="button" onclick="saveRobotPosition()" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition shadow-sm ml-1" title="Simpan koordinat posisi robot">
+                                <i class="fa-solid fa-floppy-disk"></i> <span>Simpan</span>
                             </button>
                         </div>
                     </div>
@@ -412,399 +414,284 @@
         </div>
     </div>
 
-    <!-- Bottom Controls: 3 Columns for Robot Control, Node Properties Inspector, & Fleet System Controls -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-10 pt-2">
-        <!-- Col 1: ROBOT CONTROL (Always Visible) -->
-        <div id="panel-3d-controls" class="bg-white border border-gray-200 p-5 rounded-2xl shadow-xl">
-            <h3 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
-                    <i class="fa-solid fa-robot text-[#3b4cb8]"></i> Robot Control
-                </h3>
-                <p class="text-xs text-gray-500 mb-4">Pilih robot, lihat status & posisi, lalu kendalikan manual.</p>
-
-                <div class="space-y-4 text-xs">
-                    <!-- Lantai Robot (Floor Selection) -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Lantai Robot Aktif</label>
-                        <div class="grid grid-cols-2 gap-1.5 p-1 bg-gray-100 rounded-xl border border-gray-200">
-                            <button type="button" id="btn-robot-floor-1" onclick="setActiveRobotFloor(1)" class="py-1.5 rounded-lg font-bold text-xs transition bg-[#3b4cb8] text-white shadow-sm flex items-center justify-center gap-1">
-                                <i class="fa-solid fa-layer-group text-[10px]"></i> Lantai 1
-                            </button>
-                            <button type="button" id="btn-robot-floor-2" onclick="setActiveRobotFloor(2)" class="py-1.5 rounded-lg font-bold text-xs transition text-gray-600 hover:bg-gray-200 flex items-center justify-center gap-1">
-                                <i class="fa-solid fa-layer-group text-[10px]"></i> Lantai 2
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Ukuran Robot (Scale) -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Ukuran Robot (Scale)</label>
-                        <div class="flex items-center gap-1 bg-gray-50 border border-gray-200 p-1.5 rounded-xl">
-                            <button type="button" onclick="changeRobotScale(-0.05)" class="w-7 h-7 rounded-lg bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition shadow-sm active:scale-95" title="Perkecil Robot (-0.05x)">
-                                <i class="fa-solid fa-minus"></i>
-                            </button>
-                            <span id="sidebar-robot-scale-val" class="flex-1 text-center font-mono font-bold text-[#3b4cb8] text-xs">0.60x</span>
-                            <button type="button" onclick="changeRobotScale(0.05)" class="w-7 h-7 rounded-lg bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition shadow-sm active:scale-95" title="Perbesar Robot (+0.05x)">
-                                <i class="fa-solid fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Ketinggian Roda Robot (Z / Y Elevation) -->
-                    <div>
-                        <div class="flex items-center justify-between mb-1">
-                            <label class="font-bold text-gray-500 uppercase tracking-wider">Tinggi / Z Robot (<span id="sidebar-label-robot-elev-floor">Lt 1</span>)</label>
-                            <span class="text-[10px] text-gray-400">Roda nempel lantai</span>
-                        </div>
-                        <div class="flex items-center gap-1 bg-gray-50 border border-gray-200 p-1.5 rounded-xl">
-                            <button type="button" onclick="adjustRobotElevation(-0.005)" class="px-2 py-1.5 rounded-lg bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 font-mono font-bold text-[11px] transition shadow-sm active:scale-95" title="Turun -0.005m">
-                                -0.005
-                            </button>
-                            <input type="number" step="any" id="sidebar-input-robot-elev" onchange="updateActiveRobotElevation(this.value, false)" oninput="updateActiveRobotElevation(this.value, false)" class="flex-1 bg-white border border-gray-300 rounded-lg py-1 px-1 text-center font-mono font-bold text-amber-600 text-xs focus:outline-none focus:border-[#3b4cb8]" value="0.019">
-                            <button type="button" onclick="adjustRobotElevation(0.005)" class="px-2 py-1.5 rounded-lg bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 font-mono font-bold text-[11px] transition shadow-sm active:scale-95" title="Naik +0.005m">
-                                +0.005
-                            </button>
-                        </div>
-                        <button type="button" onclick="lockRobotElevation()" class="w-full mt-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-1.5 px-3 rounded-xl transition text-xs flex items-center justify-center gap-1.5 shadow-sm">
-                            <i class="fa-solid fa-lock"></i> Kunci Ketinggian Robot
-                        </button>
-                    </div>
-
-                    <!-- Robot -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Robot</label>
-                        <select id="robot-selector" onchange="setActiveRobot(Number(this.value))" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-bold text-gray-800 focus:outline-none">
-                            <option value="">Memuat robot...</option>
-                        </select>
-                        <div id="robot-active-name" class="font-bold text-gray-800 text-[13px] mt-1.5">-</div>
-                    </div>
-
-                    <!-- Status -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Status</label>
-                        <div class="flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                            <span class="font-bold text-gray-800">Online</span>
-                            <span id="robot-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">-</span>
-                        </div>
-                    </div>
-
-                    <!-- Position -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Position</label>
-                        <div id="drive-readout" class="bg-slate-900 text-emerald-300 border border-slate-700 rounded-xl px-3 py-2 font-mono text-[11px]">R- (model 3D belum siap)</div>
-                    </div>
-
-                    <!-- Manual Drive -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1.5">Manual Drive</label>
-                        <div class="grid grid-cols-3 gap-1 max-w-[132px] mb-2 pointer-events-none select-none" aria-hidden="true">
-                            <div></div>
-                            <div class="bg-slate-100 border border-slate-300 text-slate-500 font-bold py-1.5 rounded-lg flex items-center justify-center text-[10px]">W</div>
-                            <div></div>
-                            <div class="bg-slate-100 border border-slate-300 text-slate-500 font-bold py-1.5 rounded-lg flex items-center justify-center text-[10px]">A</div>
-                            <div class="bg-slate-100 border border-slate-300 text-slate-500 font-bold py-1.5 rounded-lg flex items-center justify-center text-[10px]">S</div>
-                            <div class="bg-slate-100 border border-slate-300 text-slate-500 font-bold py-1.5 rounded-lg flex items-center justify-center text-[10px]">D</div>
-                        </div>
-                        <div class="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-500">
-                            <span><kbd class="bg-gray-100 border border-gray-300 rounded px-1 font-mono">W A S D</kbd> Move</span>
-                            <span><kbd class="bg-gray-100 border border-gray-300 rounded px-1 font-mono">Q / E</kbd> Up / Down</span>
-                            <span><kbd class="bg-gray-100 border border-gray-300 rounded px-1 font-mono">Shift</kbd> Fast</span>
-                        </div>
-                    </div>
-
-                    <button onclick="resetActiveRobotPosition()" class="w-full bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-2 rounded-xl transition text-xs">
-                        <i class="fa-solid fa-arrows-rotate mr-1"></i> Reset Position
-                    </button>
-
-                    <!-- Node / Object Editor (3D) -->
-                    <details class="bg-gray-50 border border-gray-200 rounded-xl">
-                        <summary class="cursor-pointer px-3.5 py-2.5 font-bold text-gray-500 uppercase tracking-wider select-none">Node / Object Editor</summary>
-                        <div class="px-3.5 pb-3.5 space-y-3">
-                        <div>
-                            <div id="selected-3d-info" class="bg-white border border-gray-200 rounded-xl px-3 py-2 font-mono text-gray-800">Tidak ada object dipilih</div>
-                            <p class="text-[10px] text-gray-400 mt-1">Klik object (node/robot) di canvas 3D untuk editor. Klik robot juga memilihnya di Robot Control.</p>
-                        </div>
-
-                    <!-- D-Pad 4 arah (editor: geser object terpilih) -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1.5">Geser Object (Editor)</label>
-                        <div class="grid grid-cols-3 gap-1.5 max-w-[180px]">
-                            <div></div>
-                            <button onclick="move3DObject(0, -0.3)" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-lg transition flex items-center justify-center" title="Atas (-Z)">
-                                <i class="fa-solid fa-arrow-up"></i>
-                            </button>
-                            <div></div>
-                            <button onclick="move3DObject(-0.3, 0)" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-lg transition flex items-center justify-center" title="Kiri (-X)">
-                                <i class="fa-solid fa-arrow-left"></i>
-                            </button>
-                            <button onclick="move3DObject(0, 0.3)" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-lg transition flex items-center justify-center" title="Bawah (+Z)">
-                                <i class="fa-solid fa-arrow-down"></i>
-                            </button>
-                            <button onclick="move3DObject(0.3, 0)" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-lg transition flex items-center justify-center" title="Kanan (+X)">
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Ketinggian / Elevasi Y -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1.5">Ketinggian Object (Y Elev)</label>
-                        <div class="flex items-center gap-2">
-                            <button onclick="move3DObjectY(-0.05)" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 font-bold py-1.5 px-3 rounded-lg transition" title="Turun -0.05m">
-                                <i class="fa-solid fa-arrow-down mr-1"></i> -0.05m
-                            </button>
-                            <input type="number" step="any" id="input-3d-y" oninput="set3DWorldY(this.value)" class="w-24 bg-white border border-gray-300 rounded-lg px-2 py-1.5 font-mono font-bold text-center text-gray-800 focus:border-[#3b4cb8] focus:outline-none" placeholder="0.00">
-                            <button onclick="move3DObjectY(0.05)" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 font-bold py-1.5 px-3 rounded-lg transition" title="Naik +0.05m">
-                                <i class="fa-solid fa-arrow-up mr-1"></i> +0.05m
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Rotasi -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1.5">Rotasi Y</label>
-                        <div class="flex items-center gap-2 mb-2">
-                            <button onclick="rotate3DObject(-15)" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 font-bold py-2 px-3 rounded-lg transition" title="Putar CCW -15°">
-                                <i class="fa-solid fa-rotate-left"></i>
-                            </button>
-                            <button onclick="rotate3DObject(15)" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 font-bold py-2 px-3 rounded-lg transition" title="Putar CW +15°">
-                                <i class="fa-solid fa-rotate-right"></i>
-                            </button>
-                            <span id="val-3d-rotation" class="text-[11px] font-mono font-bold text-gray-700 ml-1">0°</span>
-                        </div>
-                        <input type="range" min="0" max="360" step="1" value="0" id="slider-3d-rotation" oninput="set3DRotation(this.value)" class="w-full accent-[#3b4cb8]">
-                    </div>
-
-                    <!-- Actions -->
-                    <div class="flex gap-2 pt-1">
-                        <button onclick="reset3DObjectPosition()" class="flex-1 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold py-2 rounded-xl transition text-xs">
-                            <i class="fa-solid fa-arrows-rotate mr-1"></i> Reset Object Terpilih
-                        </button>
-                        <button onclick="save3DObjectToGraph()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl transition text-xs">
-                            <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan ke Graph
-                        </button>
-                    </div>
-                    <button onclick="focusOnActiveSelection()" class="w-full bg-blue-50 hover:bg-blue-100 border border-blue-200 text-[#3b4cb8] font-bold py-2 rounded-xl transition text-xs flex items-center justify-center gap-1.5 mt-2">
-                        <i class="fa-solid fa-crosshairs"></i> Zoom Dekat / Pusatkan Kamera ke Sini
-                    </button>
-                        </div>
-                    </details>
-                </div>
-            </div>
-            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col transition-all" id="node-inspector-card">
+    <!-- Bottom Controls: Dedicated Mode Workspace (2 cols) & Fleet System Controls (1 col) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+        <!-- MODE 1: NODE / RUANGAN WORKSPACE (Visible when in Node mode) -->
+        <div id="section-node-controls" class="lg:col-span-2">
+            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col transition-all h-full" id="node-inspector-card">
                 <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 select-none">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-pen-to-square text-[#3b4cb8]" id="inspector-title-icon"></i>
-                        <h3 class="text-base font-bold text-gray-800" id="inspector-title-text">Node Properties Inspector</h3>
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shadow-xs">
+                            <i class="fa-solid fa-circle-dot text-base"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-gray-800" id="inspector-title-text">Node Properties Inspector</h3>
+                            <p class="text-[11px] text-gray-400">Atur rute, nama ruangan, titik transit, dan elevasi lantai.</p>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200" id="inspector-mode-tag">NODE EDIT</span>
-                        <!-- Close / Hide Button (visible when in Full Map or floating) -->
-                        <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector" class="hidden text-gray-400 hover:text-gray-700 w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-sm font-bold transition" title="Tutup / Sembunyikan Panel (Biar Pandangan Luas)">
+                        <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200" id="inspector-mode-tag">NODE EDIT</span>
+                        <!-- Close / Hide Button (visible when in Full Map floating mode) -->
+                        <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector" class="hidden text-gray-400 hover:text-gray-700 w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-sm font-bold transition" title="Tutup Panel">
                             <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
                 </div>
 
-                <!-- 1. Node Properties Inspector Body -->
+                <!-- Node Properties Inspector Body -->
                 <div id="inspector-node-body" class="space-y-4 flex-1 text-xs text-gray-700">
                     <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Node Name / Room Title <span class="text-gray-400 font-normal lowercase">(e.g. Hall, Lobby)</span></label>
-                        <input type="text" id="inspect-node-name" onchange="handleRenameNode(this.value)" placeholder="Click a node to edit name..." class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm font-bold text-gray-800 focus:bg-white focus:border-[#3b4cb8] focus:outline-none transition">
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Node Name / Room Title <span class="text-gray-400 font-normal lowercase">(contoh: Hall, Lobby, R.Meeting)</span></label>
+                        <input type="text" id="inspect-node-name" onchange="handleRenameNode(this.value)" placeholder="Pilih / klik sebuah titik node untuk edit..." class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm font-bold text-gray-800 focus:bg-white focus:border-[#3b4cb8] focus:outline-none transition">
                     </div>
 
-                    <div class="grid grid-cols-4 gap-2">
+                    <div class="grid grid-cols-4 gap-2.5">
                         <div>
-                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Floor</label>
-                            <select id="inspect-floor" onchange="handleFloorChange(this.value)" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-2 py-2 font-bold text-gray-800 focus:outline-none">
+                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1 text-[10px]">Floor</label>
+                            <select id="inspect-floor" onchange="handleFloorChange(this.value)" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-2 py-2 font-bold text-gray-800 focus:outline-none text-xs">
                                 <option value="1">Lantai 1</option>
                                 <option value="2">Lantai 2</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">X (%)</label>
-                            <input type="number" step="0.1" min="0" max="100" id="inspect-x" oninput="handleCoordinateChange()" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition">
+                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1 text-[10px]">X (%)</label>
+                            <input type="number" step="0.1" min="0" max="100" id="inspect-x" oninput="handleCoordinateChange()" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition text-xs">
                         </div>
                         <div>
-                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Y (%)</label>
-                            <input type="number" step="0.1" min="0" max="100" id="inspect-y" oninput="handleCoordinateChange()" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition">
+                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1 text-[10px]">Y (%)</label>
+                            <input type="number" step="0.1" min="0" max="100" id="inspect-y" oninput="handleCoordinateChange()" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition text-xs">
                         </div>
                         <div>
-                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Elev (Y)</label>
-                            <input type="number" step="any" id="inspect-y-elev" oninput="handleElevationChange(this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition" placeholder="0.00">
+                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1 text-[10px]">Elev (Y)</label>
+                            <input type="number" step="any" id="inspect-y-elev" oninput="handleElevationChange(this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition text-xs" placeholder="0.00">
                         </div>
                     </div>
 
                     <!-- Quick Elevation Step Buttons -->
-                    <div class="flex items-center gap-2 bg-indigo-50/70 p-2 rounded-xl border border-indigo-100">
+                    <div class="flex items-center gap-2 bg-indigo-50/70 p-2.5 rounded-xl border border-indigo-100">
                         <span class="text-[10px] font-bold text-indigo-700">Quick Elev:</span>
-                        <button type="button" onclick="move3DObjectY(-0.05)" class="flex-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-1 px-2 rounded-lg text-xs transition" title="Turun -0.05m">
+                        <button type="button" onclick="move3DObjectY(-0.05)" class="flex-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-1.5 px-2 rounded-lg text-xs transition active:scale-95" title="Turun -0.05m">
                             <i class="fa-solid fa-arrow-down mr-1"></i> -0.05m
                         </button>
-                        <button type="button" onclick="move3DObjectY(0.05)" class="flex-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-1 px-2 rounded-lg text-xs transition" title="Naik +0.05m">
+                        <button type="button" onclick="move3DObjectY(0.05)" class="flex-1 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold py-1.5 px-2 rounded-lg text-xs transition active:scale-95" title="Naik +0.05m">
                             <i class="fa-solid fa-arrow-up mr-1"></i> +0.05m
                         </button>
-                        <button type="button" onclick="focusOnActiveSelection()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2.5 rounded-lg text-xs transition" title="Fokus / Zoom Dekat">
-                            <i class="fa-solid fa-crosshairs"></i>
+                        <button type="button" onclick="focusOnActiveSelection()" class="bg-[#3b4cb8] hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition active:scale-95 flex items-center gap-1" title="Fokus / Zoom Dekat">
+                            <i class="fa-solid fa-crosshairs"></i> Fokus
                         </button>
                     </div>
 
-                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3">
-                        <label class="flex items-start gap-2.5 cursor-pointer">
-                            <input type="checkbox" id="inspect-is-destination" onchange="handleIsDestinationChange(this.checked)" class="mt-0.5 rounded border-gray-300 text-[#3b4cb8] focus:ring-[#3b4cb8]">
-                            <div>
-                                <span class="font-bold text-gray-800 block">Use as Pickup / Destination Room</span>
-                                <span class="text-[11px] text-gray-500 block">Available in delivery room selection dropdowns</span>
-                            </div>
-                        </label>
-
-                        <label class="flex items-start gap-2.5 cursor-pointer">
-                            <input type="checkbox" id="inspect-hidden" onchange="handleHiddenChange(this.checked)" class="mt-0.5 rounded border-gray-300 text-[#3b4cb8] focus:ring-[#3b4cb8]">
-                            <div>
-                                <span class="font-bold text-gray-800 block">Hide Marker on Dashboard Map</span>
-                                <span class="text-[11px] text-gray-500 block">Functions for routing but hidden on map view</span>
-                            </div>
-                        </label>
-                    </div>
-
-                    <!-- Blender Object Link (Lantai 2 3D) -->
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5">
-                        <div class="flex items-center justify-between">
-                            <label class="font-bold text-gray-500 uppercase tracking-wider">Blender Object (Lt.2)</label>
-                            <span id="inspect-object-status" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">Manual</span>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-200 space-y-2.5">
+                            <label class="flex items-start gap-2.5 cursor-pointer">
+                                <input type="checkbox" id="inspect-is-destination" onchange="handleIsDestinationChange(this.checked)" class="mt-0.5 rounded border-gray-300 text-[#3b4cb8] focus:ring-[#3b4cb8]">
+                                <div>
+                                    <span class="font-bold text-gray-800 block">Use as Destination Room</span>
+                                    <span class="text-[10px] text-gray-500 block">Tampil di menu tujuan pengiriman</span>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-2.5 cursor-pointer">
+                                <input type="checkbox" id="inspect-hidden" onchange="handleHiddenChange(this.checked)" class="mt-0.5 rounded border-gray-300 text-[#3b4cb8] focus:ring-[#3b4cb8]">
+                                <div>
+                                    <span class="font-bold text-gray-800 block">Hide Marker on Map</span>
+                                    <span class="text-[10px] text-gray-500 block">Hanya untuk rute perantara (transit)</span>
+                                </div>
+                            </label>
                         </div>
-                        <select id="inspect-object" onchange="handleObjectNameChange(this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono text-[11px] font-bold text-gray-800 focus:outline-none">
-                            <option value="">— Manual (x/y) —</option>
-                        </select>
-                        <div id="inspect-object-xyz" class="font-mono text-[10px] text-gray-500">—</div>
-                        <span class="text-[10px] text-gray-400 block">Posisi runtime dari Box3 center GLB. Drag manual memutus link.</span>
+
+                        <!-- Blender Object Link (Lantai 2 3D) -->
+                        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="font-bold text-gray-500 uppercase tracking-wider text-[10px]">Blender Object (Lt.2)</label>
+                                <span id="inspect-object-status" class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">Manual</span>
+                            </div>
+                            <select id="inspect-object" onchange="handleObjectNameChange(this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-1.5 font-mono text-[11px] font-bold text-gray-800 focus:outline-none">
+                                <option value="">— Manual (x/y) —</option>
+                            </select>
+                            <div id="inspect-object-xyz" class="font-mono text-[10px] text-gray-500 truncate">—</div>
+                        </div>
                     </div>
 
                     <!-- Connected Neighbors (Edges) Manager -->
                     <div>
                         <div class="flex items-center justify-between mb-1.5">
-                            <label class="font-bold text-gray-500 uppercase tracking-wider">Connected Edges</label>
+                            <label class="font-bold text-gray-500 uppercase tracking-wider text-[10px]">Connected Edges / Jalur Terhubung</label>
                             <span class="text-[10px] text-gray-400 font-semibold" id="neighbors-count-badge">0 edges</span>
                         </div>
-                        <div id="inspect-neighbors" class="bg-gray-50 border border-gray-200 rounded-xl p-3 min-h-[70px] max-h-[160px] overflow-y-auto space-y-1.5">
+                        <div id="inspect-neighbors" class="bg-gray-50 border border-gray-200 rounded-xl p-3 min-h-[60px] max-h-[140px] overflow-y-auto space-y-1.5">
                             <span class="text-gray-400 italic">No node selected</span>
                         </div>
                     </div>
 
                     <!-- Bottom Action Buttons in Node Inspector -->
                     <div class="pt-2 flex gap-2 border-t border-gray-100">
-                        <button type="button" onclick="saveGraphToServer()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow transition">
+                        <button type="button" onclick="saveGraphToServer()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow transition">
                             <i class="fa-solid fa-floppy-disk"></i> Simpan ke Graph
                         </button>
-                        <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector-bottom" class="hidden bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-2 rounded-xl text-xs transition">
+                        <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector-bottom" class="hidden bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-2.5 rounded-xl text-xs transition">
                             Tutup
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- 2. Robot Properties Inspector Body (Dedicated for Editing Robot Position & Height) -->
-                <div id="inspector-robot-body" class="space-y-4 flex-1 text-xs text-gray-700 hidden">
-                    <!-- Robot Selector & Status -->
-                    <div class="bg-blue-50/70 p-3.5 rounded-xl border border-blue-200 space-y-2.5">
-                        <div class="flex items-center justify-between">
-                            <label class="font-bold text-blue-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                                <i class="fa-solid fa-robot text-[#3b4cb8]"></i> Robot Terpilih
-                            </label>
-                            <span id="inspect-robot-status" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300">Idle</span>
+        <!-- MODE 2: ROBOT WORKSPACE (Visible when in Robot mode) -->
+        <div id="section-robot-controls" class="lg:col-span-2 hidden">
+            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col transition-all h-full" id="robot-control-card">
+                <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 select-none">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-[#3b4cb8] shadow-xs">
+                            <i class="fa-solid fa-robot text-base"></i>
                         </div>
-                        <select id="inspect-robot-selector" onchange="inspectRobot(Number(this.value))" class="w-full bg-white border border-blue-300 rounded-xl px-3 py-2 font-bold text-gray-800 focus:outline-none shadow-xs text-xs">
-                            <option value="">Memuat robot...</option>
-                        </select>
+                        <div>
+                            <h3 class="text-base font-bold text-gray-800">Robot Control & Properties</h3>
+                            <p class="text-[11px] text-gray-400">Atur posisi X/Y, elevasi Z roda nempel lantai, arah hadap, dan kendali manual.</p>
+                        </div>
                     </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">ROBOT EDIT</span>
+                        <!-- Close Button (visible when in Full Map floating mode) -->
+                        <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector-robot" class="hidden text-gray-400 hover:text-gray-700 w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-sm font-bold transition" title="Tutup Panel">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
 
-                    <!-- Floor, X (%), Y (%), Elev Z (Editable Robot Coordinates!) -->
-                    <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1.5">Koordinat & Posisi Robot</label>
-                        <div class="grid grid-cols-4 gap-2">
-                            <div>
-                                <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1 text-[10px]">Floor</label>
-                                <select id="inspect-robot-floor" onchange="handleInspectRobotFloorChange(this.value)" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-2 py-2 font-bold text-gray-800 focus:outline-none">
-                                    <option value="1">Lt. 1</option>
-                                    <option value="2">Lt. 2</option>
-                                </select>
+                <div class="space-y-4 flex-1 text-xs text-gray-700">
+                    <!-- Row 1: Robot Selector + Active Floor + 3D Scale -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-blue-50/50 p-3.5 rounded-xl border border-blue-100">
+                        <!-- Robot Selector -->
+                        <div>
+                            <label class="block font-bold text-gray-600 uppercase tracking-wider mb-1 text-[10px]">Robot Terpilih</label>
+                            <select id="robot-selector" onchange="setActiveRobot(Number(this.value)); inspectRobot(Number(this.value));" class="w-full bg-white border border-gray-300 rounded-xl px-2.5 py-2 font-bold text-gray-800 focus:outline-none focus:border-[#3b4cb8] text-xs">
+                                <option value="">Memuat robot...</option>
+                            </select>
+                            <input type="hidden" id="inspect-robot-selector">
+                            <div class="flex items-center justify-between mt-1.5 px-0.5">
+                                <span id="robot-active-name" class="font-bold text-gray-800 text-xs truncate max-w-[120px]">-</span>
+                                <span id="robot-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300">Online</span>
                             </div>
-                            <div>
-                                <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1 text-[10px]">X (%)</label>
-                                <input type="number" step="0.1" min="0" max="100" id="inspect-robot-x" oninput="handleRobotCoordinateChange()" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition">
+                        </div>
+
+                        <!-- Active Floor -->
+                        <div>
+                            <label class="block font-bold text-gray-600 uppercase tracking-wider mb-1 text-[10px]">Lantai Robot</label>
+                            <div class="grid grid-cols-2 gap-1.5 p-1 bg-white rounded-xl border border-gray-200">
+                                <button type="button" id="btn-robot-floor-1" onclick="setActiveRobotFloor(1); handleInspectRobotFloorChange(1);" class="py-1.5 rounded-lg font-bold text-xs transition bg-[#3b4cb8] text-white shadow-sm flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-layer-group text-[10px]"></i> Lt 1
+                                </button>
+                                <button type="button" id="btn-robot-floor-2" onclick="setActiveRobotFloor(2); handleInspectRobotFloorChange(2);" class="py-1.5 rounded-lg font-bold text-xs transition text-gray-600 hover:bg-gray-100 flex items-center justify-center gap-1">
+                                    <i class="fa-solid fa-layer-group text-[10px]"></i> Lt 2
+                                </button>
                             </div>
-                            <div>
-                                <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1 text-[10px]">Y (%)</label>
-                                <input type="number" step="0.1" min="0" max="100" id="inspect-robot-y" oninput="handleRobotCoordinateChange()" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition">
+                            <select id="inspect-robot-floor" onchange="handleInspectRobotFloorChange(this.value)" class="hidden">
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                            </select>
+                        </div>
+
+                        <!-- 3D Scale -->
+                        <div>
+                            <label class="block font-bold text-gray-600 uppercase tracking-wider mb-1 text-[10px]">Ukuran Robot (Scale)</label>
+                            <div class="flex items-center gap-1 bg-white border border-gray-200 p-1 rounded-xl">
+                                <button type="button" onclick="changeRobotScale(-0.05)" class="w-8 h-7 rounded-lg bg-gray-50 hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition shadow-xs active:scale-95" title="Perkecil Robot (-0.05x)">
+                                    <i class="fa-solid fa-minus"></i>
+                                </button>
+                                <span id="sidebar-robot-scale-val" class="flex-1 text-center font-mono font-bold text-[#3b4cb8] text-xs">0.60x</span>
+                                <button type="button" onclick="changeRobotScale(0.05)" class="w-8 h-7 rounded-lg bg-gray-50 hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition shadow-xs active:scale-95" title="Perbesar Robot (+0.05x)">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
                             </div>
-                            <div>
-                                <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1 text-[10px]">Z Elev</label>
-                                <input type="number" step="any" id="inspect-robot-elev" oninput="updateActiveRobotElevation(this.value, false)" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-amber-600 focus:border-[#3b4cb8] focus:outline-none transition" placeholder="0.019">
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Coordinates (X, Y) & Elevation (Z) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Left: Coordinate X & Y -->
+                        <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-200 space-y-2">
+                            <label class="block font-bold text-gray-600 uppercase tracking-wider text-[10px]">Koordinat Denah (%)</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block mb-0.5">X Axis (%)</span>
+                                    <input type="number" step="0.1" min="0" max="100" id="inspect-robot-x" oninput="handleRobotCoordinateChange()" class="w-full bg-white border border-gray-300 rounded-xl px-2.5 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition text-xs">
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-gray-400 block mb-0.5">Y Axis (%)</span>
+                                    <input type="number" step="0.1" min="0" max="100" id="inspect-robot-y" oninput="handleRobotCoordinateChange()" class="w-full bg-white border border-gray-300 rounded-xl px-2.5 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition text-xs">
+                                </div>
+                            </div>
+                            <span class="text-[10px] text-gray-400 block">Geser avatar robot langsung di canvas 3D atau ketik angka di atas.</span>
+                        </div>
+
+                        <!-- Right: Height / Z Elev -->
+                        <div class="bg-amber-50/60 p-3.5 rounded-xl border border-amber-200 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="font-bold text-amber-900 uppercase tracking-wider text-[10px]">
+                                    Tinggi / Z Roda (<span id="sidebar-label-robot-elev-floor">Lt 1</span>)
+                                </label>
+                                <button type="button" onclick="lockRobotElevation()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-2 py-0.5 rounded-md text-[10px] transition shadow-xs flex items-center gap-1" title="Kunci Ketinggian Robot">
+                                    <i class="fa-solid fa-lock text-[9px]"></i> Kunci Ketinggian
+                                </button>
+                            </div>
+                            <div class="flex items-center gap-1 bg-white border border-amber-300 p-1 rounded-xl">
+                                <button type="button" onclick="adjustRobotElevation(-0.005)" class="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-mono font-bold text-[11px] transition shadow-xs active:scale-95" title="Turun -0.005m">
+                                    -0.005
+                                </button>
+                                <input type="number" step="any" id="sidebar-input-robot-elev" onchange="updateActiveRobotElevation(this.value, false)" oninput="updateActiveRobotElevation(this.value, false)" class="flex-1 bg-white rounded-lg py-1 px-1 text-center font-mono font-bold text-amber-600 text-xs focus:outline-none" value="0.019">
+                                <input type="hidden" id="inspect-robot-elev">
+                                <button type="button" onclick="adjustRobotElevation(0.005)" class="px-2 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-mono font-bold text-[11px] transition shadow-xs active:scale-95" title="Naik +0.005m">
+                                    +0.005
+                                </button>
+                            </div>
+                            <span class="text-[10px] text-gray-400 block">Ketinggian agar roda robot menempel pas di permukaan lantai 3D.</span>
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Rotation & Manual WASD Drive -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Rotation -->
+                        <div class="bg-gray-50 p-3.5 rounded-xl border border-gray-200 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="font-bold text-gray-600 uppercase tracking-wider text-[10px]">Arah Hadap / Rotasi</label>
+                                <span id="inspect-robot-rot-val" class="font-mono font-bold text-indigo-700 text-xs">0°</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button type="button" onclick="adjustInspectRobotRotation(-15)" class="bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 font-bold py-1 px-2.5 rounded-lg text-xs transition active:scale-95" title="Putar CCW -15°">
+                                    <i class="fa-solid fa-rotate-left"></i> -15°
+                                </button>
+                                <input type="range" min="0" max="360" step="1" value="0" id="inspect-robot-rotation" oninput="handleInspectRobotRotation(this.value)" class="flex-1 accent-[#3b4cb8]">
+                                <button type="button" onclick="adjustInspectRobotRotation(15)" class="bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 font-bold py-1 px-2.5 rounded-lg text-xs transition active:scale-95" title="Putar CW +15°">
+                                    +15° <i class="fa-solid fa-rotate-right"></i>
+                                </button>
                             </div>
                         </div>
-                        <p class="text-[10px] text-gray-400 mt-1.5">Ubah X / Y langsung menggeser avatar robot 3D di denah secara presisi dan realtime.</p>
-                    </div>
 
-                    <!-- Quick Z Elevation Control & Lock -->
-                    <div class="bg-amber-50/70 p-3 rounded-xl border border-amber-200 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-[11px] font-bold text-amber-900 flex items-center gap-1.5">
-                                <i class="fa-solid fa-arrows-up-down text-amber-600"></i> Tinggi / Roda Nempel Lantai:
-                            </span>
-                            <button type="button" onclick="lockRobotElevation()" class="bg-amber-600 hover:bg-amber-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold shadow transition flex items-center gap-1" title="Kunci Ketinggian Robot di Lantai Ini Secara Permanen">
-                                <i class="fa-solid fa-lock text-[9px]"></i> Kunci Ketinggian
-                            </button>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button type="button" onclick="adjustRobotElevation(-0.005)" class="flex-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-800 font-bold py-1.5 px-2 rounded-lg text-xs transition active:scale-95 shadow-xs" title="Turun -0.005m">
-                                -0.005m
-                            </button>
-                            <button type="button" onclick="adjustRobotElevation(0.005)" class="flex-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-800 font-bold py-1.5 px-2 rounded-lg text-xs transition active:scale-95 shadow-xs" title="Naik +0.05m">
-                                +0.005m
-                            </button>
-                            <button type="button" onclick="focusOnActiveSelection()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition active:scale-95 shadow-xs" title="Fokus / Zoom Dekat ke Robot Ini">
-                                <i class="fa-solid fa-crosshairs"></i> Fokus
-                            </button>
+                        <!-- Manual Drive WASD & Telemetry -->
+                        <div class="bg-slate-900 text-white p-3.5 rounded-xl border border-slate-800 space-y-2">
+                            <div class="flex items-center justify-between text-[11px]">
+                                <span class="font-bold text-sky-400 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-gamepad"></i> Manual Drive & Telemetri
+                                </span>
+                                <span id="drive-readout" class="font-mono text-[10px] text-emerald-300 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">R- (ready)</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-[10px] text-gray-300 font-mono">
+                                <span><kbd class="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-white">W A S D</kbd> Jalankan</span>
+                                <span><kbd class="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-white">Shift</kbd> Turbo 4x</span>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Rotation / Facing Direction -->
-                    <div class="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <label class="font-bold text-gray-500 uppercase tracking-wider text-[10px]">Arah Hadap / Rotasi Robot</label>
-                            <span id="inspect-robot-rot-val" class="font-mono font-bold text-indigo-700 text-xs">0°</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button type="button" onclick="adjustInspectRobotRotation(-15)" class="bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 font-bold py-1.5 px-2.5 rounded-lg text-xs transition active:scale-95" title="Putar CCW -15°">
-                                <i class="fa-solid fa-rotate-left"></i> -15°
-                            </button>
-                            <input type="range" min="0" max="360" step="1" value="0" id="inspect-robot-rotation" oninput="handleInspectRobotRotation(this.value)" class="flex-1 accent-[#3b4cb8]">
-                            <button type="button" onclick="adjustInspectRobotRotation(15)" class="bg-white hover:bg-gray-100 border border-gray-300 text-gray-700 font-bold py-1.5 px-2.5 rounded-lg text-xs transition active:scale-95" title="Putar CW +15°">
-                                +15° <i class="fa-solid fa-rotate-right"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Manual WASD Drive Guide -->
-                    <div class="p-3 bg-slate-900 rounded-xl text-white space-y-1.5">
-                        <div class="flex items-center justify-between text-[11px]">
-                            <span class="font-bold text-sky-400 flex items-center gap-1.5">
-                                <i class="fa-solid fa-gamepad"></i> Manual Drive (WASD)
-                            </span>
-                            <span class="text-[10px] text-gray-400">Aktif di Lantai 1 & 2</span>
-                        </div>
-                        <div class="flex flex-wrap gap-2 text-[10px] text-gray-300 font-mono">
-                            <span><kbd class="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-white">W A S D</kbd> Geser Robot</span>
-                            <span><kbd class="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-white">Shift</kbd> Cepat (4x)</span>
-                        </div>
-                    </div>
-
-                    <!-- Bottom Actions for Robot Inspector -->
-                    <div class="pt-2 flex gap-2 border-t border-gray-100">
-                        <button type="button" onclick="saveRobotPosition()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow transition">
+                    <!-- Bottom Actions for Robot -->
+                    <div class="pt-3 flex gap-2 border-t border-gray-200">
+                        <button type="button" onclick="saveRobotPosition()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow transition">
                             <i class="fa-solid fa-floppy-disk"></i> Simpan Posisi Robot
                         </button>
-                        <button type="button" onclick="resetActiveRobotPosition()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-2.5 rounded-xl text-xs transition" title="Reset Posisi Robot ke (0,0)">
-                            <i class="fa-solid fa-arrows-rotate"></i>
+                        <button type="button" onclick="focusOnActiveSelection()" class="bg-blue-50 hover:bg-blue-100 border border-blue-200 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Pusatkan Kamera ke Robot Ini">
+                            <i class="fa-solid fa-crosshairs"></i> Fokus Robot
+                        </button>
+                        <button type="button" onclick="resetActiveRobotPosition()" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-xs transition" title="Reset Posisi Robot ke (0,0)">
+                            <i class="fa-solid fa-arrows-rotate"></i> Reset
                         </button>
                         <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector-bottom-robot" class="hidden bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-2.5 rounded-xl text-xs transition">
                             Tutup
@@ -812,6 +699,7 @@
                     </div>
                 </div>
             </div>
+        </div>
 
             <!-- Col 3: Fleet Reset Action Card -->
             <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
@@ -1728,15 +1616,22 @@
                 -((e.clientY - rect.top) / rect.height) * 2 + 1
             );
             raycaster.setFromCamera(mouse, camera);
-            // Gabungkan nodes (+ robots bila diizinkan tampil) untuk pick
+
+            // Isolasi pick target secara ketat berdasarkan Mode aktif (Ruangan vs Robot)
             const pickTargets = [];
-            nodesGroup.children.forEach(m => {
-                if (m.isMesh) pickTargets.push(m);
-                else if (m.isGroup) m.traverse(c => { if (c.isMesh) pickTargets.push(c); });
-            });
-            if (showRobotsOnMap) {
-                robotsGroup.children.forEach(g => { g.children.forEach(m => { if (m.isMesh) pickTargets.push(m); }); });
+            if (currentEditTarget === 'robot') {
+                // Di Mode Robot: HANYA targetkan avatar robot (jangan sentuh node/ruangan sama sekali!)
+                if (showRobotsOnMap) {
+                    robotsGroup.children.forEach(g => { g.children.forEach(m => { if (m.isMesh) pickTargets.push(m); }); });
+                }
+            } else {
+                // Di Mode Ruangan: HANYA targetkan node (jangan sentuh robot sama sekali!)
+                nodesGroup.children.forEach(m => {
+                    if (m.isMesh) pickTargets.push(m);
+                    else if (m.isGroup) m.traverse(c => { if (c.isMesh) pickTargets.push(c); });
+                });
             }
+
             const hits = raycaster.intersectObjects(pickTargets, false);
             if (hits.length > 0) {
                 let target = hits[0].object;
@@ -1745,16 +1640,14 @@
                     target = target.parent;
                 }
                 selected3DObject = target;
-                // Klik robot di canvas = shortcut pilih robot: sinkronkan selector + activeRobot & buka mode edit robot
-                if (target && target.userData && target.userData.type === 'robot') {
+
+                if (target && target.userData && target.userData.type === 'robot' && currentEditTarget === 'robot') {
                     const rid = Number(target.userData.robotId);
-                    setEditTargetMode('robot');
                     setActiveRobot(rid, { selectHolder: false });
                     inspectRobot(rid);
-                } else if (target && target.userData && target.userData.type === 'node') {
+                } else if (target && target.userData && target.userData.type === 'node' && currentEditTarget === 'node') {
                     const nodeId = target.userData.nodeId;
                     selectedNodeId = nodeId;
-                    setEditTargetMode('node');
                     inspectNode(selectedNodeId);
                     updateNodeSelectionHighlights();
 
@@ -1783,23 +1676,25 @@
                     }
                 }
             } else {
-                // Klik area kosong lantai
-                if (currentTool === 'add') {
-                    const hitPoint = raycaster.ray.intersectPlane(dragPlane, new THREE.Vector3());
-                    if (hitPoint) {
-                        const pct = locFromWorld(hitPoint.x, hitPoint.z, _bcSize);
-                        openAddNodeModal(floorNum, parseFloat(pct.x.toFixed(2)), parseFloat(pct.y.toFixed(2)));
+                // Klik area kosong: hanya berlaku aksi jika sedang di Mode Ruangan
+                if (currentEditTarget === 'node') {
+                    if (currentTool === 'add') {
+                        const hitPoint = raycaster.ray.intersectPlane(dragPlane, new THREE.Vector3());
+                        if (hitPoint) {
+                            const pct = locFromWorld(hitPoint.x, hitPoint.z, _bcSize);
+                            openAddNodeModal(floorNum, parseFloat(pct.x.toFixed(2)), parseFloat(pct.y.toFixed(2)));
+                        }
+                    } else {
+                        if (currentTool === 'connect') {
+                            connectStart3DNode = null;
+                        }
+                        selectedNodeId = null;
+                        selected3DObject = null;
+                        clearInspector();
+                        updateSelected3DObjectUI();
+                        updateNodeSelectionHighlights();
+                        build3DEdges();
                     }
-                } else {
-                    if (currentTool === 'connect') {
-                        connectStart3DNode = null;
-                    }
-                    selectedNodeId = null;
-                    selected3DObject = null;
-                    clearInspector();
-                    updateSelected3DObjectUI();
-                    updateNodeSelectionHighlights();
-                    build3DEdges();
                 }
             }
         }
@@ -1906,7 +1801,7 @@
                 return;
             }
 
-            // Tool 'move': jika klik kiri mengenai objek node/robot, kunci OrbitControls untuk geser objek di lantai
+            // Tool 'move': jika klik kiri mengenai objek, kunci OrbitControls untuk geser objek di lantai
             if (e.button === 0 && currentTool === 'move') {
                 const rect = renderer.domElement.getBoundingClientRect();
                 const mouse = new THREE.Vector2(
@@ -1915,13 +1810,17 @@
                 );
                 raycaster.setFromCamera(mouse, camera);
 
+                // Isolasi target dragging berdasar Mode aktif (Ruangan vs Robot)
                 const pickTargets = [];
-                nodesGroup.children.forEach(m => {
-                    if (m.isMesh) pickTargets.push(m);
-                    else if (m.isGroup) m.traverse(c => { if (c.isMesh) pickTargets.push(c); });
-                });
-                if (showRobotsOnMap) {
-                    robotsGroup.children.forEach(g => { g.children.forEach(m => { if (m.isMesh) pickTargets.push(m); }); });
+                if (currentEditTarget === 'robot') {
+                    if (showRobotsOnMap) {
+                        robotsGroup.children.forEach(g => { g.children.forEach(m => { if (m.isMesh) pickTargets.push(m); }); });
+                    }
+                } else {
+                    nodesGroup.children.forEach(m => {
+                        if (m.isMesh) pickTargets.push(m);
+                        else if (m.isGroup) m.traverse(c => { if (c.isMesh) pickTargets.push(c); });
+                    });
                 }
 
                 const hits = raycaster.intersectObjects(pickTargets, false);
@@ -1937,11 +1836,12 @@
                         dragOffset.copy(target.position).sub(hits[0].point);
                         dragOffset.y = 0;
                         selected3DObject = target;
-                        if (target.userData?.type === 'node') {
+                        if (target.userData?.type === 'node' && currentEditTarget === 'node') {
                             selectedNodeId = target.userData.nodeId;
                             inspectNode(selectedNodeId);
-                        } else if (target.userData?.type === 'robot') {
+                        } else if (target.userData?.type === 'robot' && currentEditTarget === 'robot') {
                             setActiveRobot(target.userData.robotId, { selectHolder: false });
+                            inspectRobot(target.userData.robotId);
                         }
                         updateSelected3DObjectUI();
                         updateNodeSelectionHighlights();
@@ -2704,6 +2604,26 @@
             }
         });
 
+        // Sync Robot-specific tool buttons (Hand & Move Robot)
+        ['hand', 'move'].forEach(t => {
+            const rBtn = document.getElementById(`tool-robot-${t}`);
+            if (rBtn) {
+                if (t === tool) {
+                    rBtn.className = "px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 font-bold transition";
+                } else {
+                    rBtn.className = "px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition";
+                }
+            }
+            const rFmBtn = document.getElementById(`fullmap-tool-robot-${t}`);
+            if (rFmBtn) {
+                if (t === tool) {
+                    rFmBtn.className = "px-3 py-1.5 rounded-lg bg-white text-[#3b4cb8] shadow font-bold flex items-center gap-1.5 transition";
+                } else {
+                    rFmBtn.className = "px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition";
+                }
+            }
+        });
+
         // Switch OrbitControls button mapping:
         // In 'hand' mode:
         //   - LEFT drag: PAN (geser kanvas)
@@ -2868,19 +2788,25 @@
         const editorContainer = document.getElementById('editor-map-container');
         const fullmapTopBar = document.getElementById('fullmap-top-bar');
         const editorHeader = document.getElementById('editor-header-bar');
-        const inspectorCard = document.getElementById('node-inspector-card');
+        const cardNode = document.getElementById('node-inspector-card');
+        const cardRobot = document.getElementById('robot-control-card');
+        const secNode = document.getElementById('section-node-controls');
+        const secRobot = document.getElementById('section-robot-controls');
+        const activeCard = currentEditTarget === 'robot' ? cardRobot : cardNode;
+        const otherCard = currentEditTarget === 'robot' ? cardNode : cardRobot;
+
         const btnFloatingFm = document.getElementById('btn-floating-fullmap');
         const btnOpenFm = document.getElementById('btn-open-fullmap');
+        const btnCloseInsp = document.getElementById('btn-close-inspector');
+        const btnCloseInspRobot = document.getElementById('btn-close-inspector-robot');
         const btnCloseInspBottom = document.getElementById('btn-close-inspector-bottom');
+        const btnCloseInspBottomRobot = document.getElementById('btn-close-inspector-bottom-robot');
 
         const asideEl = document.querySelector('body > aside') || document.querySelector('aside');
         if (asideEl) {
             asideEl.style.display = isFullMap ? 'none' : '';
         }
         document.body.classList.toggle('body-in-fullmap', isFullMap);
-
-        const btnCloseInsp = document.getElementById('btn-close-inspector');
-        const btnCloseInspBottomRobot = document.getElementById('btn-close-inspector-bottom-robot');
 
         if (isFullMap) {
             if (editorCard) editorCard.classList.add('botctrl-fullmap-card');
@@ -2894,11 +2820,19 @@
             if (btnOpenFm) {
                 btnOpenFm.innerHTML = '<i class="fa-solid fa-compress text-[#3b4cb8]"></i> <span>Exit Full Map</span>';
             }
-            if (inspectorCard) {
-                inspectorCard.classList.add('botctrl-inspector-floating');
-                inspectorCard.classList.add('hidden'); // Default closed in full map for wide view
+
+            // In Full Map, configure floating inspector
+            if (cardNode) {
+                cardNode.classList.add('botctrl-inspector-floating');
+                cardNode.classList.add('hidden');
             }
+            if (cardRobot) {
+                cardRobot.classList.add('botctrl-inspector-floating');
+                cardRobot.classList.add('hidden');
+            }
+
             if (btnCloseInsp) btnCloseInsp.classList.remove('hidden');
+            if (btnCloseInspRobot) btnCloseInspRobot.classList.remove('hidden');
             if (btnCloseInspBottom) btnCloseInspBottom.classList.remove('hidden');
             if (btnCloseInspBottomRobot) btnCloseInspBottomRobot.classList.remove('hidden');
         } else {
@@ -2913,11 +2847,27 @@
             if (btnOpenFm) {
                 btnOpenFm.innerHTML = '<i class="fa-solid fa-expand text-[#3b4cb8]"></i> <span>Full Map 3D</span>';
             }
-            if (inspectorCard) {
-                inspectorCard.classList.remove('botctrl-inspector-floating');
-                inspectorCard.classList.remove('hidden'); // Return to standard 3-column layout
+
+            // Return to normal bottom grid layout
+            if (cardNode) {
+                cardNode.classList.remove('botctrl-inspector-floating');
+                if (currentEditTarget === 'node') cardNode.classList.remove('hidden');
             }
+            if (cardRobot) {
+                cardRobot.classList.remove('botctrl-inspector-floating');
+                if (currentEditTarget === 'robot') cardRobot.classList.remove('hidden');
+            }
+
+            if (currentEditTarget === 'robot') {
+                if (secRobot) secRobot.classList.remove('hidden');
+                if (secNode) secNode.classList.add('hidden');
+            } else {
+                if (secNode) secNode.classList.remove('hidden');
+                if (secRobot) secRobot.classList.add('hidden');
+            }
+
             if (btnCloseInsp) btnCloseInsp.classList.add('hidden');
+            if (btnCloseInspRobot) btnCloseInspRobot.classList.add('hidden');
             if (btnCloseInspBottom) btnCloseInspBottom.classList.add('hidden');
             if (btnCloseInspBottomRobot) btnCloseInspBottomRobot.classList.add('hidden');
         }
@@ -2932,13 +2882,18 @@
     }
 
     function toggleInspectorPanel(forceState) {
-        const inspectorCard = document.getElementById('node-inspector-card');
-        if (!inspectorCard) return;
+        const cardNode = document.getElementById('node-inspector-card');
+        const cardRobot = document.getElementById('robot-control-card');
+        const activeCard = currentEditTarget === 'robot' ? cardRobot : cardNode;
+        const otherCard = currentEditTarget === 'robot' ? cardNode : cardRobot;
+        if (otherCard) otherCard.classList.add('hidden');
+        if (!activeCard) return;
+
         if (forceState !== undefined) {
-            if (forceState) inspectorCard.classList.remove('hidden');
-            else inspectorCard.classList.add('hidden');
+            if (forceState) activeCard.classList.remove('hidden');
+            else activeCard.classList.add('hidden');
         } else {
-            inspectorCard.classList.toggle('hidden');
+            activeCard.classList.toggle('hidden');
         }
         syncFullMapControls();
     }
@@ -2956,10 +2911,12 @@
             }
         }
 
-        const inspectorCard = document.getElementById('node-inspector-card');
+        const cardNode = document.getElementById('node-inspector-card');
+        const cardRobot = document.getElementById('robot-control-card');
+        const activeCard = currentEditTarget === 'robot' ? cardRobot : cardNode;
         const btnToggleInsp = document.getElementById('fullmap-btn-inspector');
-        if (btnToggleInsp && inspectorCard) {
-            const isShown = !inspectorCard.classList.contains('hidden');
+        if (btnToggleInsp && activeCard) {
+            const isShown = !activeCard.classList.contains('hidden');
             let badgeText = '';
             if (currentEditTarget === 'robot') {
                 const r = robotsData.find(x => Number(x.id) === Number(activeRobotId));
@@ -3286,48 +3243,112 @@
 
     function setEditTargetMode(mode) {
         currentEditTarget = mode;
-        document.getElementById('dropdown-edit-target-main')?.classList.add('hidden');
-        document.getElementById('dropdown-edit-target-fullmap')?.classList.add('hidden');
 
-        const lblMain = document.getElementById('lbl-edit-target-main');
-        if (lblMain) lblMain.textContent = mode === 'node' ? 'Node Ruangan' : 'Posisi Robot';
-        const lblFull = document.getElementById('lbl-edit-target-fullmap');
-        if (lblFull) lblFull.textContent = mode === 'node' ? 'Node' : 'Robot';
+        // 1. Sync Top Bar Mode Tabs (Normal View)
+        const tabNode = document.getElementById('tab-mode-node');
+        const tabRobot = document.getElementById('tab-mode-robot');
+        if (tabNode && tabRobot) {
+            if (mode === 'node') {
+                tabNode.className = "px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white flex items-center gap-1.5";
+                tabRobot.className = "px-4 py-2 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200 flex items-center gap-1.5";
+            } else {
+                tabRobot.className = "px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white flex items-center gap-1.5";
+                tabNode.className = "px-4 py-2 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200 flex items-center gap-1.5";
+            }
+        }
 
-        const inspCard = document.getElementById('node-inspector-card');
-        const inspNodeBody = document.getElementById('inspector-node-body');
-        const inspRobotBody = document.getElementById('inspector-robot-body');
-        const inspTitle = document.getElementById('inspector-title-text');
-        const inspIcon = document.getElementById('inspector-title-icon');
-        const inspTag = document.getElementById('inspector-mode-tag');
+        // 2. Sync Top Bar Dedicated Contextual Toolbars (Normal View)
+        const tbNode = document.getElementById('toolbar-node-tools');
+        const tbRobot = document.getElementById('toolbar-robot-tools');
+        if (tbNode && tbRobot) {
+            if (mode === 'node') {
+                tbNode.classList.remove('hidden');
+                tbNode.classList.add('flex');
+                tbRobot.classList.add('hidden');
+                tbRobot.classList.remove('flex');
+            } else {
+                tbRobot.classList.remove('hidden');
+                tbRobot.classList.add('flex');
+                tbNode.classList.add('hidden');
+                tbNode.classList.remove('flex');
+            }
+        }
+
+        // 3. Sync Full Map Mode Tabs
+        const fmTabNode = document.getElementById('fullmap-tab-mode-node');
+        const fmTabRobot = document.getElementById('fullmap-tab-mode-robot');
+        if (fmTabNode && fmTabRobot) {
+            if (mode === 'node') {
+                fmTabNode.className = "px-3 py-1.5 rounded-lg bg-indigo-600 text-white shadow font-bold flex items-center gap-1.5 transition";
+                fmTabRobot.className = "px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition";
+            } else {
+                fmTabRobot.className = "px-3 py-1.5 rounded-lg bg-indigo-600 text-white shadow font-bold flex items-center gap-1.5 transition";
+                fmTabNode.className = "px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition";
+            }
+        }
+
+        // 4. Sync Full Map Dedicated Contextual Toolbars
+        const fmTbNode = document.getElementById('fullmap-node-tools');
+        const fmTbRobot = document.getElementById('fullmap-robot-tools');
+        if (fmTbNode && fmTbRobot) {
+            if (mode === 'node') {
+                fmTbNode.classList.remove('hidden');
+                fmTbNode.classList.add('flex');
+                fmTbRobot.classList.add('hidden');
+                fmTbRobot.classList.remove('flex');
+            } else {
+                fmTbRobot.classList.remove('hidden');
+                fmTbRobot.classList.add('flex');
+                fmTbNode.classList.add('hidden');
+                fmTbNode.classList.remove('flex');
+            }
+        }
+
+        // 5. Sync Bottom Workspace Panels (lg:col-span-2)
+        const secNode = document.getElementById('section-node-controls');
+        const secRobot = document.getElementById('section-robot-controls');
+        const cardNode = document.getElementById('node-inspector-card');
+        const cardRobot = document.getElementById('robot-control-card');
 
         if (mode === 'robot') {
-            if (inspTitle) inspTitle.textContent = 'Robot Properties Inspector';
-            if (inspIcon) inspIcon.className = 'fa-solid fa-robot text-[#3b4cb8]';
-            if (inspTag) {
-                inspTag.textContent = 'ROBOT EDIT';
-                inspTag.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200';
-            }
-            if (inspNodeBody) inspNodeBody.classList.add('hidden');
-            if (inspRobotBody) inspRobotBody.classList.remove('hidden');
+            if (secNode) secNode.classList.add('hidden');
+            if (secRobot) secRobot.classList.remove('hidden');
 
-            if (isFullMap && inspCard) {
-                inspCard.classList.remove('hidden');
+            if (isFullMap) {
+                if (cardNode) cardNode.classList.add('hidden');
+                if (cardRobot) {
+                    cardRobot.classList.add('botctrl-inspector-floating');
+                    cardRobot.classList.remove('hidden');
+                }
+            } else {
+                if (cardRobot) {
+                    cardRobot.classList.remove('botctrl-inspector-floating');
+                    cardRobot.classList.remove('hidden');
+                }
             }
             inspectRobot(activeRobotId || resolveDefaultRobotId());
         } else {
-            if (inspTitle) inspTitle.textContent = 'Node Properties Inspector';
-            if (inspIcon) inspIcon.className = 'fa-solid fa-pen-to-square text-[#3b4cb8]';
-            if (inspTag) {
-                inspTag.textContent = 'NODE EDIT';
-                inspTag.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200';
+            if (secRobot) secRobot.classList.add('hidden');
+            if (secNode) secNode.classList.remove('hidden');
+
+            if (isFullMap) {
+                if (cardRobot) cardRobot.classList.add('hidden');
+                if (cardNode) {
+                    cardNode.classList.add('botctrl-inspector-floating');
+                    cardNode.classList.remove('hidden');
+                }
+            } else {
+                if (cardNode) {
+                    cardNode.classList.remove('botctrl-inspector-floating');
+                    cardNode.classList.remove('hidden');
+                }
             }
-            if (inspNodeBody) inspNodeBody.classList.remove('hidden');
-            if (inspRobotBody) inspRobotBody.classList.add('hidden');
 
             if (selectedNodeId) inspectNode(selectedNodeId);
             else clearInspector();
         }
+
+        setEditorTool(currentTool || 'move');
         syncFullMapControls();
     }
 
@@ -3340,8 +3361,10 @@
 
         setActiveRobot(rid, { selectHolder: true });
 
-        const sel = document.getElementById('inspect-robot-selector');
+        const sel = document.getElementById('robot-selector');
         if (sel && sel.value !== String(rid)) sel.value = String(rid);
+        const inspSel = document.getElementById('inspect-robot-selector');
+        if (inspSel && inspSel.value !== String(rid)) inspSel.value = String(rid);
 
         const floorSel = document.getElementById('inspect-robot-floor');
         if (floorSel) floorSel.value = String(r.floor || currentFloor || 1);
@@ -3353,8 +3376,10 @@
         if (inpY) inpY.value = (r.current_y !== undefined && r.current_y !== null) ? Number(r.current_y).toFixed(2) : '68.48';
 
         const inpElev = document.getElementById('inspect-robot-elev');
+        const sideInpElev = document.getElementById('sidebar-input-robot-elev');
         const curElev = getRobotElevation(r.floor || currentFloor);
         if (inpElev) inpElev.value = curElev;
+        if (sideInpElev) sideInpElev.value = curElev;
 
         const sliderRot = document.getElementById('inspect-robot-rotation');
         const lblRot = document.getElementById('inspect-robot-rot-val');
@@ -3366,11 +3391,15 @@
         if (statusBadge) {
             statusBadge.textContent = r.status || 'Idle';
         }
+        const badge2 = document.getElementById('robot-status-badge');
+        if (badge2) {
+            badge2.textContent = r.status || 'Online';
+        }
         syncFullMapControls();
     }
 
     function syncRobotInspectorInputs(rid) {
-        const inspSel = document.getElementById('inspect-robot-selector');
+        const inspSel = document.getElementById('robot-selector');
         if (!inspSel || Number(inspSel.value || activeRobotId) !== Number(rid)) return;
         const r = robotsData.find(x => Number(x.id) === Number(rid));
         if (!r) return;
@@ -3745,6 +3774,7 @@
         setRobotScale(robotScaleMultiplier, false);
         updateRobotFloorUI();
         updateRobotElevationUI();
+        setEditTargetMode('node');
         switchFloor(1);
     });
     window.addEventListener('resize', () => {
