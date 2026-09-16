@@ -648,7 +648,16 @@
     function activeBotViewer(){ return Number(currentFloor)===1 ? threeBotCtrlF1 : threeBotCtrl; }
     function allBotViewers(){ return [threeBotCtrl, threeBotCtrlF1].filter(Boolean); }
     function parkCoordsForFloor(f){ return f===1 ? {x:72.1,y:85.71} : {x:72.3,y:66.3}; }
-    function viewerOfHolder(holder){ if(!holder) return activeBotViewer(); if(threeBotCtrlF1 && holder.parent && threeBotCtrlF1.robotsGroup && holder.parent===threeBotCtrlF1.robotsGroup) return threeBotCtrlF1; if(threeBotCtrl && holder.parent && threeBotCtrl.robotsGroup && holder.parent===threeBotCtrl.robotsGroup) return threeBotCtrl; return activeBotViewer(); }
+    function viewerOfHolder(holder){
+        if(!holder) return activeBotViewer();
+        for (const vw of allBotViewers()) {
+            if (vw.robotsGroup && (holder === vw.robotsGroup || holder.parent === vw.robotsGroup)) return vw;
+            if (vw.nodesGroup && (holder === vw.nodesGroup || holder.parent === vw.nodesGroup)) return vw;
+            if (vw.nodeMeshes && holder.userData?.nodeId && vw.nodeMeshes.has(holder.userData.nodeId)) return vw;
+            if (vw.robotMeshes && holder.userData?.robotId && vw.robotMeshes.has(holder.userData.robotId)) return vw;
+        }
+        return activeBotViewer();
+    }
     let labelScaleMultiplier = parseFloat(localStorage.getItem('robopath_label_scale') || '{{ $labelScale ?? 0.85 }}');
     let showRobotsOnMap = false; // Default: sembunyikan avatar robot saat pengeditan node
     let settings3D = @json($settings3D ?? []);
@@ -667,11 +676,6 @@
     let robotTemplateReady = false;
     let robotTemplateLoading = false;
     let robotTemplateCallbacks = [];
-    let robotMeshes = new Map();
-    let nodeMeshes = new Map();
-    let robotsGroup = null;
-    let nodesGroup = null;
-    let edgesGroup = null;
     let selected3DObject = null;
     let dragged3D = null;
     let connectStart3DNode = null;
@@ -689,9 +693,10 @@
     // Default = Robot #1 bila ada; dropdown/canvas selalu sinkron ke state ini.
     let activeRobotId = null;
     function resolveDefaultRobotId() {
-        if (robotMeshes.has(1)) return 1;
-        const first = robotMeshes.values().next();
-        if (!first.done) return first.value.userData.robotId;
+        const vw = activeBotViewer();
+        if (vw && vw.robotMeshes && vw.robotMeshes.has(1)) return 1;
+        const first = vw && vw.robotMeshes ? vw.robotMeshes.values().next() : null;
+        if (first && !first.done) return first.value.userData.robotId;
         if (robotsData.length) return Number(robotsData[0].id);
         return null;
     }
@@ -701,8 +706,9 @@
         activeRobotId = id;
         const sel = document.getElementById('robot-selector');
         if (sel && sel.value !== String(id)) sel.value = String(id);
-        if (opts.selectHolder !== false && robotMeshes.has(id)) {
-            selected3DObject = robotMeshes.get(id);
+        const vw = activeBotViewer();
+        if (opts.selectHolder !== false && vw && vw.robotMeshes && vw.robotMeshes.has(id)) {
+            selected3DObject = vw.robotMeshes.get(id);
             updateSelected3DObjectUI();
         }
         refreshRobotPanel();
@@ -739,10 +745,12 @@
         updateDriveReadout();
     }
     function getDriveTarget() {
-        if (activeRobotId != null && robotMeshes.has(activeRobotId)) return robotMeshes.get(activeRobotId);
-        if (robotMeshes.has(1)) return robotMeshes.get(1);
-        const first = robotMeshes.values().next();
-        return first.done ? null : first.value;
+        const vw = activeBotViewer();
+        if (!vw || !vw.robotMeshes) return null;
+        if (activeRobotId != null && vw.robotMeshes.has(activeRobotId)) return vw.robotMeshes.get(activeRobotId);
+        if (vw.robotMeshes.has(1)) return vw.robotMeshes.get(1);
+        const first = vw.robotMeshes.values().next();
+        return first && !first.done ? first.value : null;
     }
     function updateDriveReadout() {
         const el = document.getElementById('drive-readout');
@@ -1056,13 +1064,15 @@
 
         const labelsGroup = new THREE.Group();
         scene.add(labelsGroup);
-        robotsGroup = new THREE.Group();
+        const robotsGroup = new THREE.Group();
         robotsGroup.visible = showRobotsOnMap;
         scene.add(robotsGroup);
-        nodesGroup = new THREE.Group();
+        const nodesGroup = new THREE.Group();
         scene.add(nodesGroup);
-        edgesGroup = new THREE.Group();
+        const edgesGroup = new THREE.Group();
         scene.add(edgesGroup);
+        const nodeMeshes = new Map();
+        const robotMeshes = new Map();
 
         // Pre-load robot.glb early
         try { ensureRobotTemplate(() => {}); } catch (e) {}
@@ -2134,6 +2144,16 @@
         document.getElementById('tab-floor-2').className = floorNum === 2 
             ? "px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white"
             : "px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200";
+
+        const fmTab1 = document.getElementById('fullmap-tab-floor-1');
+        const fmTab2 = document.getElementById('fullmap-tab-floor-2');
+        if (fmTab1) fmTab1.className = floorNum === 1 
+            ? "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white" 
+            : "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:bg-white/10";
+        if (fmTab2) fmTab2.className = floorNum === 2 
+            ? "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white" 
+            : "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:bg-white/10";
+
         const editorContainer = document.getElementById('editor-map-container');
         const canvas3D = document.getElementById('botctrl-3d-canvas-container');
         const canvas3DF1 = document.getElementById('botctrl-3d-canvas-f1');
@@ -2157,6 +2177,7 @@
                     if (!threeBotCtrlF1) {
                         threeBotCtrlF1 = initThreeViewer('botctrl-3d-canvas-f1', 1);
                     } else { threeBotCtrlF1.resize(); if(modelLoadedByFloor[1] && loaderEl) loaderEl.classList.add('hidden'); }
+                    sync3DNodesToData();
                 }, 50);
             }
             if (hint3D) hint3D.classList.remove('hidden');
@@ -2176,6 +2197,7 @@
                     if (!threeBotCtrl) {
                         threeBotCtrl = initThreeViewer('botctrl-3d-canvas-container', 2);
                     } else { threeBotCtrl.resize(); if(modelLoadedByFloor[2] && loaderEl) loaderEl.classList.add('hidden'); }
+                    sync3DNodesToData();
                 }, 50);
             }
             if (hint3D) hint3D.classList.remove('hidden');
@@ -2498,48 +2520,50 @@
     }
 
     function sync3DNodesToData() {
-        const vw = activeBotViewer();
-        if (!vw || !vw.nodeMeshes) return;
-        const sz = vw.getModelSize ? vw.getModelSize() : null;
-        if (!sz || sz.x <= 0.1) return;
+        allBotViewers().forEach(vw => {
+            if (!vw || !vw.nodeMeshes) return;
+            const sz = vw.getModelSize ? vw.getModelSize() : null;
+            if (!sz || sz.x <= 0.1) return;
+            const floorNum = Number(vw.floor);
 
-        for (const id in locationsData) {
-            const loc = locationsData[id];
-            if (Number(loc.floor) !== Number(currentFloor)) {
-                if (vw.nodeMeshes.has(id)) {
-                    const m = vw.nodeMeshes.get(id);
-                    if (m && m.parent) m.parent.remove(m);
+            for (const id in locationsData) {
+                const loc = locationsData[id];
+                if (Number(loc.floor) !== floorNum) {
+                    if (vw.nodeMeshes.has(id)) {
+                        const m = vw.nodeMeshes.get(id);
+                        if (m && m.parent) m.parent.remove(m);
+                        vw.nodeMeshes.delete(id);
+                    }
+                    continue;
+                }
+                let holder = vw.nodeMeshes.get(id);
+                if (!holder && vw.getOrCreateNodeMesh) {
+                    holder = vw.getOrCreateNodeMesh(id);
+                } else if (holder && vw.updateNodeMeshAppearance) {
+                    vw.updateNodeMeshAppearance(holder, loc);
+                }
+                if (holder) {
+                    const wp = worldPosForLoc(loc, sz);
+                    holder.position.set(wp.x, wp.y, wp.z);
+                    const isTransit = !loc.is_destination || loc.hidden;
+                    holder.visible = (!isTransit || showHiddenDots);
+                    if (holder.userData && holder.userData.selectionRing) {
+                        const isSel = (selectedNodeId === id);
+                        const isConn = (connectStart3DNode === id);
+                        holder.userData.selectionRing.visible = (isSel || isConn);
+                        if (isConn) holder.userData.selectionRing.material.color.setHex(0xf59e0b);
+                        else holder.userData.selectionRing.material.color.setHex(0x10b981);
+                    }
+                }
+            }
+            vw.nodeMeshes.forEach((holder, id) => {
+                if (!locationsData[id] || Number(locationsData[id].floor) !== floorNum) {
+                    if (holder && holder.parent) holder.parent.remove(holder);
                     vw.nodeMeshes.delete(id);
                 }
-                continue;
-            }
-            let holder = vw.nodeMeshes.get(id);
-            if (!holder && vw.getOrCreateNodeMesh) {
-                holder = vw.getOrCreateNodeMesh(id);
-            } else if (holder && vw.updateNodeMeshAppearance) {
-                vw.updateNodeMeshAppearance(holder, loc);
-            }
-            if (holder) {
-                const wp = worldPosForLoc(loc, sz);
-                holder.position.set(wp.x, wp.y, wp.z);
-                const isTransit = !loc.is_destination || loc.hidden;
-                holder.visible = (!isTransit || showHiddenDots);
-                if (holder.userData && holder.userData.selectionRing) {
-                    const isSel = (selectedNodeId === id);
-                    const isConn = (connectStart3DNode === id);
-                    holder.userData.selectionRing.visible = (isSel || isConn);
-                    if (isConn) holder.userData.selectionRing.material.color.setHex(0xf59e0b);
-                    else holder.userData.selectionRing.material.color.setHex(0x10b981);
-                }
-            }
-        }
-        vw.nodeMeshes.forEach((holder, id) => {
-            if (!locationsData[id] || Number(locationsData[id].floor) !== Number(currentFloor)) {
-                if (holder && holder.parent) holder.parent.remove(holder);
-                vw.nodeMeshes.delete(id);
-            }
+            });
+            if (vw.build3DEdges) vw.build3DEdges();
         });
-        if (vw.build3DEdges) vw.build3DEdges();
     }
 
     function handleNodeClick(e, nodeId) {
@@ -2758,8 +2782,9 @@
             if (xyz) {
                 let w = '';
                 try {
-                    if (threeBotCtrl && threeBotCtrl.getModelSize) {
-                        const sz = threeBotCtrl.getModelSize();
+                    const vw = activeBotViewer();
+                    if (vw && vw.getModelSize) {
+                        const sz = vw.getModelSize();
                         if (sz && sz.x > 0.1) {
                             const wp = worldPosForLoc(loc, sz);
                             w = `X=${wp.x.toFixed(2)} Y=${wp.y} Z=${wp.z.toFixed(2)}`;
@@ -2788,10 +2813,11 @@
         delete loc._u; delete loc._v; delete loc._fy;
         // resolve langsung bila viewer 3D sudah siap
         try {
-            if (val && threeBotCtrl && threeBotCtrl.scene && threeBotCtrl.getModelSize) {
-                const sz = threeBotCtrl.getModelSize();
-                if (sz && sz.x > 0.1 && resolveObjectAnchor(loc, threeBotCtrl.scene, sz)) {
-                    const mesh = threeBotCtrl.nodeMeshes ? threeBotCtrl.nodeMeshes.get(selectedNodeId) : null;
+            const vw = activeBotViewer();
+            if (val && vw && vw.scene && vw.getModelSize) {
+                const sz = vw.getModelSize();
+                if (sz && sz.x > 0.1 && resolveObjectAnchor(loc, vw.scene, sz)) {
+                    const mesh = vw.nodeMeshes ? vw.nodeMeshes.get(selectedNodeId) : null;
                     if (mesh) {
                         const wp = worldPosForLoc(loc, sz);
                         mesh.position.set(wp.x, wp.y, wp.z);
@@ -2799,7 +2825,8 @@
                 }
             }
         } catch (e) { console.warn('[Robopath] resolve on select fail', e); }
-        if (threeBotCtrl && threeBotCtrl.build3DEdges) threeBotCtrl.build3DEdges();
+        const vw = activeBotViewer();
+        if (vw && vw.build3DEdges) vw.build3DEdges();
         refreshObjectStatus();
         renderEditorMap();
     }
