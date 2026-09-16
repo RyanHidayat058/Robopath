@@ -152,9 +152,9 @@
                     <i class="fa-solid fa-plus text-[10px]"></i>
                 </button>
             </div>
-            <!-- Show/Hide Transit Dots Toggle -->
-            <button onclick="toggleShowHiddenDots()" id="btn-toggle-hidden" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-eye-slash text-gray-600" id="icon-toggle-hidden"></i> <span id="text-toggle-hidden">Transit</span>
+            <!-- Show/Hide Transit Dots Toggle (Default: Tampil titik biru terang tanpa nama) -->
+            <button onclick="toggleShowHiddenDots()" id="btn-toggle-hidden" class="bg-blue-50 hover:bg-blue-100 border border-blue-300 text-[#3b4cb8] font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Tampilkan / Sembunyikan Titik Transit Tanpa Nama">
+                <i class="fa-solid fa-eye text-[#3b4cb8]" id="icon-toggle-hidden"></i> <span id="text-toggle-hidden">Transit: Tampil</span>
             </button>
             <!-- Full Map 3D Mode Toggle -->
             <button onclick="toggleFullMap(true)" id="btn-open-fullmap" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition shadow-sm" title="Buka Denah 3D Layar Penuh">
@@ -230,8 +230,8 @@
                         </div>
 
                         <!-- Transit Toggle -->
-                        <button type="button" onclick="toggleShowHiddenDots()" id="fullmap-btn-toggle-hidden" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition">
-                            <i class="fa-solid fa-eye-slash" id="fullmap-icon-toggle-hidden"></i> <span id="fullmap-text-toggle-hidden">Transit</span>
+                        <button type="button" onclick="toggleShowHiddenDots()" id="fullmap-btn-toggle-hidden" class="bg-sky-950/80 hover:bg-sky-900 border border-sky-500/40 text-sky-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Tampilkan / Sembunyikan Titik Transit Tanpa Nama">
+                            <i class="fa-solid fa-eye text-sky-400" id="fullmap-icon-toggle-hidden"></i> <span id="fullmap-text-toggle-hidden">Transit: Tampil</span>
                         </button>
 
                         <!-- Inspector Toggle Button -->
@@ -1067,29 +1067,96 @@
         // Pre-load robot.glb early
         try { ensureRobotTemplate(() => {}); } catch (e) {}
 
-        // Helper: buat/update mesh node 3D yang menempel langsung di lantai 3D
-        function getOrCreateNodeMesh(nodeId) {
-            const id = nodeId;
-            if (nodeMeshes.has(id)) return nodeMeshes.get(id);
-            const loc = locationsData[id];
-            if (!loc) return null;
+        // Helper: update tampilan mesh node 3D secara dinamis (destinasi vs transit vs stairs)
+        function updateNodeMeshAppearance(holder, loc) {
+            if (!holder || !loc) return;
+            const id = loc.id || holder.userData.nodeId;
             const isStairs = id.includes('Stairs');
             const isDest = !!loc.is_destination;
             const isHidden = !!loc.hidden;
+            // Ruangan bertitel/nama hanya jika destinasi (tidak di-hide) atau tangga
+            const isNamed = (isDest && !isHidden) || isStairs;
+
+            // Ukuran kompak: 0.045 / 0.016 untuk named/destination, 0.025 / 0.010 untuk transit dot
+            const radius = isNamed ? 0.045 : 0.025;
+            const sphereRad = isNamed ? 0.016 : 0.010;
+            // Warna: Amber untuk tangga, Merah untuk destinasi, Biru terang rada abu (0x38bdf8) untuk transit
+            const baseCol = isStairs ? 0xf59e0b : (isNamed ? 0xff0000 : 0x38bdf8);
+
+            // 1. Disc Mesh
+            if (holder.userData.discMesh) {
+                if (holder.userData.discMesh.geometry) holder.userData.discMesh.geometry.dispose();
+                holder.userData.discMesh.geometry = new THREE.CylinderGeometry(radius, radius, 0.006, 20);
+                holder.userData.discMesh.material.color.setHex(baseCol);
+                holder.userData.discMesh.material.opacity = isNamed ? 1.0 : 0.95;
+            }
+
+            // 2. Center beacon pin (sphere)
+            if (holder.userData.sphereMesh) {
+                if (holder.userData.sphereMesh.geometry) holder.userData.sphereMesh.geometry.dispose();
+                holder.userData.sphereMesh.geometry = new THREE.SphereGeometry(sphereRad, 16, 16);
+                holder.userData.sphereMesh.material.color.setHex(baseCol);
+            }
+
+            // 3. Selection ring di lantai
+            if (holder.userData.selectionRing) {
+                if (holder.userData.selectionRing.geometry) holder.userData.selectionRing.geometry.dispose();
+                holder.userData.selectionRing.geometry = new THREE.RingGeometry(radius + 0.012, radius + 0.028, 20);
+            }
+
+            // 4. Label teks ruangan: Hanya ada/tampil untuk ruangan destinasi & tangga ("ga ada namanya" untuk transit)
+            if (isNamed) {
+                if (!holder.userData.labelSprite) {
+                    const sprite = createRoomLabelSprite(loc.name || id, isDest, isStairs);
+                    sprite.scale.set(BASE_LABEL_W * labelScaleMultiplier, BASE_LABEL_H * labelScaleMultiplier, 1);
+                    sprite.position.set(0, 0.08, 0);
+                    sprite.material.depthTest = true;
+                    holder.add(sprite);
+                    holder.userData.labelSprite = sprite;
+                } else {
+                    holder.userData.labelSprite.visible = true;
+                    holder.userData.labelSprite.scale.set(BASE_LABEL_W * labelScaleMultiplier, BASE_LABEL_H * labelScaleMultiplier, 1);
+                }
+            } else {
+                if (holder.userData.labelSprite) {
+                    holder.userData.labelSprite.visible = false;
+                }
+            }
+
+            // 5. Node visibility: Titik transit selalu tampil di editor saat showHiddenDots = true
+            const isTransit = !isDest || isHidden;
+            holder.visible = (!isTransit || showHiddenDots);
+        }
+
+        // Helper: buat/update mesh node 3D yang menempel langsung di lantai 3D
+        function getOrCreateNodeMesh(nodeId) {
+            const id = nodeId;
+            const loc = locationsData[id];
+            if (!loc) return null;
+            if (nodeMeshes.has(id)) {
+                const existing = nodeMeshes.get(id);
+                updateNodeMeshAppearance(existing, loc);
+                return existing;
+            }
+
+            const isStairs = id.includes('Stairs');
+            const isDest = !!loc.is_destination;
+            const isHidden = !!loc.hidden;
+            const isNamed = (isDest && !isHidden) || isStairs;
 
             const holder = new THREE.Group();
             holder.userData.nodeId = id;
             holder.userData.type = 'node';
 
-            // 1. Base floor pad (disc) menempel langsung di lantai
-            // Ukuran kompak dan rapi: 0.045 untuk destination/stairs, 0.025 untuk transit dot
-            const radius = (isDest || isStairs) ? 0.045 : 0.025;
+            const radius = isNamed ? 0.045 : 0.025;
+            const sphereRad = isNamed ? 0.016 : 0.010;
+            const baseCol = isStairs ? 0xf59e0b : (isNamed ? 0xff0000 : 0x38bdf8);
+
             const discGeo = new THREE.CylinderGeometry(radius, radius, 0.006, 20);
-            const baseCol = isStairs ? 0xf59e0b : (isDest ? 0xff0000 : 0x64748b);
             const discMat = new THREE.MeshBasicMaterial({
                 color: baseCol,
-                transparent: isHidden,
-                opacity: isHidden ? 0.6 : 1.0
+                transparent: true,
+                opacity: isNamed ? 1.0 : 0.95
             });
             const discMesh = new THREE.Mesh(discGeo, discMat);
             discMesh.position.y = 0.004;
@@ -1098,16 +1165,14 @@
             holder.add(discMesh);
             holder.userData.discMesh = discMesh;
 
-            // 2. Center beacon pin (sphere)
-            const sphereRad = (isDest || isStairs) ? 0.016 : 0.010;
             const sphereGeo = new THREE.SphereGeometry(sphereRad, 16, 16);
-            const sphereMesh = new THREE.Mesh(sphereGeo, discMat);
+            const sphereMat = new THREE.MeshBasicMaterial({ color: baseCol });
+            const sphereMesh = new THREE.Mesh(sphereGeo, sphereMat);
             sphereMesh.position.y = 0.018;
             sphereMesh.castShadow = true;
             holder.add(sphereMesh);
             holder.userData.sphereMesh = sphereMesh;
 
-            // 3. Selection ring di lantai
             const ringGeo = new THREE.RingGeometry(radius + 0.012, radius + 0.028, 20);
             const ringMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide });
             const ringMesh = new THREE.Mesh(ringGeo, ringMat);
@@ -1117,20 +1182,19 @@
             holder.add(ringMesh);
             holder.userData.selectionRing = ringMesh;
 
-            // 4. Label teks ruangan menempel tepat di atas pin node (y = 0.08)
-            const isNamed = isDest || isStairs || !isHidden;
             if (isNamed) {
                 const sprite = createRoomLabelSprite(loc.name || id, isDest, isStairs);
                 sprite.scale.set(BASE_LABEL_W * labelScaleMultiplier, BASE_LABEL_H * labelScaleMultiplier, 1);
                 sprite.position.set(0, 0.08, 0);
-                sprite.material.depthTest = true; // Mengikuti kedalaman 3D secara presisi
+                sprite.material.depthTest = true;
                 holder.add(sprite);
                 holder.userData.labelSprite = sprite;
             }
 
             const wp = worldPosForLoc(loc, _bcSize);
             holder.position.set(wp.x, wp.y, wp.z);
-            holder.visible = (!isHidden || showHiddenDots);
+            const isTransit = !isDest || isHidden;
+            holder.visible = (!isTransit || showHiddenDots);
 
             nodesGroup.add(holder);
             nodeMeshes.set(id, holder);
@@ -1670,7 +1734,7 @@
             scene, camera, renderer, controls,
             robotsGroup, nodesGroup, edgesGroup,
             robotMeshes, nodeMeshes,
-            getOrCreateRobotMesh, getOrCreateNodeMesh, build3DEdges,
+            getOrCreateRobotMesh, getOrCreateNodeMesh, updateNodeMeshAppearance, build3DEdges,
             getModelSize: () => _bcSize,
             floor: floorNum,
             getDefaultCamTarget: () => _defaultCamTarget.clone(),
@@ -1714,7 +1778,7 @@
 
     let currentFloor = 1;
     let currentTool = 'move';
-    let showHiddenDots = false;
+    let showHiddenDots = true; // Default: TRUE agar titik transit (biru terang tanpa nama) selalu tampil di denah editor
     let selectedNodeId = null;
     let connectStartNodeId = null;
     let draggedNodeId = null;
@@ -1722,8 +1786,17 @@
     let locationsData = @json($locations);
     let adjData = @json($adj);
 
-    function toggleShowHiddenDots() {
-        showHiddenDots = !showHiddenDots;
+    function toggleShowHiddenDots(forceVal) {
+        if (typeof forceVal === 'boolean') {
+            showHiddenDots = forceVal;
+        } else {
+            showHiddenDots = !showHiddenDots;
+        }
+        syncTransitVisibilityUI();
+        renderEditorMap();
+    }
+
+    function syncTransitVisibilityUI() {
         const icon = document.getElementById('icon-toggle-hidden');
         const text = document.getElementById('text-toggle-hidden');
         const btn = document.getElementById('btn-toggle-hidden');
@@ -1734,20 +1807,19 @@
 
         if (showHiddenDots) {
             if (icon) icon.className = "fa-solid fa-eye text-[#3b4cb8]";
-            if (text) text.textContent = "Showing All Nodes";
-            if (btn) btn.className = "bg-blue-50 border border-blue-300 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+            if (text) text.textContent = "Transit: Tampil";
+            if (btn) btn.className = "bg-blue-50 border border-blue-300 text-[#3b4cb8] font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
             if (fmIcon) fmIcon.className = "fa-solid fa-eye text-sky-400";
-            if (fmText) fmText.textContent = "Transit On";
+            if (fmText) fmText.textContent = "Transit: Tampil";
             if (fmBtn) fmBtn.className = "bg-sky-950/80 border border-sky-500/40 text-sky-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition";
         } else {
-            if (icon) icon.className = "fa-solid fa-eye-slash text-gray-600";
-            if (text) text.textContent = "Show Hidden Transit Nodes";
-            if (btn) btn.className = "bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+            if (icon) icon.className = "fa-solid fa-eye-slash text-gray-400";
+            if (text) text.textContent = "Transit: Sembunyi";
+            if (btn) btn.className = "bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-500 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
             if (fmIcon) fmIcon.className = "fa-solid fa-eye-slash text-gray-400";
-            if (fmText) fmText.textContent = "Transit";
-            if (fmBtn) fmBtn.className = "bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+            if (fmText) fmText.textContent = "Transit: Sembunyi";
+            if (fmBtn) fmBtn.className = "bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition";
         }
-        renderEditorMap();
     }
 
     // Toggle Tampilkan / Sembunyikan Avatar Robot 3D (Default: sembunyi saat pengeditan node)
@@ -2447,12 +2519,14 @@
             let holder = vw.nodeMeshes.get(id);
             if (!holder && vw.getOrCreateNodeMesh) {
                 holder = vw.getOrCreateNodeMesh(id);
+            } else if (holder && vw.updateNodeMeshAppearance) {
+                vw.updateNodeMeshAppearance(holder, loc);
             }
             if (holder) {
                 const wp = worldPosForLoc(loc, sz);
                 holder.position.set(wp.x, 0, wp.z);
-                const isHidden = !!loc.hidden;
-                holder.visible = (!isHidden || showHiddenDots);
+                const isTransit = !loc.is_destination || loc.hidden;
+                holder.visible = (!isTransit || showHiddenDots);
                 if (holder.userData && holder.userData.selectionRing) {
                     const isSel = (selectedNodeId === id);
                     const isConn = (connectStart3DNode === id);
@@ -2804,13 +2878,25 @@
 
     function handleIsDestinationChange(val) {
         if (!selectedNodeId) return;
-        locationsData[selectedNodeId].is_destination = val;
+        locationsData[selectedNodeId].is_destination = !!val;
+        allBotViewers().forEach(vw => {
+            if (vw && vw.nodeMeshes && vw.nodeMeshes.has(selectedNodeId)) {
+                const holder = vw.nodeMeshes.get(selectedNodeId);
+                if (vw.updateNodeMeshAppearance) vw.updateNodeMeshAppearance(holder, locationsData[selectedNodeId]);
+            }
+        });
         renderEditorMap();
     }
 
     function handleHiddenChange(val) {
         if (!selectedNodeId) return;
-        locationsData[selectedNodeId].hidden = val;
+        locationsData[selectedNodeId].hidden = !!val;
+        allBotViewers().forEach(vw => {
+            if (vw && vw.nodeMeshes && vw.nodeMeshes.has(selectedNodeId)) {
+                const holder = vw.nodeMeshes.get(selectedNodeId);
+                if (vw.updateNodeMeshAppearance) vw.updateNodeMeshAppearance(holder, locationsData[selectedNodeId]);
+            }
+        });
         renderEditorMap();
     }
 
@@ -2877,6 +2963,7 @@
 
     window.addEventListener('load', () => {
         syncRobotVisibilityUI();
+        syncTransitVisibilityUI();
         setLabelScale(labelScaleMultiplier);
         switchFloor(1);
     });
