@@ -308,6 +308,8 @@ class DashboardController extends Controller
             ],
             'model_scale' => 1.0,
             'robot_scale' => 0.6,
+            'robot_elevation_f1' => 0.019,
+            'robot_elevation_f2' => 0.073,
             'node_scale' => 0.6,
             'node_color' => '#ff0000',
         ];
