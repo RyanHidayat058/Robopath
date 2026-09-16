@@ -341,6 +341,26 @@
             "floor": 2,
             "hidden": true,
             "is_destination": false
+        },
+        {
+            "id": "1_Ruang Meeting 2",
+            "name": "Ruang Meeting 2",
+            "x": 51.88,
+            "y": 15.38,
+            "y_elev": 0.02,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_N100",
+            "name": "N100",
+            "x": 51.86,
+            "y": 27.26,
+            "y_elev": 0.02,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
         }
     ],
     "adj": {
@@ -491,6 +511,12 @@
             "2_N213",
             "2_N208",
             "2_Ruang Sekertaris"
+        ],
+        "1_Ruang Meeting 2": [
+            "1_N100"
+        ],
+        "1_N100": [
+            "1_Ruang Meeting 2"
         ]
     },
     "settings_3d": {

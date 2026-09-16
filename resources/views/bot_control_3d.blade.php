@@ -1365,12 +1365,13 @@
                 const pct = locFromWorld(newPos.x, newPos.z, _bcSize);
                 locationsData[nodeId].x = parseFloat(pct.x.toFixed(2));
                 locationsData[nodeId].y = parseFloat(pct.y.toFixed(2));
+                locationsData[nodeId].y_elev = curY;
+                locationsData[nodeId]._fy = curY;
                 if (locationsData[nodeId].objectName) {
                     delete locationsData[nodeId].objectName;
                 }
                 delete locationsData[nodeId]._u;
                 delete locationsData[nodeId]._v;
-                delete locationsData[nodeId]._fy;
                 const inpX = document.getElementById('inspect-x');
                 const inpY = document.getElementById('inspect-y');
                 const inpElev = document.getElementById('inspect-y-elev');
@@ -1601,7 +1602,7 @@
                     const mesh = getOrCreateNodeMesh(id);
                     if (mesh) {
                         const wp = worldPosForLoc(loc, _bcSize);
-                        mesh.position.set(wp.x, 0, wp.z);
+                        mesh.position.set(wp.x, wp.y, wp.z);
                     }
                 }
                 build3DEdges();
@@ -1931,19 +1932,39 @@
         updateSelected3DObjectUI();
     }
 
+    function updateNodeElevation(nodeId, val) {
+        if (!nodeId || !locationsData[nodeId]) return;
+        const num = parseFloat(val);
+        if (isNaN(num)) return;
+        const rounded = parseFloat(num.toFixed(2));
+        locationsData[nodeId].y_elev = rounded;
+        locationsData[nodeId]._fy = rounded;
+
+        const inpElev = document.getElementById('inspect-y-elev');
+        if (inpElev && parseFloat(inpElev.value) !== rounded) inpElev.value = rounded.toFixed(2);
+        const inp3DY = document.getElementById('input-3d-y');
+        if (inp3DY && parseFloat(inp3DY.value) !== rounded) inp3DY.value = rounded.toFixed(2);
+
+        const vw = activeBotViewer();
+        if (vw && vw.nodeMeshes && vw.nodeMeshes.has(nodeId)) {
+            const mesh = vw.nodeMeshes.get(nodeId);
+            if (mesh) mesh.position.y = rounded;
+        }
+        if (selected3DObject && selected3DObject.userData?.nodeId === nodeId) {
+            selected3DObject.position.y = rounded;
+        }
+        if (vw && vw.build3DEdges) vw.build3DEdges();
+        refreshObjectStatus();
+    }
+
     function move3DObjectY(dy) {
         if (!selected3DObject) { alert('Pilih object di canvas 3D dulu.'); return; }
-        selected3DObject.position.y = parseFloat((selected3DObject.position.y + dy).toFixed(2));
-        const vw = viewerOfHolder(selected3DObject);
+        const newY = parseFloat((selected3DObject.position.y + dy).toFixed(2));
         if (selected3DObject.userData.type === 'node') {
             const nodeId = selected3DObject.userData.nodeId;
-            if (locationsData[nodeId]) {
-                locationsData[nodeId].y_elev = selected3DObject.position.y;
-                const inpElev = document.getElementById('inspect-y-elev');
-                if (inpElev) inpElev.value = selected3DObject.position.y.toFixed(2);
-                if (vw && vw.build3DEdges) vw.build3DEdges();
-            }
+            updateNodeElevation(nodeId, newY);
         } else if (selected3DObject.userData.type === 'robot') {
+            selected3DObject.position.y = newY;
             updateDriveReadout();
         }
         updateSelected3DObjectUI();
@@ -1952,34 +1973,18 @@
     function set3DWorldY(val) {
         if (!selected3DObject) return;
         const y = parseFloat(val); if (isNaN(y)) return;
-        selected3DObject.position.y = y;
-        const vw = viewerOfHolder(selected3DObject);
         if (selected3DObject.userData.type === 'node') {
             const nodeId = selected3DObject.userData.nodeId;
-            if (locationsData[nodeId]) {
-                locationsData[nodeId].y_elev = y;
-                const inpElev = document.getElementById('inspect-y-elev');
-                if (inpElev) inpElev.value = y.toFixed(2);
-                if (vw && vw.build3DEdges) vw.build3DEdges();
-            }
+            updateNodeElevation(nodeId, y);
         } else if (selected3DObject.userData.type === 'robot') {
+            selected3DObject.position.y = y;
             updateDriveReadout();
         }
     }
 
     function handleElevationChange(val) {
-        if (!selectedNodeId || !locationsData[selectedNodeId]) return;
-        const y = parseFloat(val);
-        const numY = isNaN(y) ? 0 : y;
-        locationsData[selectedNodeId].y_elev = numY;
-        const vw = activeBotViewer();
-        if (vw && vw.nodeMeshes && vw.nodeMeshes.has(selectedNodeId)) {
-            const holder = vw.nodeMeshes.get(selectedNodeId);
-            holder.position.y = numY;
-            if (vw.build3DEdges) vw.build3DEdges();
-        }
-        const inpY = document.getElementById('input-3d-y');
-        if (inpY) inpY.value = numY.toFixed(2);
+        const nodeId = selectedNodeId || (selected3DObject?.userData?.type === 'node' ? selected3DObject.userData.nodeId : null);
+        updateNodeElevation(nodeId, val);
     }
 
     function rotate3DObject(deltaDeg) {
@@ -2055,7 +2060,9 @@
                 if (locationsData[nodeId]) {
                     locationsData[nodeId].x = pct.x;
                     locationsData[nodeId].y = pct.y;
-                    locationsData[nodeId].y_elev = parseFloat(selected3DObject.position.y.toFixed(2));
+                    const elev = parseFloat(selected3DObject.position.y.toFixed(2));
+                    locationsData[nodeId].y_elev = elev;
+                    locationsData[nodeId]._fy = elev;
                 }
             }
             saveGraphToServer();
@@ -2288,7 +2295,7 @@
             const sz = vw.getModelSize ? vw.getModelSize() : null;
             if (mesh && sz) {
                 const w = worldPosForLoc(locationsData[key], sz);
-                mesh.position.set(w.x, 0, w.z);
+                mesh.position.set(w.x, w.y, w.z);
             }
         }
 
@@ -2446,28 +2453,7 @@
         }
     }
 
-    function handleElevationChange(val) {
-        if (!selectedNodeId || !locationsData[selectedNodeId]) return;
-        const num = parseFloat(val);
-        if (isNaN(num)) return;
-        locationsData[selectedNodeId].y_elev = parseFloat(num.toFixed(2));
-        locationsData[selectedNodeId]._fy = parseFloat(num.toFixed(2));
 
-        const inpElev = document.getElementById('inspect-y-elev');
-        if (inpElev && parseFloat(inpElev.value) !== num) inpElev.value = num.toFixed(2);
-        const inp3DY = document.getElementById('input-3d-y');
-        if (inp3DY && parseFloat(inp3DY.value) !== num) inp3DY.value = num.toFixed(2);
-
-        const vw = activeBotViewer();
-        if (vw && vw.nodeMeshes && vw.nodeMeshes.has(selectedNodeId)) {
-            const mesh = vw.nodeMeshes.get(selectedNodeId);
-            if (mesh) {
-                mesh.position.y = num;
-            }
-        }
-        if (vw && vw.build3DEdges) vw.build3DEdges();
-        refreshObjectStatus();
-    }
 
     function focusOnActiveSelection() {
         const vw = activeBotViewer();
@@ -2524,7 +2510,7 @@
             }
             if (holder) {
                 const wp = worldPosForLoc(loc, sz);
-                holder.position.set(wp.x, 0, wp.z);
+                holder.position.set(wp.x, wp.y, wp.z);
                 const isTransit = !loc.is_destination || loc.hidden;
                 holder.visible = (!isTransit || showHiddenDots);
                 if (holder.userData && holder.userData.selectionRing) {
@@ -2765,7 +2751,7 @@
                         const sz = threeBotCtrl.getModelSize();
                         if (sz && sz.x > 0.1) {
                             const wp = worldPosForLoc(loc, sz);
-                            w = `X=${wp.x.toFixed(2)} Y=${(loc._fy ?? 0.05).toFixed(2)} Z=${wp.z.toFixed(2)}`;
+                            w = `X=${wp.x.toFixed(2)} Y=${wp.y.toFixed(2)} Z=${wp.z.toFixed(2)}`;
                         }
                     }
                 } catch (e) {}
@@ -2797,7 +2783,7 @@
                     const mesh = threeBotCtrl.nodeMeshes ? threeBotCtrl.nodeMeshes.get(selectedNodeId) : null;
                     if (mesh) {
                         const wp = worldPosForLoc(loc, sz);
-                        mesh.position.set(wp.x, loc._fy ?? 0.05, wp.z);
+                        mesh.position.set(wp.x, wp.y, wp.z);
                     }
                 }
             }
