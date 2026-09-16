@@ -137,9 +137,24 @@
         <!-- VIEW -->
         <div class="flex items-center gap-2">
             <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">View</span>
+            <!-- Toggle Robot Avatar (Default: Sembunyi saat pengeditan node) -->
+            <button type="button" onclick="toggleShowRobots()" id="btn-toggle-robots" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-500 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Avatar Robot 3D">
+                <i class="fa-solid fa-robot text-gray-400" id="icon-toggle-robots"></i> <span id="text-toggle-robots">Robot: Sembunyi</span>
+            </button>
+            <!-- Label Size Controller (Perkecil/Perbesar Nama Ruangan) -->
+            <div class="flex items-center gap-1 bg-gray-100 border border-gray-300 px-2.5 py-1.5 rounded-xl text-xs font-bold" title="Sesuaikan Ukuran Teks Nama Ruangan">
+                <span class="text-gray-500 flex items-center gap-1 text-[11px]"><i class="fa-solid fa-font text-[#3b4cb8]"></i> Label:</span>
+                <button type="button" onclick="adjustLabelScale(-0.15)" class="w-6 h-6 rounded-md bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perkecil Ukuran Label Teks">
+                    <i class="fa-solid fa-minus text-[10px]"></i>
+                </button>
+                <span class="label-scale-val font-mono font-bold text-[#3b4cb8] w-9 text-center text-xs">0.9x</span>
+                <button type="button" onclick="adjustLabelScale(0.15)" class="w-6 h-6 rounded-md bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perbesar Ukuran Label Teks">
+                    <i class="fa-solid fa-plus text-[10px]"></i>
+                </button>
+            </div>
             <!-- Show/Hide Transit Dots Toggle -->
-            <button onclick="toggleShowHiddenDots()" id="btn-toggle-hidden" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-eye-slash text-gray-600" id="icon-toggle-hidden"></i> <span id="text-toggle-hidden">Show Hidden Transit Nodes</span>
+            <button onclick="toggleShowHiddenDots()" id="btn-toggle-hidden" class="bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-eye-slash text-gray-600" id="icon-toggle-hidden"></i> <span id="text-toggle-hidden">Transit</span>
             </button>
             <!-- Full Map 3D Mode Toggle -->
             <button onclick="toggleFullMap(true)" id="btn-open-fullmap" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition shadow-sm" title="Buka Denah 3D Layar Penuh">
@@ -195,8 +210,25 @@
                         </button>
                     </div>
 
-                    <!-- Right: Transit toggle, Edit Manual XYZ button, Save, Exit Full Map -->
+                    <!-- Right: Robots toggle, Label scale, Transit toggle, Edit Manual XYZ button, Save, Exit Full Map -->
                     <div class="flex items-center gap-2">
+                        <!-- Toggle Robot Avatar in Full Map -->
+                        <button type="button" onclick="toggleShowRobots()" id="fullmap-btn-toggle-robots" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Avatar Robot 3D">
+                            <i class="fa-solid fa-robot text-gray-400" id="fullmap-icon-toggle-robots"></i> <span id="fullmap-text-toggle-robots">Robot: Sembunyi</span>
+                        </button>
+
+                        <!-- Label Size Controller in Full Map -->
+                        <div class="flex items-center gap-1 bg-slate-900/90 border border-white/10 px-2 py-1 rounded-xl text-xs font-bold" title="Sesuaikan Ukuran Teks Nama Ruangan">
+                            <span class="text-gray-400 flex items-center gap-1 text-[11px]"><i class="fa-solid fa-font text-indigo-400"></i> Label:</span>
+                            <button type="button" onclick="adjustLabelScale(-0.15)" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perkecil Ukuran Label Teks">
+                                <i class="fa-solid fa-minus text-[9px]"></i>
+                            </button>
+                            <span class="label-scale-val font-mono font-bold text-sky-400 w-8 text-center text-xs">0.9x</span>
+                            <button type="button" onclick="adjustLabelScale(0.15)" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perbesar Ukuran Label Teks">
+                                <i class="fa-solid fa-plus text-[9px]"></i>
+                            </button>
+                        </div>
+
                         <!-- Transit Toggle -->
                         <button type="button" onclick="toggleShowHiddenDots()" id="fullmap-btn-toggle-hidden" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition">
                             <i class="fa-solid fa-eye-slash" id="fullmap-icon-toggle-hidden"></i> <span id="fullmap-text-toggle-hidden">Transit</span>
@@ -617,7 +649,8 @@
     function allBotViewers(){ return [threeBotCtrl, threeBotCtrlF1].filter(Boolean); }
     function parkCoordsForFloor(f){ return f===1 ? {x:72.1,y:85.71} : {x:72.3,y:66.3}; }
     function viewerOfHolder(holder){ if(!holder) return activeBotViewer(); if(threeBotCtrlF1 && holder.parent && threeBotCtrlF1.robotsGroup && holder.parent===threeBotCtrlF1.robotsGroup) return threeBotCtrlF1; if(threeBotCtrl && holder.parent && threeBotCtrl.robotsGroup && holder.parent===threeBotCtrl.robotsGroup) return threeBotCtrl; return activeBotViewer(); }
-    let labelScaleMultiplier = {{ $labelScale ?? 1.0 }};
+    let labelScaleMultiplier = parseFloat(localStorage.getItem('robopath_label_scale') || '{{ $labelScale ?? 0.85 }}');
+    let showRobotsOnMap = false; // Default: sembunyikan avatar robot saat pengeditan node
     let settings3D = @json($settings3D ?? []);
     let current3DSettings = {
         camera: { dist: parseFloat(settings3D?.camera?.dist ?? 5.0), fov: parseFloat(settings3D?.camera?.fov ?? 5.0), preset: settings3D?.camera?.preset ?? 'iso' },
@@ -863,9 +896,34 @@
         const texture = new THREE.CanvasTexture(canvas);
         const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false });
         const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(3.6 * labelScaleMultiplier, 0.9 * labelScaleMultiplier, 1);
+        sprite.scale.set(1.4 * labelScaleMultiplier, 0.35 * labelScaleMultiplier, 1);
         sprite.renderOrder = 999;
         return sprite;
+    }
+
+    // Helper: Dynamic Room Label Scaling
+    function setLabelScale(val) {
+        val = Math.max(0.3, Math.min(2.5, parseFloat(Number(val).toFixed(2))));
+        labelScaleMultiplier = val;
+        try { localStorage.setItem('robopath_label_scale', String(val)); } catch (e) {}
+
+        document.querySelectorAll('.label-scale-val').forEach(el => {
+            el.textContent = `${val.toFixed(1)}x`;
+        });
+
+        allBotViewers().forEach(vw => {
+            if (vw && vw.nodeMeshes) {
+                vw.nodeMeshes.forEach(holder => {
+                    if (holder.userData && holder.userData.labelSprite) {
+                        holder.userData.labelSprite.scale.set(1.4 * labelScaleMultiplier, 0.35 * labelScaleMultiplier, 1);
+                    }
+                });
+            }
+        });
+    }
+
+    function adjustLabelScale(delta) {
+        setLabelScale(labelScaleMultiplier + delta);
     }
 
     // Helper: Cached GLB buffer loader with progress (Streaming + CacheStorage)
@@ -996,6 +1054,7 @@
         const labelsGroup = new THREE.Group();
         scene.add(labelsGroup);
         robotsGroup = new THREE.Group();
+        robotsGroup.visible = showRobotsOnMap;
         scene.add(robotsGroup);
         nodesGroup = new THREE.Group();
         scene.add(nodesGroup);
@@ -1020,9 +1079,9 @@
             holder.userData.type = 'node';
 
             // 1. Base floor pad (disc) menempel langsung di lantai
-            // Ukuran kompak: 0.10 untuk destination/stairs, 0.05 untuk transit dot
-            const radius = (isDest || isStairs) ? 0.10 : 0.05;
-            const discGeo = new THREE.CylinderGeometry(radius, radius, 0.015, 24);
+            // Ukuran kompak dan rapi: 0.045 untuk destination/stairs, 0.025 untuk transit dot
+            const radius = (isDest || isStairs) ? 0.045 : 0.025;
+            const discGeo = new THREE.CylinderGeometry(radius, radius, 0.006, 20);
             const baseCol = isStairs ? 0xf59e0b : (isDest ? 0xff0000 : 0x64748b);
             const discMat = new THREE.MeshBasicMaterial({
                 color: baseCol,
@@ -1030,37 +1089,37 @@
                 opacity: isHidden ? 0.6 : 1.0
             });
             const discMesh = new THREE.Mesh(discGeo, discMat);
-            discMesh.position.y = 0.01;
+            discMesh.position.y = 0.004;
             discMesh.castShadow = true;
             discMesh.receiveShadow = true;
             holder.add(discMesh);
             holder.userData.discMesh = discMesh;
 
             // 2. Center beacon pin (sphere)
-            const sphereRad = (isDest || isStairs) ? 0.04 : 0.025;
+            const sphereRad = (isDest || isStairs) ? 0.016 : 0.010;
             const sphereGeo = new THREE.SphereGeometry(sphereRad, 16, 16);
             const sphereMesh = new THREE.Mesh(sphereGeo, discMat);
-            sphereMesh.position.y = 0.04;
+            sphereMesh.position.y = 0.018;
             sphereMesh.castShadow = true;
             holder.add(sphereMesh);
             holder.userData.sphereMesh = sphereMesh;
 
             // 3. Selection ring di lantai
-            const ringGeo = new THREE.RingGeometry(radius + 0.02, radius + 0.06, 24);
+            const ringGeo = new THREE.RingGeometry(radius + 0.012, radius + 0.028, 20);
             const ringMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide });
             const ringMesh = new THREE.Mesh(ringGeo, ringMat);
             ringMesh.rotation.x = -Math.PI / 2;
-            ringMesh.position.y = 0.018;
+            ringMesh.position.y = 0.008;
             ringMesh.visible = (selectedNodeId === id);
             holder.add(ringMesh);
             holder.userData.selectionRing = ringMesh;
 
-            // 4. Label teks ruangan menempel tepat di atas pin node (y = 0.32)
+            // 4. Label teks ruangan menempel tepat di atas pin node (y = 0.16)
             const isNamed = isDest || isStairs || !isHidden;
             if (isNamed) {
                 const sprite = createRoomLabelSprite(loc.name || id, isDest, isStairs);
                 sprite.scale.set(1.4 * labelScaleMultiplier, 0.35 * labelScaleMultiplier, 1);
-                sprite.position.set(0, 0.32, 0);
+                sprite.position.set(0, 0.16, 0);
                 sprite.material.depthTest = true; // Mengikuti kedalaman 3D secara presisi
                 holder.add(sprite);
                 holder.userData.labelSprite = sprite;
@@ -1142,13 +1201,15 @@
                 -((e.clientY - rect.top) / rect.height) * 2 + 1
             );
             raycaster.setFromCamera(mouse, camera);
-            // Gabungkan nodes + robots untuk pick
+            // Gabungkan nodes (+ robots bila diizinkan tampil) untuk pick
             const pickTargets = [];
             nodesGroup.children.forEach(m => {
                 if (m.isMesh) pickTargets.push(m);
                 else if (m.isGroup) m.traverse(c => { if (c.isMesh) pickTargets.push(c); });
             });
-            robotsGroup.children.forEach(g => { g.children.forEach(m => { if (m.isMesh) pickTargets.push(m); }); });
+            if (showRobotsOnMap) {
+                robotsGroup.children.forEach(g => { g.children.forEach(m => { if (m.isMesh) pickTargets.push(m); }); });
+            }
             const hits = raycaster.intersectObjects(pickTargets, false);
             if (hits.length > 0) {
                 let target = hits[0].object;
@@ -1327,7 +1388,9 @@
                     if (m.isMesh) pickTargets.push(m);
                     else if (m.isGroup) m.traverse(c => { if (c.isMesh) pickTargets.push(c); });
                 });
-                robotsGroup.children.forEach(g => { g.children.forEach(m => { if (m.isMesh) pickTargets.push(m); }); });
+                if (showRobotsOnMap) {
+                    robotsGroup.children.forEach(g => { g.children.forEach(m => { if (m.isMesh) pickTargets.push(m); }); });
+                }
 
                 const hits = raycaster.intersectObjects(pickTargets, false);
                 if (hits.length > 0) {
@@ -1684,6 +1747,51 @@
         renderEditorMap();
     }
 
+    // Toggle Tampilkan / Sembunyikan Avatar Robot 3D (Default: sembunyi saat pengeditan node)
+    function toggleShowRobots(forceVal) {
+        if (typeof forceVal === 'boolean') {
+            showRobotsOnMap = forceVal;
+        } else {
+            showRobotsOnMap = !showRobotsOnMap;
+        }
+
+        allBotViewers().forEach(vw => {
+            if (vw && vw.robotsGroup) {
+                vw.robotsGroup.visible = showRobotsOnMap;
+            }
+        });
+
+        syncRobotVisibilityUI();
+    }
+
+    function syncRobotVisibilityUI() {
+        const btn = document.getElementById('btn-toggle-robots');
+        const icon = document.getElementById('icon-toggle-robots');
+        const text = document.getElementById('text-toggle-robots');
+
+        const fmBtn = document.getElementById('fullmap-btn-toggle-robots');
+        const fmIcon = document.getElementById('fullmap-icon-toggle-robots');
+        const fmText = document.getElementById('fullmap-text-toggle-robots');
+
+        if (showRobotsOnMap) {
+            if (btn) btn.className = "bg-blue-50 border border-blue-300 text-[#3b4cb8] font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+            if (icon) icon.className = "fa-solid fa-robot text-[#3b4cb8]";
+            if (text) text.textContent = "Robot: Tampil";
+
+            if (fmBtn) fmBtn.className = "bg-sky-950/80 border border-sky-500/40 text-sky-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+            if (fmIcon) fmIcon.className = "fa-solid fa-robot text-sky-400";
+            if (fmText) fmText.textContent = "Robot: Tampil";
+        } else {
+            if (btn) btn.className = "bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-500 font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+            if (icon) icon.className = "fa-solid fa-robot text-gray-400";
+            if (text) text.textContent = "Robot: Sembunyi";
+
+            if (fmBtn) fmBtn.className = "bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition";
+            if (fmIcon) fmIcon.className = "fa-solid fa-robot text-gray-400";
+            if (fmText) fmText.textContent = "Robot: Sembunyi";
+        }
+    }
+
     // === 3D Object Control Functions ===
     function updateSelected3DObjectUI() {
         const info = document.getElementById('selected-3d-info');
@@ -1984,6 +2092,7 @@
         selectedNodeId = null;
         clearInspector();
         syncFullMapControls();
+        syncRobotVisibilityUI();
         renderEditorMap();
     }
 
@@ -2764,6 +2873,8 @@
     }
 
     window.addEventListener('load', () => {
+        syncRobotVisibilityUI();
+        setLabelScale(labelScaleMultiplier);
         switchFloor(1);
     });
     window.addEventListener('resize', () => {
