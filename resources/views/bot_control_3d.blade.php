@@ -404,7 +404,7 @@
                             <button onclick="move3DObjectY(-0.05)" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 font-bold py-1.5 px-3 rounded-lg transition" title="Turun -0.05m">
                                 <i class="fa-solid fa-arrow-down mr-1"></i> -0.05m
                             </button>
-                            <input type="number" step="0.05" id="input-3d-y" oninput="set3DWorldY(this.value)" class="w-24 bg-white border border-gray-300 rounded-lg px-2 py-1.5 font-mono font-bold text-center text-gray-800 focus:border-[#3b4cb8] focus:outline-none" placeholder="0.00">
+                            <input type="number" step="any" id="input-3d-y" oninput="set3DWorldY(this.value)" class="w-24 bg-white border border-gray-300 rounded-lg px-2 py-1.5 font-mono font-bold text-center text-gray-800 focus:border-[#3b4cb8] focus:outline-none" placeholder="0.00">
                             <button onclick="move3DObjectY(0.05)" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 font-bold py-1.5 px-3 rounded-lg transition" title="Naik +0.05m">
                                 <i class="fa-solid fa-arrow-up mr-1"></i> +0.05m
                             </button>
@@ -481,7 +481,7 @@
                         </div>
                         <div>
                             <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Elev (Y)</label>
-                            <input type="number" step="0.05" id="inspect-y-elev" oninput="handleElevationChange(this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition" placeholder="0.00">
+                            <input type="number" step="any" id="inspect-y-elev" oninput="handleElevationChange(this.value)" class="w-full bg-white border border-gray-300 rounded-xl px-2 py-2 font-mono font-bold text-gray-800 focus:border-[#3b4cb8] focus:outline-none transition" placeholder="0.00">
                         </div>
                     </div>
 
@@ -1377,7 +1377,7 @@
                 const inpElev = document.getElementById('inspect-y-elev');
                 if (inpX) inpX.value = locationsData[nodeId].x;
                 if (inpY) inpY.value = locationsData[nodeId].y;
-                if (inpElev) inpElev.value = curY.toFixed(2);
+                if (inpElev) inpElev.value = curY;
                 build3DEdges();
                 updateSelected3DObjectUI();
             } else if (dragged3D.userData.type === 'robot') {
@@ -1892,8 +1892,11 @@
         info.textContent = `${t?.toUpperCase()}: ${id}`;
         if (inpX) inpX.value = selected3DObject.position.x.toFixed(2);
         if (inpZ) inpZ.value = selected3DObject.position.z.toFixed(2);
-        if (inp3DY) inp3DY.value = selected3DObject.position.y.toFixed(2);
-        if (inpElev && t === 'node') inpElev.value = selected3DObject.position.y.toFixed(2);
+        const curElevVal = (t === 'node' && locationsData[selected3DObject.userData?.nodeId]?.y_elev !== undefined && locationsData[selected3DObject.userData?.nodeId]?.y_elev !== null)
+            ? locationsData[selected3DObject.userData.nodeId].y_elev
+            : Number(parseFloat(selected3DObject.position.y.toFixed(4)));
+        if (inp3DY) inp3DY.value = curElevVal;
+        if (inpElev && t === 'node') inpElev.value = curElevVal;
         const rotDeg = (selected3DObject.rotation.y * 180 / Math.PI) % 360;
         if (slider) slider.value = Math.round(rotDeg);
         if (valRot) valRot.textContent = Math.round(rotDeg) + '°';
@@ -1932,26 +1935,29 @@
         updateSelected3DObjectUI();
     }
 
-    function updateNodeElevation(nodeId, val) {
+    function updateNodeElevation(nodeId, val, sourceInputId = null) {
         if (!nodeId || !locationsData[nodeId]) return;
         const num = parseFloat(val);
         if (isNaN(num)) return;
-        const rounded = parseFloat(num.toFixed(2));
-        locationsData[nodeId].y_elev = rounded;
-        locationsData[nodeId]._fy = rounded;
+        locationsData[nodeId].y_elev = num;
+        locationsData[nodeId]._fy = num;
 
         const inpElev = document.getElementById('inspect-y-elev');
-        if (inpElev && parseFloat(inpElev.value) !== rounded) inpElev.value = rounded.toFixed(2);
+        if (inpElev && sourceInputId !== 'inspect-y-elev') {
+            inpElev.value = num;
+        }
         const inp3DY = document.getElementById('input-3d-y');
-        if (inp3DY && parseFloat(inp3DY.value) !== rounded) inp3DY.value = rounded.toFixed(2);
+        if (inp3DY && sourceInputId !== 'input-3d-y') {
+            inp3DY.value = num;
+        }
 
         const vw = activeBotViewer();
         if (vw && vw.nodeMeshes && vw.nodeMeshes.has(nodeId)) {
             const mesh = vw.nodeMeshes.get(nodeId);
-            if (mesh) mesh.position.y = rounded;
+            if (mesh) mesh.position.y = num;
         }
         if (selected3DObject && selected3DObject.userData?.nodeId === nodeId) {
-            selected3DObject.position.y = rounded;
+            selected3DObject.position.y = num;
         }
         if (vw && vw.build3DEdges) vw.build3DEdges();
         refreshObjectStatus();
@@ -1959,7 +1965,10 @@
 
     function move3DObjectY(dy) {
         if (!selected3DObject) { alert('Pilih object di canvas 3D dulu.'); return; }
-        const newY = parseFloat((selected3DObject.position.y + dy).toFixed(2));
+        const curY = (selected3DObject.userData.type === 'node' && locationsData[selected3DObject.userData.nodeId]?.y_elev !== undefined && locationsData[selected3DObject.userData.nodeId]?.y_elev !== null)
+            ? Number(locationsData[selected3DObject.userData.nodeId].y_elev)
+            : Number(selected3DObject.position.y || 0);
+        const newY = Number(parseFloat((curY + dy).toFixed(4)));
         if (selected3DObject.userData.type === 'node') {
             const nodeId = selected3DObject.userData.nodeId;
             updateNodeElevation(nodeId, newY);
@@ -1975,7 +1984,7 @@
         const y = parseFloat(val); if (isNaN(y)) return;
         if (selected3DObject.userData.type === 'node') {
             const nodeId = selected3DObject.userData.nodeId;
-            updateNodeElevation(nodeId, y);
+            updateNodeElevation(nodeId, y, 'input-3d-y');
         } else if (selected3DObject.userData.type === 'robot') {
             selected3DObject.position.y = y;
             updateDriveReadout();
@@ -1984,7 +1993,7 @@
 
     function handleElevationChange(val) {
         const nodeId = selectedNodeId || (selected3DObject?.userData?.type === 'node' ? selected3DObject.userData.nodeId : null);
-        updateNodeElevation(nodeId, val);
+        updateNodeElevation(nodeId, val, 'inspect-y-elev');
     }
 
     function rotate3DObject(deltaDeg) {
@@ -2060,7 +2069,9 @@
                 if (locationsData[nodeId]) {
                     locationsData[nodeId].x = pct.x;
                     locationsData[nodeId].y = pct.y;
-                    const elev = parseFloat(selected3DObject.position.y.toFixed(2));
+                    const elev = (locationsData[nodeId].y_elev !== undefined && locationsData[nodeId].y_elev !== null)
+                        ? Number(locationsData[nodeId].y_elev)
+                        : Number(selected3DObject.position.y);
                     locationsData[nodeId].y_elev = elev;
                     locationsData[nodeId]._fy = elev;
                 }
@@ -2668,9 +2679,9 @@
         document.getElementById('inspect-y').value = loc.y;
         const elev = (loc.y_elev !== undefined && loc.y_elev !== null) ? loc.y_elev : (loc._fy ?? 0);
         const inpElev = document.getElementById('inspect-y-elev');
-        if (inpElev) inpElev.value = Number(elev).toFixed(2);
+        if (inpElev) inpElev.value = Number(elev);
         const inp3DY = document.getElementById('input-3d-y');
-        if (inp3DY) inp3DY.value = Number(elev).toFixed(2);
+        if (inp3DY) inp3DY.value = Number(elev);
         document.getElementById('inspect-is-destination').checked = !!loc.is_destination;
         document.getElementById('inspect-hidden').checked = !!loc.hidden;
 
@@ -2751,7 +2762,7 @@
                         const sz = threeBotCtrl.getModelSize();
                         if (sz && sz.x > 0.1) {
                             const wp = worldPosForLoc(loc, sz);
-                            w = `X=${wp.x.toFixed(2)} Y=${wp.y.toFixed(2)} Z=${wp.z.toFixed(2)}`;
+                            w = `X=${wp.x.toFixed(2)} Y=${wp.y} Z=${wp.z.toFixed(2)}`;
                         }
                     }
                 } catch (e) {}
