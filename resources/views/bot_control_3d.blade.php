@@ -6,10 +6,6 @@
 
 @section('styles')
 <style>
-    /* Hide navigation sidebar on this view to maximize editor width */
-    body > aside {
-        display: none !important;
-    }
     .editor-map-container {
         position: relative;
         background-size: 100% 100%;
@@ -351,7 +347,7 @@
     </div>
 
     <!-- Bottom Controls: 3 Columns for Robot Control, Node Properties Inspector, & Fleet System Controls -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-10 pt-2">
         <!-- Col 1: ROBOT CONTROL (Always Visible) -->
         <div id="panel-3d-controls" class="bg-white border border-gray-200 p-5 rounded-2xl shadow-xl">
             <h3 class="text-base font-bold text-gray-800 mb-1 flex items-center gap-2">
