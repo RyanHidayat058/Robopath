@@ -642,6 +642,7 @@
     const floor1ModelUrl = "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
     const floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
     const MODEL_CACHE_NAME = 'robopath-glb-cache-v1';
+    let currentFloor = 1;
     let threeBotCtrl = null;
     let threeBotCtrlF1 = null;
     let modelLoadedByFloor = {1:false,2:false};
@@ -1774,8 +1775,8 @@
         } else if (selectedNodeId && locationsData[selectedNodeId]) {
             const wp = worldPosForLoc(locationsData[selectedNodeId], vw.getModelSize());
             vw.focusOn(wp, 1.8);
-        } else if (activeRobotId != null && robotMeshes.has(activeRobotId)) {
-            vw.focusOn(robotMeshes.get(activeRobotId).position, 1.8);
+        } else if (activeRobotId != null && vw.robotMeshes && vw.robotMeshes.has(activeRobotId)) {
+            vw.focusOn(vw.robotMeshes.get(activeRobotId).position, 1.8);
         } else {
             alert('Pilih sebuah node atau robot terlebih dahulu untuk fokus kamera.');
         }
@@ -1787,7 +1788,6 @@
         vw.resetView();
     }
 
-    let currentFloor = 1;
     let currentTool = 'move';
     let showHiddenDots = true; // Default: TRUE agar titik transit (biru terang tanpa nama) selalu tampil di denah editor
     let selectedNodeId = null;

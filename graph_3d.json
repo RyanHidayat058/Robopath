@@ -347,7 +347,7 @@
             "name": "Ruang Meeting 2",
             "x": 51.88,
             "y": 15.38,
-            "y_elev": 0.02,
+            "y_elev": 0.019,
             "floor": 1,
             "hidden": false,
             "is_destination": true
@@ -355,9 +355,239 @@
         {
             "id": "1_N100",
             "name": "N100",
-            "x": 51.86,
-            "y": 27.26,
-            "y_elev": 0.02,
+            "x": 51.9,
+            "y": 28.1,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_N101",
+            "name": "N101",
+            "x": 64.4,
+            "y": 28.1,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_Ruang Meeting 3",
+            "name": "Ruang Meeting 3",
+            "x": 64.4,
+            "y": 15.38,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_N102",
+            "name": "N102",
+            "x": 62.62,
+            "y": 28.1,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_N103",
+            "name": "N103",
+            "x": 62.62,
+            "y": 61.7,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_N104",
+            "name": "N104",
+            "x": 20.25,
+            "y": 28.1,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_Ruang Meeting 1",
+            "name": "Ruang Meeting 1",
+            "x": 20.25,
+            "y": 15.38,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_N105",
+            "name": "N105",
+            "x": 17.9,
+            "y": 28.1,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_Kasir",
+            "name": "Kasir",
+            "x": 17.9,
+            "y": 15.38,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_N106",
+            "name": "N106",
+            "x": 65.65,
+            "y": 61.7,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_Ruang Multifunctional",
+            "name": "Ruang Multifunctional",
+            "x": 65.65,
+            "y": 73.2,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_N107",
+            "name": "N107",
+            "x": 71.69,
+            "y": 61.7,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_Ruang Rapat Eksternal",
+            "name": "Ruang Rapat Eksternal",
+            "x": 71.69,
+            "y": 51.07,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_Resepsionis",
+            "name": "Resepsionis",
+            "x": 76.9,
+            "y": 60,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_N108",
+            "name": "N108",
+            "x": 73.69,
+            "y": 51.07,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_N109",
+            "name": "N109",
+            "x": 73.69,
+            "y": 61.7,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_N110",
+            "name": "N110",
+            "x": 76.9,
+            "y": 51.07,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_N111",
+            "name": "N111",
+            "x": 97.19,
+            "y": 51.07,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_Museum",
+            "name": "Museum",
+            "x": 97.19,
+            "y": 62.81,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_Parquet",
+            "name": "Parquet",
+            "x": 97.19,
+            "y": 44.3,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_Tangga",
+            "name": "Tangga",
+            "x": 78.33,
+            "y": 84.05,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_N112",
+            "name": "N112",
+            "x": 78.33,
+            "y": 72.28,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_N113",
+            "name": "N113",
+            "x": 80.37,
+            "y": 72.28,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_N114",
+            "name": "N114",
+            "x": 80.37,
+            "y": 51.07,
+            "y_elev": 0.019,
             "floor": 1,
             "hidden": true,
             "is_destination": false
@@ -516,7 +746,99 @@
             "1_N100"
         ],
         "1_N100": [
-            "1_Ruang Meeting 2"
+            "1_Ruang Meeting 2",
+            "1_N104",
+            "1_N102"
+        ],
+        "1_N101": [
+            "1_Ruang Meeting 3",
+            "1_N102"
+        ],
+        "1_Ruang Meeting 3": [
+            "1_N101"
+        ],
+        "1_N102": [
+            "1_N101",
+            "1_N100",
+            "1_N103"
+        ],
+        "1_N103": [
+            "1_N102",
+            "1_N106"
+        ],
+        "1_N104": [
+            "1_N100",
+            "1_Ruang Meeting 1",
+            "1_N105"
+        ],
+        "1_Ruang Meeting 1": [
+            "1_N104"
+        ],
+        "1_N105": [
+            "1_Kasir",
+            "1_N104"
+        ],
+        "1_Kasir": [
+            "1_N105"
+        ],
+        "1_N106": [
+            "1_N107",
+            "1_N103",
+            "1_Ruang Multifunctional"
+        ],
+        "1_Ruang Multifunctional": [
+            "1_N106"
+        ],
+        "1_N107": [
+            "1_N106",
+            "1_Ruang Rapat Eksternal",
+            "1_N109"
+        ],
+        "1_Ruang Rapat Eksternal": [
+            "1_N107"
+        ],
+        "1_Resepsionis": [
+            "1_N110"
+        ],
+        "1_N108": [
+            "1_N109",
+            "1_N110"
+        ],
+        "1_N109": [
+            "1_N108",
+            "1_N107"
+        ],
+        "1_N110": [
+            "1_N108",
+            "1_Resepsionis",
+            "1_N114"
+        ],
+        "1_N111": [
+            "1_Parquet",
+            "1_Museum",
+            "1_N114"
+        ],
+        "1_Museum": [
+            "1_N111"
+        ],
+        "1_Parquet": [
+            "1_N111"
+        ],
+        "1_Tangga": [
+            "1_N112"
+        ],
+        "1_N112": [
+            "1_N113",
+            "1_Tangga"
+        ],
+        "1_N113": [
+            "1_N114",
+            "1_N112"
+        ],
+        "1_N114": [
+            "1_N110",
+            "1_N113",
+            "1_N111"
         ]
     },
     "settings_3d": {
@@ -535,6 +857,5 @@
         "robot_scale": 0.6,
         "node_scale": 0.6,
         "node_color": "#ef4444"
-    },
-    "label_scale": 1
+    }
 }
