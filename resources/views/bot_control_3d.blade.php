@@ -2,15 +2,15 @@
 
 @section('title', 'ROBOPATH - Control')
 @section('page_title', 'Control')
-@section('page_subtitle', 'Pusat kendali armada, perbaikan, dan editor denah 3D')
+@section('page_subtitle', 'Pusat kendali robot, perbaikan, dan editor jalur robot')
 
 @section('topbar_actions')
 <div class="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl border border-gray-200 shadow-xs">
     <button type="button" onclick="handleEditRobotClick()" id="topbar-btn-edit-robot" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-white text-[#3b4cb8] shadow-xs hover:bg-gray-50 active:scale-95" title="Buka Mode Edit Robot (Atur Posisi 3D & Elevasi)">
-        <i class="fa-solid fa-robot text-[#3b4cb8]"></i> <span>Edit Robot 3D</span>
+        <i class="fa-solid fa-robot text-[#3b4cb8]"></i> <span>Edit Robot</span>
     </button>
     <button type="button" onclick="handleEditJalurClick()" id="topbar-btn-edit-jalur" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-700 hover:text-[#3b4cb8] hover:bg-white/80 active:scale-95" title="Buka Mode Edit Jalur &amp; Ruangan (Layar Penuh)">
-        <i class="fa-solid fa-route text-indigo-600"></i> <span>Edit Jalur &amp; Ruangan</span>
+        <i class="fa-solid fa-route text-indigo-600"></i> <span>Edit Jalur Robot</span>
     </button>
 </div>
 @endsection
@@ -122,7 +122,7 @@
 @section('content')
 <div class="space-y-8">
 
-    <!-- IT Repair Center & Fleet Status Card (Foto 5) -->
+    <!-- Pusat Perbaikan Robot Status Card -->
     <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl space-y-5">
         <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-gray-100">
             <div class="flex items-center gap-3">
@@ -131,9 +131,9 @@
                 </div>
                 <div>
                     <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        IT Repair Center &amp; Fleet
+                        Pusat Perbaikan Robot
                     </h3>
-                    <p class="text-xs text-gray-500">Pantau status armada, pulihkan robot yang menabrak dinding, atau kelola perbaikan tugas yang tertunda.</p>
+                    <p class="text-xs text-gray-500">Pantau status robot, pulihkan robot yang menabrak, atau kelola perbaikan tugas yang tertunda.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
@@ -153,7 +153,7 @@
         <!-- Emergency Reset All Button -->
         <div class="pt-4 border-t border-gray-100 flex justify-end">
             <button onclick="resetSystem()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold px-6 py-2.5 rounded-xl text-xs transition duration-200 shadow-sm flex items-center justify-center gap-2 active:scale-95">
-                <i class="fa-solid fa-rotate-left text-rose-500"></i> Reset Semua Unit ke Base (N7)
+                <i class="fa-solid fa-rotate-left text-rose-500"></i> Reset Semua Unit ke Pangkalan
             </button>
         </div>
     </div>
@@ -455,7 +455,7 @@
                     <!-- Bottom Action Buttons in Node Inspector -->
                     <div class="pt-2 flex gap-2 border-t border-gray-100">
                         <button type="button" onclick="saveGraphToServer()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow transition">
-                            <i class="fa-solid fa-floppy-disk"></i> Simpan ke Graph
+                            <i class="fa-solid fa-floppy-disk"></i> Simpan
                         </button>
                         <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector-bottom" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-3 py-2.5 rounded-xl text-xs transition">
                             Tutup
