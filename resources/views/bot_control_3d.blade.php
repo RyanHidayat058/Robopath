@@ -1,8 +1,8 @@
 @extends('layouts.layout')
 
-@section('title', 'ROBOPATH - Map Editor & Bot Control')
-@section('page_title', 'Interactive Map Editor & Fleet Control')
-@section('page_subtitle', 'Drag and drop nodes, rename rooms, set hidden transit dots, and manage graph paths')
+@section('title', 'ROBOPATH - Kontrol Robot & Editor Denah 3D')
+@section('page_title', 'Editor Denah & Kontrol Robot')
+@section('page_subtitle', 'Kelola titik ruangan, rute pergerakan, dan pemantauan armada robot')
 
 @section('styles')
 <style>
@@ -100,127 +100,30 @@
 @section('content')
 <div class="space-y-8">
 
-    <!-- Top Control Bar: Floor Selection, Editor Tools, Show/Hide Hidden Dots, & Save Button -->
-    <div class="bg-white border border-gray-200 p-4 rounded-2xl shadow-xl flex flex-wrap items-center gap-x-6 gap-y-3">
-        <!-- FLOOR -->
-        <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Floor</span>
+    <!-- Top Control Bar: Mode Selection & Full Map Launch -->
+    <div class="bg-white border border-gray-200 p-4 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Mode Editor:</span>
             <div class="flex items-center gap-2 bg-gray-100 p-1.5 rounded-xl border border-gray-200">
-            <button onclick="switchFloor(1)" id="tab-floor-1" class="px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white">
-                <i class="fa-solid fa-layer-group mr-1.5"></i> Lantai 1 (Ground Floor)
-            </button>
-            <button onclick="switchFloor(2)" id="tab-floor-2" class="px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200">
-                <i class="fa-solid fa-layer-group mr-1.5"></i> Lantai 2 (Second Floor)
-            </button>
-            </div>
-        </div>
-
-        <!-- MODE (RUANGAN VS ROBOT) -->
-        <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Mode</span>
-            <div class="flex items-center gap-1.5 bg-gray-100 p-1.5 rounded-xl border border-gray-200">
-                <button type="button" onclick="setEditTargetMode('node')" id="tab-mode-node" class="px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white flex items-center gap-1.5" title="Mode Edit Ruangan (Tambah node, hubungkan rute, atur transit)">
-                    <i class="fa-solid fa-circle-dot"></i> <span>Edit Ruangan</span>
+                <button type="button" onclick="handleEditRuanganClick()" id="tab-mode-node" class="px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200 flex items-center gap-2" title="Mode Edit Ruangan (Buka Peta 3D Layar Penuh)">
+                    <i class="fa-solid fa-circle-dot text-indigo-600"></i> <span>Edit Ruangan</span>
                 </button>
-                <button type="button" onclick="setEditTargetMode('robot')" id="tab-mode-robot" class="px-4 py-2 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200 flex items-center gap-1.5" title="Mode Edit Robot (Pilih robot, geser posisi X/Y, atur ketinggian Z & arah hadap)">
+                <button type="button" onclick="setEditTargetMode('robot')" id="tab-mode-robot" class="px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white flex items-center gap-2" title="Mode Edit Robot (Pengaturan Koordinat, Ketinggian, & Armada)">
                     <i class="fa-solid fa-robot"></i> <span>Edit Robot</span>
                 </button>
             </div>
         </div>
 
-        <!-- CONTEXTUAL TOOLS (DEDICATED PER MODE) -->
-        <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Tools</span>
-            <!-- 1. Tools Khusus NODE / RUANGAN -->
-            <div id="toolbar-node-tools" class="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
-                <button onclick="setEditorTool('hand')" id="tool-hand" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Free Hand (Pan): Geser kanvas bebas tanpa menyentuh node">
-                    <i class="fa-solid fa-hand"></i> Free Hand
-                </button>
-                <button onclick="setEditorTool('move')" id="tool-move" class="px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Move: Geser posisi titik ruangan/node">
-                    <i class="fa-solid fa-up-down-left-right"></i> Move Node
-                </button>
-                <button onclick="setEditorTool('add')" id="tool-add" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Add: Tambah titik ruangan baru">
-                    <i class="fa-solid fa-plus-circle"></i> Add Node
-                </button>
-                <button onclick="setEditorTool('connect')" id="tool-connect" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Connect: Hubungkan jalur antar node">
-                    <i class="fa-solid fa-diagram-project"></i> Connect Edges
-                </button>
-                <button onclick="setEditorTool('delete')" id="tool-delete" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Delete: Hapus node ruangan">
-                    <i class="fa-solid fa-trash-can"></i> Delete
-                </button>
-            </div>
-
-            <!-- 2. Tools Khusus ROBOT (Hanya tampil saat Mode Robot aktif) -->
-            <div id="toolbar-robot-tools" class="hidden flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
-                <button onclick="setEditorTool('hand')" id="tool-robot-hand" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Free Hand (Pan): Geser kanvas bebas">
-                    <i class="fa-solid fa-hand"></i> Free Hand
-                </button>
-                <button onclick="setEditorTool('move')" id="tool-robot-move" class="px-3 py-2 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Move Robot: Klik & geser robot langsung di kanvas 3D">
-                    <i class="fa-solid fa-arrows-up-down-left-right"></i> Move Robot
-                </button>
-                <button onclick="focusOnActiveSelection()" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Pusatkan kamera ke posisi robot aktif">
-                    <i class="fa-solid fa-crosshairs text-amber-500"></i> Fokus Robot
-                </button>
-                <button onclick="resetActiveRobotPosition()" class="px-3 py-2 rounded-lg text-gray-600 hover:text-gray-900 flex items-center gap-1.5 transition" title="Kembalikan posisi robot ke tengah">
-                    <i class="fa-solid fa-arrows-rotate"></i> Reset
-                </button>
-                <button onclick="saveRobotPosition()" class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 transition shadow-sm ml-1" title="Simpan koordinat robot ke server">
-                    <i class="fa-solid fa-floppy-disk"></i> Simpan Posisi
-                </button>
-            </div>
-        </div>
-
-        <!-- VIEW -->
-        <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">View</span>
-            <!-- Toggle Robot Avatar (Default: Tampil) -->
-            <button type="button" onclick="toggleShowRobots()" id="btn-toggle-robots" class="bg-blue-50 border border-blue-300 text-[#3b4cb8] font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Avatar Robot 3D">
-                <i class="fa-solid fa-robot text-[#3b4cb8]" id="icon-toggle-robots"></i> <span id="text-toggle-robots">Robot: Tampil</span>
-            </button>
-            <!-- Robot Scale Controller (Gede/Kecil Robot 3D) -->
-            <div class="flex items-center gap-1 bg-gray-100 border border-gray-300 px-2.5 py-1.5 rounded-xl text-xs font-bold" title="Sesuaikan Ukuran Robot 3D">
-                <span class="text-gray-500 flex items-center gap-1 text-[11px]"><i class="fa-solid fa-robot text-[#3b4cb8]"></i> Bot:</span>
-                <button type="button" onclick="changeRobotScale(-0.05)" class="w-6 h-6 rounded-md bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perkecil Ukuran Robot (-0.05x)">
-                    <i class="fa-solid fa-minus text-[10px]"></i>
-                </button>
-                <span id="robot-scale-val" class="font-mono font-bold text-[#3b4cb8] w-12 text-center text-xs">0.60x</span>
-                <button type="button" onclick="changeRobotScale(0.05)" class="w-6 h-6 rounded-md bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perbesar Ukuran Robot (+0.05x)">
-                    <i class="fa-solid fa-plus text-[10px]"></i>
-                </button>
-            </div>
-            <!-- Label Size Controller (Perkecil/Perbesar Nama Ruangan) -->
-            <div class="flex items-center gap-1 bg-gray-100 border border-gray-300 px-2.5 py-1.5 rounded-xl text-xs font-bold" title="Sesuaikan Ukuran Teks Nama Ruangan">
-                <span class="text-gray-500 flex items-center gap-1 text-[11px]"><i class="fa-solid fa-font text-[#3b4cb8]"></i> Label:</span>
-                <button type="button" onclick="adjustLabelScale(-0.1)" class="w-6 h-6 rounded-md bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perkecil Ukuran Label Teks">
-                    <i class="fa-solid fa-minus text-[10px]"></i>
-                </button>
-                <span class="label-scale-val font-mono font-bold text-[#3b4cb8] w-9 text-center text-xs">0.8x</span>
-                <button type="button" onclick="adjustLabelScale(0.1)" class="w-6 h-6 rounded-md bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 flex items-center justify-center text-xs font-bold transition active:scale-95" title="Perbesar Ukuran Label Teks">
-                    <i class="fa-solid fa-plus text-[10px]"></i>
-                </button>
-            </div>
-            <!-- Show/Hide Transit Dots Toggle (Default: Tampil titik biru terang tanpa nama) -->
-            <button onclick="toggleShowHiddenDots()" id="btn-toggle-hidden" class="bg-blue-50 hover:bg-blue-100 border border-blue-300 text-[#3b4cb8] font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Tampilkan / Sembunyikan Titik Transit Tanpa Nama">
-                <i class="fa-solid fa-eye text-[#3b4cb8]" id="icon-toggle-hidden"></i> <span id="text-toggle-hidden">Transit: Tampil</span>
-            </button>
-            <!-- Full Map 3D Mode Toggle -->
-            <button onclick="toggleFullMap(true)" id="btn-open-fullmap" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition shadow-sm" title="Buka Denah 3D Layar Penuh">
-                <i class="fa-solid fa-expand"></i> <span>Full Map 3D</span>
-            </button>
-        </div>
-
-        <!-- ACTION -->
-        <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Action</span>
-            <button onclick="saveGraphToServer()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md hover:shadow-lg transition">
-                <i class="fa-solid fa-floppy-disk"></i> Save Graph Map
+        <div class="flex items-center gap-3">
+            <button type="button" onclick="toggleFullMap(true)" id="btn-open-fullmap" class="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-[#3b4cb8] font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition shadow-sm" title="Buka Denah 3D Layar Penuh">
+                <i class="fa-solid fa-expand"></i> <span>Buka Peta 3D (Full Map)</span>
             </button>
         </div>
     </div>
 
-    <!-- Main Workspace: Interactive Map Canvas (Full Width) -->
+    <!-- Main Workspace: Interactive Map Canvas (Full Width, hidden by default in normal view) -->
     <div class="w-full space-y-4">
-        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl transition-all" id="editor-map-card">
+        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl transition-all hidden" id="editor-map-card">
                 <!-- Dedicated Top Bar for Full Map Mode -->
                 <div id="fullmap-top-bar" class="hidden flex flex-wrap items-center justify-between gap-3 pb-3 mb-2 border-b border-slate-700/60 select-none">
                     <!-- Left: Floor Switcher -->
@@ -350,7 +253,7 @@
 
                         <!-- Exit Full Map Button -->
                         <button type="button" onclick="toggleFullMap(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition" title="Keluar dari Full Map (Esc)">
-                            <i class="fa-solid fa-compress"></i> <span>Exit</span>
+                            <i class="fa-solid fa-compress"></i> <span>Keluar</span>
                         </button>
                     </div>
                 </div>
@@ -1223,7 +1126,19 @@
         const f = Number(activeRobotFloor) === 2 ? 2 : 1;
         const val = getRobotElevation(f);
         save3DSettingsToServer(() => {
-            alert(`✓ Ketinggian robot Lantai ${f} berhasil dikunci permanen pada ${val}m!`);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Ketinggian Dikunci!',
+                    text: `Ketinggian robot Lantai ${f} berhasil dikunci permanen pada ${val}m.`,
+                    timer: 2500,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
+            } else {
+                alert(`✓ Ketinggian robot Lantai ${f} berhasil dikunci permanen pada ${val}m!`);
+            }
         });
     }
 
@@ -2007,10 +1922,9 @@
                         _defaultCamTarget.set(c.x, c.y*0.5, c.z);
                     } else _defaultCamTarget.set(0,size.y*0.15,0);
                 } catch(e){ _defaultCamTarget.set(0,size.y*0.15,0); }
-                const savedDistVal = parseFloat(current3DSettings.camera.dist ?? 5.0);
-                const savedDist = 5 + (savedDistVal / 10) * 115;
+                const targetDist = Math.max(12, maxDim * 1.2);
                 const dir0 = new THREE.Vector3(0, maxDim*0.45, maxDim*0.55).normalize();
-                camera.position.copy(_defaultCamTarget.clone().add(dir0.multiplyScalar(savedDist)));
+                camera.position.copy(_defaultCamTarget.clone().add(dir0.multiplyScalar(targetDist)));
                 controls.target.copy(_defaultCamTarget);
                 controls.update();
             }, undefined, (err) => {
@@ -2099,10 +2013,9 @@
 
         function resetView() {
             const maxDim = Math.max(_bcSize.x, _bcSize.z);
-            const savedDistVal = parseFloat(current3DSettings.camera.dist ?? 5.0);
-            const savedDist = 5 + (savedDistVal / 10) * 115;
+            const targetDist = Math.max(12, maxDim * 1.2);
             const dir0 = new THREE.Vector3(0, maxDim * 0.45, maxDim * 0.55).normalize();
-            camera.position.copy(_defaultCamTarget.clone().add(dir0.multiplyScalar(savedDist)));
+            camera.position.copy(_defaultCamTarget.clone().add(dir0.multiplyScalar(targetDist)));
             controls.target.copy(_defaultCamTarget);
             controls.update();
         }
@@ -2507,12 +2420,18 @@
         currentFloor = floorNum;
         activeRobotFloor = floorNum;
         updateRobotFloorUI();
-        document.getElementById('tab-floor-1').className = floorNum === 1 
-            ? "px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white"
-            : "px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200";
-        document.getElementById('tab-floor-2').className = floorNum === 2 
-            ? "px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white"
-            : "px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200";
+        const tFloor1 = document.getElementById('tab-floor-1');
+        const tFloor2 = document.getElementById('tab-floor-2');
+        if (tFloor1) {
+            tFloor1.className = floorNum === 1 
+                ? "px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white"
+                : "px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200";
+        }
+        if (tFloor2) {
+            tFloor2.className = floorNum === 2 
+                ? "px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white"
+                : "px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200";
+        }
 
         const fmTab1 = document.getElementById('fullmap-tab-floor-1');
         const fmTab2 = document.getElementById('fullmap-tab-floor-2');
@@ -2779,6 +2698,11 @@
         closeDeleteNodeModal();
     }
 
+    function handleEditRuanganClick() {
+        setEditTargetMode('node');
+        toggleFullMap(true);
+    }
+
     let isFullMap = false;
     function toggleFullMap(showFull) {
         if (showFull === undefined) isFullMap = !isFullMap;
@@ -2809,7 +2733,10 @@
         document.body.classList.toggle('body-in-fullmap', isFullMap);
 
         if (isFullMap) {
-            if (editorCard) editorCard.classList.add('botctrl-fullmap-card');
+            if (editorCard) {
+                editorCard.classList.remove('hidden');
+                editorCard.classList.add('botctrl-fullmap-card');
+            }
             if (editorContainer) editorContainer.classList.add('botctrl-fullmap-canvas');
             if (fullmapTopBar) fullmapTopBar.classList.remove('hidden');
             if (editorHeader) editorHeader.classList.add('hidden');
@@ -2818,7 +2745,7 @@
                 btnFloatingFm.title = 'Kecilkan / Keluar Full Map (Esc)';
             }
             if (btnOpenFm) {
-                btnOpenFm.innerHTML = '<i class="fa-solid fa-compress text-[#3b4cb8]"></i> <span>Exit Full Map</span>';
+                btnOpenFm.innerHTML = '<i class="fa-solid fa-compress text-[#3b4cb8]"></i> <span>Keluar Full Map</span>';
             }
 
             // In Full Map, configure floating inspector
@@ -2836,7 +2763,10 @@
             if (btnCloseInspBottom) btnCloseInspBottom.classList.remove('hidden');
             if (btnCloseInspBottomRobot) btnCloseInspBottomRobot.classList.remove('hidden');
         } else {
-            if (editorCard) editorCard.classList.remove('botctrl-fullmap-card');
+            if (editorCard) {
+                editorCard.classList.remove('botctrl-fullmap-card');
+                editorCard.classList.add('hidden');
+            }
             if (editorContainer) editorContainer.classList.remove('botctrl-fullmap-canvas');
             if (fullmapTopBar) fullmapTopBar.classList.add('hidden');
             if (editorHeader) editorHeader.classList.remove('hidden');
@@ -2845,26 +2775,19 @@
                 btnFloatingFm.title = 'Buka Full Map 3D';
             }
             if (btnOpenFm) {
-                btnOpenFm.innerHTML = '<i class="fa-solid fa-expand text-[#3b4cb8]"></i> <span>Full Map 3D</span>';
+                btnOpenFm.innerHTML = '<i class="fa-solid fa-expand text-[#3b4cb8]"></i> <span>Buka Peta 3D (Full Map)</span>';
             }
 
             // Return to normal bottom grid layout
             if (cardNode) {
                 cardNode.classList.remove('botctrl-inspector-floating');
-                if (currentEditTarget === 'node') cardNode.classList.remove('hidden');
             }
             if (cardRobot) {
                 cardRobot.classList.remove('botctrl-inspector-floating');
-                if (currentEditTarget === 'robot') cardRobot.classList.remove('hidden');
             }
 
-            if (currentEditTarget === 'robot') {
-                if (secRobot) secRobot.classList.remove('hidden');
-                if (secNode) secNode.classList.add('hidden');
-            } else {
-                if (secNode) secNode.classList.remove('hidden');
-                if (secRobot) secRobot.classList.add('hidden');
-            }
+            // In normal view without map, default to robot mode
+            setEditTargetMode('robot');
 
             if (btnCloseInsp) btnCloseInsp.classList.add('hidden');
             if (btnCloseInspRobot) btnCloseInspRobot.classList.add('hidden');
@@ -3249,11 +3172,11 @@
         const tabRobot = document.getElementById('tab-mode-robot');
         if (tabNode && tabRobot) {
             if (mode === 'node') {
-                tabNode.className = "px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white flex items-center gap-1.5";
-                tabRobot.className = "px-4 py-2 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200 flex items-center gap-1.5";
+                tabNode.className = "px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white flex items-center gap-2";
+                tabRobot.className = "px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200 flex items-center gap-2";
             } else {
-                tabRobot.className = "px-4 py-2 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white flex items-center gap-1.5";
-                tabNode.className = "px-4 py-2 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200 flex items-center gap-1.5";
+                tabRobot.className = "px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white flex items-center gap-2";
+                tabNode.className = "px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200 flex items-center gap-2";
             }
         }
 
@@ -3774,7 +3697,7 @@
         setRobotScale(robotScaleMultiplier, false);
         updateRobotFloorUI();
         updateRobotElevationUI();
-        setEditTargetMode('node');
+        setEditTargetMode('robot');
         switchFloor(1);
     });
     window.addEventListener('resize', () => {
