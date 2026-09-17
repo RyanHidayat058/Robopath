@@ -1309,12 +1309,22 @@
             gltfLoader.setDRACOLoader(dracoLoader);
         }
 
+        // Safety watchdog: loader overlay cannot be stuck permanently (max 10s auto-dismiss)
+        const watchdogTimer = setTimeout(() => {
+            if (loaderEl && !loaderEl.classList.contains('hidden') && Number(currentDashboardFloor) === floorNum) {
+                console.warn(`[Robopath 3D] Watchdog auto-dismiss loader for Floor ${floorNum}`);
+                if (loaderBar) loaderBar.style.width = '100%';
+                if (loaderPct) loaderPct.textContent = '100%';
+                loaderEl.classList.add('hidden');
+            }
+        }, 10000);
+
         // Load GLB using cached ArrayBuffer
         fetchGLBBufferWithCache(modelUrl, (loadedBytes, totalBytes, fromCache) => {
             if (loaderEl && Number(currentDashboardFloor) === floorNum) {
                 if (fromCache) {
-                    if (loaderBar) loaderBar.style.width = '90%';
-                    if (loaderPct) loaderPct.textContent = '90%';
+                    if (loaderBar) loaderBar.style.width = '92%';
+                    if (loaderPct) loaderPct.textContent = '92%';
                     if (loaderStatus) loaderStatus.textContent = 'Memuat dari Cache Lokal (Instan)...';
                 } else {
                     const percent = Math.min(Math.round((loadedBytes / totalBytes) * 100), 99);
@@ -1326,136 +1336,143 @@
         })
         .then(buffer => {
             gltfLoader.parse(buffer, '', (gltf) => {
-                modelLoadedByFloor[floorNum] = true;
-                loadedModel = gltf.scene;
-
-                const box = new THREE.Box3().setFromObject(loadedModel);
-                box.getCenter(modelCenter);
-                box.getSize(modelSize);
-
-                loadedModel.position.x -= modelCenter.x;
-                loadedModel.position.y -= box.min.y;
-                loadedModel.position.z -= modelCenter.z;
-
-                loadedModel.traverse((child) => {
-                    if (child.isMesh) {
-                        child.castShadow = true;
-                        child.receiveShadow = true;
-                    }
-                });
-
-                const mScale = parseFloat(current3DSettings.model_scale ?? 1.0);
-                loadedModel.scale.set(mScale, mScale, mScale);
-                // recompute size for scaled model
-                const scaledBox = new THREE.Box3().setFromObject(loadedModel);
-                const scaledSize = scaledBox.getSize(new THREE.Vector3());
-                // use scaledSize for labels/camera if available
-                if(scaledSize.x>0.1) modelSize.copy(scaledSize);
-                scene.add(loadedModel);
-
-                // Resolve posisi destination dari nama object Blender (Box3 center). Fallback x/y bila tak ketemu.
-                try { resolveAllObjectAnchors(locations, loadedModel, modelSize, floorNum); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
-
-                // Build 3D Room Labels — hanya destinasi + stairs (transit disembunyikan agar bersih)
-                // Stagger ketinggian per label agar tidak saling tumpuk di denah padat
-                labelsGroup.clear();
-                const floorElev = (floorNum === 2)
-                    ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
-                    : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
-
-                let labelIdx = 0;
-                for (let id in locations) {
-                    const loc = locations[id];
-                    if (Number(loc.floor) !== floorNum) continue;
-                    const isStairs = id.includes('Stairs') || id.includes('Tangga');
-                    if (!loc.is_destination && !isStairs) continue;
-                    const sprite = createRoomLabelSprite(loc.name || id, loc.is_destination, isStairs);
-                    const wp = worldPosForLoc(loc, modelSize);
-                    // Posisikan tepat di atas lantai ruangan (bukan melayang di langit-langit!)
-                    sprite.position.set(wp.x, floorElev + 0.16 + (labelIdx % 3) * 0.03, wp.z);
-                    labelIdx++;
-                    labelsGroup.add(sprite);
-                }
-                labelsGroup.visible = show3DRoomLabels;
-                // Build network lines (Lantai 2 adj) — garis ke semua ruangan
-                try{ buildNetworkLines(); }catch(e){}
-
-                // Eager-create semua robot mesh saat model lantai ready
+                clearTimeout(watchdogTimer);
                 try {
-                    const baseLoc = getBaseLocation();
-                    robots.forEach((r, idx) => {
-                        const holder = getOrCreateRobotMesh(r);
-                        const isIdleNearBase = (r.status === 'Idle' || !r.status || (Number(r.floor || 1) === 1 && Math.hypot((r.current_x || baseLoc.x) - baseLoc.x, (r.current_y || baseLoc.y) - baseLoc.y) < 3.0));
-                        const parkOffset = isIdleNearBase ? getBaseParkingOffset(idx) : { dx: 0, dy: 0 };
-                        const rx = (r.current_x !== undefined && r.current_x !== null && !isIdleNearBase) ? r.current_x : (baseLoc.x + parkOffset.dx);
-                        const ry = (r.current_y !== undefined && r.current_y !== null && !isIdleNearBase) ? r.current_y : (baseLoc.y + parkOffset.dy);
-                        const rf = Number(r.floor || 1);
-                        const wp = worldPosForLoc({ x: rx, y: ry }, modelSize);
-                        const rElev = (rf === 2)
-                            ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
-                            : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
-                        holder.position.set(wp.x, rElev, wp.z);
-                        if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
-                        holder.userData.targetWp.copy(holder.position);
-                        holder.rotation.y = -((r.rotation || 0) * Math.PI / 180);
-                        holder.visible = (rf === floorNum);
+                    modelLoadedByFloor[floorNum] = true;
+                    loadedModel = gltf.scene;
+
+                    const box = new THREE.Box3().setFromObject(loadedModel);
+                    box.getCenter(modelCenter);
+                    box.getSize(modelSize);
+
+                    loadedModel.position.x -= modelCenter.x;
+                    loadedModel.position.y -= box.min.y;
+                    loadedModel.position.z -= modelCenter.z;
+
+                    loadedModel.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
                     });
-                    console.log('[Robopath] robotMeshes eager-created:', robotMeshes.size, `(Lantai ${floorNum})`);
-                } catch (e) { console.warn('[Robopath] eager-create robotMeshes fail', e); }
 
-                // Posisikan target kamera ke lantai (Markas Robot jika Lantai 1, atau tengah denah)
-                let focusTarget = new THREE.Vector3(0, floorElev, 0);
-                try {
-                    const baseLoc = getBaseLocation();
-                    if (floorNum === 1 && baseLoc) {
-                        const baseWp = worldPosForLoc(baseLoc, modelSize);
-                        focusTarget.set(baseWp.x, floorElev, baseWp.z);
-                    } else {
-                        const bbox = new THREE.Box3().setFromObject(loadedModel);
-                        if (!bbox.isEmpty()) {
-                            const c = bbox.getCenter(new THREE.Vector3());
-                            focusTarget.set(c.x, floorElev, c.z);
+                    const mScale = parseFloat(current3DSettings.model_scale ?? 1.0);
+                    loadedModel.scale.set(mScale, mScale, mScale);
+                    // recompute size for scaled model
+                    const scaledBox = new THREE.Box3().setFromObject(loadedModel);
+                    const scaledSize = scaledBox.getSize(new THREE.Vector3());
+                    // use scaledSize for labels/camera if available
+                    if(scaledSize.x>0.1) modelSize.copy(scaledSize);
+                    scene.add(loadedModel);
+
+                    // Resolve posisi destination dari nama object Blender (Box3 center). Fallback x/y bila tak ketemu.
+                    try { resolveAllObjectAnchors(locations, loadedModel, modelSize, floorNum); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
+
+                    // Build 3D Room Labels — hanya destinasi + stairs (transit disembunyikan agar bersih)
+                    labelsGroup.clear();
+                    const floorElev = (floorNum === 2)
+                        ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+                        : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+
+                    let labelIdx = 0;
+                    for (let id in locations) {
+                        const loc = locations[id];
+                        if (Number(loc.floor) !== floorNum) continue;
+                        const isStairs = id.includes('Stairs') || id.includes('Tangga');
+                        if (!loc.is_destination && !isStairs) continue;
+                        const sprite = createRoomLabelSprite(loc.name || id, loc.is_destination, isStairs);
+                        const wp = worldPosForLoc(loc, modelSize);
+                        // Posisikan tepat di atas lantai ruangan (bukan melayang di langit-langit!)
+                        sprite.position.set(wp.x, floorElev + 0.16 + (labelIdx % 3) * 0.03, wp.z);
+                        labelIdx++;
+                        labelsGroup.add(sprite);
+                    }
+                    labelsGroup.visible = show3DRoomLabels;
+                    // Build network lines (Lantai 2 adj) — garis ke semua ruangan
+                    try{ buildNetworkLines(); }catch(e){}
+
+                    // Eager-create semua robot mesh saat model lantai ready
+                    try {
+                        const baseLoc = getBaseLocation();
+                        robots.forEach((r, idx) => {
+                            const holder = getOrCreateRobotMesh(r);
+                            const isIdleNearBase = (r.status === 'Idle' || !r.status || (Number(r.floor || 1) === 1 && Math.hypot((r.current_x || baseLoc.x) - baseLoc.x, (r.current_y || baseLoc.y) - baseLoc.y) < 3.0));
+                            const parkOffset = isIdleNearBase ? getBaseParkingOffset(idx) : { dx: 0, dy: 0 };
+                            const rx = (r.current_x !== undefined && r.current_x !== null && !isIdleNearBase) ? r.current_x : (baseLoc.x + parkOffset.dx);
+                            const ry = (r.current_y !== undefined && r.current_y !== null && !isIdleNearBase) ? r.current_y : (baseLoc.y + parkOffset.dy);
+                            const rf = Number(r.floor || 1);
+                            const wp = worldPosForLoc({ x: rx, y: ry }, modelSize);
+                            const rElev = (rf === 2)
+                                ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+                                : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+                            holder.position.set(wp.x, rElev, wp.z);
+                            if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
+                            holder.userData.targetWp.copy(holder.position);
+                            holder.rotation.y = -((r.rotation || 0) * Math.PI / 180);
+                            holder.visible = (rf === floorNum);
+                        });
+                        console.log('[Robopath] robotMeshes eager-created:', robotMeshes.size, `(Lantai ${floorNum})`);
+                    } catch (e) { console.warn('[Robopath] eager-create robotMeshes fail', e); }
+
+                    // Posisikan target kamera ke lantai (Markas Robot jika Lantai 1, atau tengah denah)
+                    let focusTarget = new THREE.Vector3(0, floorElev, 0);
+                    try {
+                        const baseLoc = getBaseLocation();
+                        if (floorNum === 1 && baseLoc) {
+                            const baseWp = worldPosForLoc(baseLoc, modelSize);
+                            focusTarget.set(baseWp.x, floorElev, baseWp.z);
+                        } else {
+                            const bbox = new THREE.Box3().setFromObject(loadedModel);
+                            if (!bbox.isEmpty()) {
+                                const c = bbox.getCenter(new THREE.Vector3());
+                                focusTarget.set(c.x, floorElev, c.z);
+                            }
+                        }
+                    } catch(e) {}
+
+                    defaultCamTarget.copy(focusTarget);
+                    controls.target.copy(focusTarget);
+
+                    // Langsung zoom dekat ke lantai saat awal tampil (detail lantai dan robot langsung terlihat!)
+                    camera.position.set(
+                        focusTarget.x + 3.2,
+                        floorElev + 5.2,
+                        focusTarget.z + 6.2
+                    );
+                    camera.lookAt(focusTarget);
+                    controls.minDistance = 0.1;
+                    controls.maxDistance = 250;
+                    controls.update();
+                } catch (parseErr) {
+                    console.error('[Robopath 3D] Error setting up model in scene:', parseErr);
+                } finally {
+                    // Hide loader with smooth fade — hanya jika lantai aktif masih lantai ini
+                    if (loaderEl) {
+                        if (loaderBar) loaderBar.style.width = '100%';
+                        if (loaderPct) loaderPct.textContent = '100%';
+                        if (loaderStatus) loaderStatus.textContent = 'Model siap!';
+                        const doHide = () => { if (Number(currentDashboardFloor) === floorNum) loaderEl.classList.add('hidden'); };
+                        setTimeout(doHide, 150);
+                        // jika sekarang tidak aktif, simpan hide untuk saat lantai diaktifkan
+                        if (Number(currentDashboardFloor) !== floorNum) {
+                            const tag = `hideLoader${floorNum}`;
+                            loaderEl.dataset[tag] = '1';
                         }
                     }
-                } catch(e) {}
-
-                defaultCamTarget.copy(focusTarget);
-                controls.target.copy(focusTarget);
-
-                // Langsung zoom dekat ke lantai saat awal tampil (detail lantai dan robot langsung terlihat!)
-                camera.position.set(
-                    focusTarget.x + 3.2,
-                    floorElev + 5.2,
-                    focusTarget.z + 6.2
-                );
-                camera.lookAt(focusTarget);
-                controls.minDistance = 0.1;
-                controls.maxDistance = 250;
-                controls.update();
-
-                // Hide loader with smooth fade — hanya jika lantai aktif masih lantai ini
-                if (loaderEl) {
-                    if (loaderBar) loaderBar.style.width = '100%';
-                    if (loaderPct) loaderPct.textContent = '100%';
-                    if (loaderStatus) loaderStatus.textContent = 'Model siap!';
-                    const doHide = () => { if (Number(currentDashboardFloor) === floorNum) loaderEl.classList.add('hidden'); };
-                    setTimeout(doHide, 200);
-                    // jika sekarang tidak aktif, simpan hide untuk saat lantai diaktifkan
-                    if (Number(currentDashboardFloor) !== floorNum) {
-                        const tag = `hideLoader${floorNum}`;
-                        loaderEl.dataset[tag] = '1';
-                    }
+                    if (typeof onLoadedCallback === 'function') onLoadedCallback();
                 }
-
-                if (typeof onLoadedCallback === 'function') onLoadedCallback();
             }, (err) => {
+                clearTimeout(watchdogTimer);
                 console.error('[Robopath 3D] Error parsing GLB buffer:', err);
                 if (loaderStatus && Number(currentDashboardFloor) === floorNum) loaderStatus.textContent = 'Gagal memproses model 3D! Coba pindah lantai dan kembali.';
+                setTimeout(() => { if (loaderEl) loaderEl.classList.add('hidden'); }, 1500);
             });
         })
         .catch(err => {
+            clearTimeout(watchdogTimer);
             console.error('[Robopath 3D] Error fetching model:', err);
             if (loaderStatus && Number(currentDashboardFloor) === floorNum) loaderStatus.textContent = 'Gagal mengunduh aset 3D! Coba refresh.';
+            setTimeout(() => { if (loaderEl) loaderEl.classList.add('hidden'); }, 1500);
         });
 
         // Raycast klik & geser (drag) avatar 3D

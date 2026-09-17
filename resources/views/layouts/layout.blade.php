@@ -25,7 +25,7 @@
     <script src="{{ asset('js/GLTFLoader.js') }}"></script>
     <script src="{{ asset('js/DRACOLoader.js') }}"></script>
     <script>
-    // Unified Persistent GLB Cache System (Memory + IndexedDB + CacheStorage)
+    // Unified Persistent GLB Cache System (Memory + CacheStorage + IndexedDB with In-Flight Deduplication)
     (function() {
         const DB_NAME = 'robopath-glb-db-v2';
         const STORE_NAME = 'glb_models';
@@ -33,22 +33,32 @@
         const memoryCache = window.__ROBOPATH_GLB_MEM__ || new Map();
         window.__ROBOPATH_GLB_MEM__ = memoryCache;
 
+        // In-flight active download map to deduplicate parallel requests for the same URL
+        // Map<url, { promise: Promise<ArrayBuffer>, listeners: Set<Function> }>
+        const inFlightRequests = new Map();
+
+        // Safe IndexedDB with strict timeout so it can NEVER block the app
         let dbPromise = null;
-        function getDB() {
+        function getDB(timeoutMs = 400) {
             if (!dbPromise) {
                 dbPromise = new Promise((resolve) => {
                     if (!window.indexedDB) return resolve(null);
+                    const timer = setTimeout(() => resolve(null), timeoutMs);
                     try {
                         const req = indexedDB.open(DB_NAME, 1);
+                        req.onblocked = () => { clearTimeout(timer); resolve(null); };
                         req.onupgradeneeded = (e) => {
-                            const db = e.target.result;
-                            if (!db.objectStoreNames.contains(STORE_NAME)) {
-                                db.createObjectStore(STORE_NAME);
-                            }
+                            try {
+                                const db = e.target.result;
+                                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                                    db.createObjectStore(STORE_NAME);
+                                }
+                            } catch (err) { clearTimeout(timer); resolve(null); }
                         };
-                        req.onsuccess = () => resolve(req.result);
-                        req.onerror = () => resolve(null);
+                        req.onsuccess = () => { clearTimeout(timer); resolve(req.result); };
+                        req.onerror = () => { clearTimeout(timer); resolve(null); };
                     } catch (e) {
+                        clearTimeout(timer);
                         resolve(null);
                     }
                 });
@@ -61,11 +71,17 @@
                 const db = await getDB();
                 if (!db) return null;
                 return new Promise((resolve) => {
-                    const tx = db.transaction(STORE_NAME, 'readonly');
-                    const store = tx.objectStore(STORE_NAME);
-                    const req = store.get(key);
-                    req.onsuccess = () => resolve(req.result || null);
-                    req.onerror = () => resolve(null);
+                    const timer = setTimeout(() => resolve(null), 300);
+                    try {
+                        const tx = db.transaction(STORE_NAME, 'readonly');
+                        const store = tx.objectStore(STORE_NAME);
+                        const req = store.get(key);
+                        req.onsuccess = () => { clearTimeout(timer); resolve(req.result || null); };
+                        req.onerror = () => { clearTimeout(timer); resolve(null); };
+                    } catch (err) {
+                        clearTimeout(timer);
+                        resolve(null);
+                    }
                 });
             } catch (e) {
                 return null;
@@ -104,37 +120,34 @@
         }
 
         window.RobopathGLBCache = {
+            // Fast multi-layer read: Memory (0ms) -> CacheStorage (<10ms) -> IndexedDB (<300ms)
             async get(url) {
                 if (memoryCache.has(url)) return memoryCache.get(url);
-                const idbBuf = await getFromIDB(url);
-                if (idbBuf) {
-                    memoryCache.set(url, idbBuf);
-                    return idbBuf;
-                }
                 const csBuf = await getFromCacheStorage(url);
                 if (csBuf) {
                     memoryCache.set(url, csBuf);
-                    putToIDB(url, csBuf);
+                    putToIDB(url, csBuf); // async background backup
                     return csBuf;
+                }
+                const idbBuf = await getFromIDB(url);
+                if (idbBuf) {
+                    memoryCache.set(url, idbBuf);
+                    putToCacheStorage(url, idbBuf); // sync to cacheStorage
+                    return idbBuf;
                 }
                 return null;
             },
 
             async put(url, buffer) {
                 memoryCache.set(url, buffer);
-                await Promise.all([
-                    putToIDB(url, buffer),
-                    putToCacheStorage(url, buffer)
+                await Promise.allSettled([
+                    putToCacheStorage(url, buffer),
+                    putToIDB(url, buffer)
                 ]);
             },
 
             async isCached(url) {
                 if (memoryCache.has(url)) return true;
-                const buf = await getFromIDB(url);
-                if (buf) {
-                    memoryCache.set(url, buf);
-                    return true;
-                }
                 if ('caches' in window) {
                     try {
                         const cache = await caches.open(CACHE_NAME);
@@ -142,80 +155,112 @@
                         if (match) return true;
                     } catch (e) {}
                 }
+                const buf = await getFromIDB(url);
+                if (buf) {
+                    memoryCache.set(url, buf);
+                    return true;
+                }
                 return false;
             },
 
             async fetchWithProgress(url, onProgress) {
+                // 1. Check persistent caches first
                 const cached = await this.get(url);
                 if (cached) {
-                    if (onProgress) {
+                    if (typeof onProgress === 'function') {
                         try { onProgress(cached.byteLength, cached.byteLength, true); } catch (e) {}
                     }
                     return cached;
                 }
 
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP ${response.status} loading ${url}`);
+                // 2. In-flight request deduplication: if download already active, subscribe to it!
+                if (inFlightRequests.has(url)) {
+                    const entry = inFlightRequests.get(url);
+                    if (typeof onProgress === 'function') {
+                        entry.listeners.add(onProgress);
+                    }
+                    return entry.promise;
+                }
 
-                const contentLength = response.headers.get('content-length');
-                const totalBytes = contentLength ? parseInt(contentLength, 10) : 10000000;
-                let loadedBytes = 0;
-                const chunks = [];
+                // 3. Initiate single network request
+                const listeners = new Set();
+                if (typeof onProgress === 'function') listeners.add(onProgress);
 
-                if (response.body && response.body.getReader) {
-                    const reader = response.body.getReader();
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        chunks.push(value);
-                        loadedBytes += value.length;
-                        if (onProgress) {
-                            try { onProgress(loadedBytes, totalBytes, false); } catch (e) {}
+                const fetchPromise = (async () => {
+                    try {
+                        const response = await fetch(url);
+                        if (!response.ok) throw new Error(`HTTP ${response.status} loading ${url}`);
+
+                        const contentLength = response.headers.get('content-length');
+                        const totalBytes = contentLength ? parseInt(contentLength, 10) : 10000000;
+                        let loadedBytes = 0;
+                        const chunks = [];
+
+                        if (response.body && response.body.getReader) {
+                            const reader = response.body.getReader();
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+                                chunks.push(value);
+                                loadedBytes += value.length;
+                                listeners.forEach(fn => {
+                                    try { fn(loadedBytes, totalBytes, false); } catch (err) {}
+                                });
+                            }
+                        } else {
+                            const raw = await response.arrayBuffer();
+                            chunks.push(new Uint8Array(raw));
+                            loadedBytes = raw.byteLength;
+                            listeners.forEach(fn => {
+                                try { fn(loadedBytes, totalBytes, false); } catch (err) {}
+                            });
                         }
-                    }
-                } else {
-                    const raw = await response.arrayBuffer();
-                    chunks.push(new Uint8Array(raw));
-                    loadedBytes = raw.byteLength;
-                    if (onProgress) {
-                        try { onProgress(loadedBytes, totalBytes, false); } catch (e) {}
-                    }
-                }
 
-                const allChunks = new Uint8Array(loadedBytes);
-                let pos = 0;
-                for (const c of chunks) {
-                    allChunks.set(c, pos);
-                    pos += c.length;
-                }
-                const finalBuffer = allChunks.buffer;
-                await this.put(url, finalBuffer);
-                return finalBuffer;
+                        const allChunks = new Uint8Array(loadedBytes);
+                        let pos = 0;
+                        for (const c of chunks) {
+                            allChunks.set(c, pos);
+                            pos += c.length;
+                        }
+                        const finalBuffer = allChunks.buffer;
+
+                        // Persist to memory and storage
+                        await this.put(url, finalBuffer);
+                        return finalBuffer;
+                    } finally {
+                        inFlightRequests.delete(url);
+                    }
+                })();
+
+                inFlightRequests.set(url, { promise: fetchPromise, listeners });
+                return fetchPromise;
             },
 
-            preload(urls) {
+            // Sequential background preload to prevent starving active viewer & server
+            async preload(urls) {
                 const list = Array.isArray(urls) ? urls : [urls];
-                list.forEach(u => {
-                    if (!u) return;
-                    this.get(u).then(cached => {
+                for (const u of list) {
+                    if (!u) continue;
+                    try {
+                        const cached = await this.isCached(u);
                         if (!cached) {
-                            this.fetchWithProgress(u, null).catch(() => {});
+                            await this.fetchWithProgress(u, null);
                         }
-                    });
-                });
+                    } catch (e) {}
+                }
             }
         };
 
-        // Otomatis preload seluruh model 3D di background saat idle
+        // Otomatis preload seluruh model 3D di background saat idle (secara SEQUENTIAL)
         const glbToPreload = [
             "{{ asset('models/Denah_Lantai_1-opt.glb') }}",
             "{{ asset('models/Lantai_2-final.glb') }}",
             "{{ asset('models/robot.glb') }}"
         ];
         if ('requestIdleCallback' in window) {
-            requestIdleCallback(() => window.RobopathGLBCache.preload(glbToPreload), { timeout: 3000 });
+            requestIdleCallback(() => window.RobopathGLBCache.preload(glbToPreload), { timeout: 4000 });
         } else {
-            setTimeout(() => window.RobopathGLBCache.preload(glbToPreload), 1000);
+            setTimeout(() => window.RobopathGLBCache.preload(glbToPreload), 1500);
         }
     })();
     </script>

@@ -1799,6 +1799,16 @@
             gltfLoader.setDRACOLoader(dracoLoader);
         }
 
+        // Safety watchdog: loader overlay cannot be stuck permanently (max 10s auto-dismiss)
+        const watchdogTimer = setTimeout(() => {
+            if (_loaderEl && !_loaderEl.classList.contains('hidden') && Number(currentFloor) === floorNum) {
+                console.warn(`[Robopath BotCtrl 3D] Watchdog auto-dismiss loader for Floor ${floorNum}`);
+                if (_loaderBar) _loaderBar.style.width = '100%';
+                if (_loaderPct) _loaderPct.textContent = '100%';
+                _loaderEl.classList.add('hidden');
+            }
+        }, 10000);
+
         let _bcModel = null; let _bcSize = new THREE.Vector3();
         let _defaultCamTarget = new THREE.Vector3(0,0,0);
         fetchGLBBufferWithCache(modelUrl, (loadedBytes, totalBytes, fromCache) => {
@@ -1815,82 +1825,93 @@
             }
         }).then(buffer => {
             gltfLoader.parse(buffer, '', (gltf) => {
-                modelLoadedByFloor[floorNum]=true;
-                const model = gltf.scene;
-                _bcModel = model;
-                const box = new THREE.Box3().setFromObject(model);
-                const center = box.getCenter(new THREE.Vector3());
-                const size = box.getSize(new THREE.Vector3());
-                _bcSize.copy(size);
+                clearTimeout(watchdogTimer);
+                try {
+                    modelLoadedByFloor[floorNum]=true;
+                    const model = gltf.scene;
+                    _bcModel = model;
+                    const box = new THREE.Box3().setFromObject(model);
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3());
+                    _bcSize.copy(size);
 
-                model.position.x -= center.x;
-                model.position.y -= box.min.y;
-                model.position.z -= center.z;
-                const mScale = parseFloat(current3DSettings.model_scale ?? 1.0);
-                model.scale.set(mScale,mScale,mScale);
-                const scaledBox = new THREE.Box3().setFromObject(model);
-                const scaledSize = scaledBox.getSize(new THREE.Vector3());
-                if(scaledSize.x>0.1){ size.copy(scaledSize); _bcSize.copy(scaledSize); }
+                    model.position.x -= center.x;
+                    model.position.y -= box.min.y;
+                    model.position.z -= center.z;
+                    const mScale = parseFloat(current3DSettings.model_scale ?? 1.0);
+                    model.scale.set(mScale,mScale,mScale);
+                    const scaledBox = new THREE.Box3().setFromObject(model);
+                    const scaledSize = scaledBox.getSize(new THREE.Vector3());
+                    if(scaledSize.x>0.1){ size.copy(scaledSize); _bcSize.copy(scaledSize); }
 
-                model.traverse((child) => {
-                    if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
-                });
-                scene.add(model);
+                    model.traverse((child) => {
+                        if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+                    });
+                    scene.add(model);
 
-                // Resolve posisi destination dari nama object Blender (Box3 center). Fallback x/y bila tak ketemu.
-                try { resolveAllObjectAnchors(locationsData, model, _bcSize, floorNum); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
+                    // Resolve posisi destination dari nama object Blender (Box3 center). Fallback x/y bila tak ketemu.
+                    try { resolveAllObjectAnchors(locationsData, model, _bcSize, floorNum); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
 
-                // Eager-create semua node mesh di lantai 3D
-                for (const id in locationsData) {
-                    const loc = locationsData[id];
-                    if (Number(loc.floor) !== floorNum) continue;
-                    const mesh = getOrCreateNodeMesh(id);
-                    if (mesh) {
-                        const wp = worldPosForLoc(loc, _bcSize);
-                        mesh.position.set(wp.x, wp.y, wp.z);
-                    }
-                }
-                build3DEdges();
-
-                // Eager-create semua robot mesh (avatar robot.glb)
-                const floorElev = getRobotElevation(floorNum);
-                robotsData.forEach(r => {
-                    const holder = getOrCreateRobotMesh(r);
-                    let targetCoords = { x: r.current_x ?? 80.6, y: r.current_y ?? 68.48 };
-                    // Bila robot tercatat di database berada di lantai lain, tempatkan di dekat Tangga lantai ini agar user bisa melihat robot
-                    if (Number(r.floor) !== floorNum) {
-                        const stairsKey = floorNum === 2 ? '2_Tangga' : '1_Tangga';
-                        if (locationsData[stairsKey]) {
-                            targetCoords = { x: locationsData[stairsKey].x, y: locationsData[stairsKey].y };
+                    // Eager-create semua node mesh di lantai 3D
+                    for (const id in locationsData) {
+                        const loc = locationsData[id];
+                        if (Number(loc.floor) !== floorNum) continue;
+                        const mesh = getOrCreateNodeMesh(id);
+                        if (mesh) {
+                            const wp = worldPosForLoc(loc, _bcSize);
+                            mesh.position.set(wp.x, wp.y, wp.z);
                         }
                     }
-                    const wp = worldPosForLoc(targetCoords, _bcSize);
-                    holder.position.set(wp.x, floorElev, wp.z);
-                    holder.rotation.y = -((r.rotation || 0) * Math.PI / 180);
-                    // Tampilkan robot di viewer lantai ini (dikontrol visibilitasnya oleh showRobotsOnMap)
-                    holder.visible = true;
-                });
-                console.log('[Robopath bot_control] floor',floorNum,'nodeMeshes:', nodeMeshes.size, 'robotMeshes:', robotMeshes.size);
-                try{ refreshRobotSelector(); updateDriveReadout(); }catch(e){}
-                // Guard hide loader: hanya jika lantai aktif masih viewer ini
-                if (_loaderEl && Number(currentFloor)===floorNum) {
-                    if (_loaderBar) _loaderBar.style.width='100%';
-                    if (_loaderPct) _loaderPct.textContent='100%';
-                    if (_loaderStatus) _loaderStatus.textContent='Model siap!';
-                    setTimeout(()=>{ if(Number(currentFloor)===floorNum && _loaderEl) _loaderEl.classList.add('hidden'); },200);
+                    build3DEdges();
+
+                    // Eager-create semua robot mesh (avatar robot.glb)
+                    const floorElev = getRobotElevation(floorNum);
+                    robotsData.forEach(r => {
+                        const holder = getOrCreateRobotMesh(r);
+                        let targetCoords = { x: r.current_x ?? 80.6, y: r.current_y ?? 68.48 };
+                        // Bila robot tercatat di database berada di lantai lain, tempatkan di dekat Tangga lantai ini agar user bisa melihat robot
+                        if (Number(r.floor) !== floorNum) {
+                            const stairsKey = floorNum === 2 ? '2_Tangga' : '1_Tangga';
+                            if (locationsData[stairsKey]) {
+                                targetCoords = { x: locationsData[stairsKey].x, y: locationsData[stairsKey].y };
+                            }
+                        }
+                        const wp = worldPosForLoc(targetCoords, _bcSize);
+                        holder.position.set(wp.x, floorElev, wp.z);
+                        holder.rotation.y = -((r.rotation || 0) * Math.PI / 180);
+                        // Tampilkan robot di viewer lantai ini (dikontrol visibilitasnya oleh showRobotsOnMap)
+                        holder.visible = true;
+                    });
+                    console.log('[Robopath bot_control] floor',floorNum,'nodeMeshes:', nodeMeshes.size, 'robotMeshes:', robotMeshes.size);
+                    try{ refreshRobotSelector(); updateDriveReadout(); }catch(e){}
+
+                    // Framing kamera denah bangunan presisi (Foto 2)
+                    _defaultCamTarget.set(3.8, 0.5, 0);
+                    camera.position.set(3.8, 16, 24);
+                    controls.target.copy(_defaultCamTarget);
+                    controls.update();
+                } catch(parseErr) {
+                    console.error('[Robopath BotCtrl 3D] Model setup error:', parseErr);
+                } finally {
+                    // Guard hide loader: hanya jika lantai aktif masih viewer ini
+                    if (_loaderEl && Number(currentFloor)===floorNum) {
+                        if (_loaderBar) _loaderBar.style.width='100%';
+                        if (_loaderPct) _loaderPct.textContent='100%';
+                        if (_loaderStatus) _loaderStatus.textContent='Model siap!';
+                        setTimeout(()=>{ if(Number(currentFloor)===floorNum && _loaderEl) _loaderEl.classList.add('hidden'); },150);
+                    }
                 }
-                // Framing kamera denah bangunan presisi (Foto 2)
-                _defaultCamTarget.set(3.8, 0.5, 0);
-                camera.position.set(3.8, 16, 24);
-                controls.target.copy(_defaultCamTarget);
-                controls.update();
             }, undefined, (err) => {
+                clearTimeout(watchdogTimer);
                 console.error('Error parsing GLB model Lantai '+floorNum+':', err);
                 if (_loaderStatus) _loaderStatus.textContent='Gagal memproses model 3D!';
+                setTimeout(() => { if (_loaderEl) _loaderEl.classList.add('hidden'); }, 1500);
             });
         }).catch(err => {
-            console.error('Error fetching GLB Lantai '+floorNum+':', err);
+            clearTimeout(watchdogTimer);
+            console.error('Error fetching GLB:', err);
             if (_loaderStatus) _loaderStatus.textContent='Gagal mengunduh aset 3D!';
+            setTimeout(() => { if (_loaderEl) _loaderEl.classList.add('hidden'); }, 1500);
         });
 
         let animationFrameId = null;
