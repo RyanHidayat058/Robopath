@@ -94,9 +94,13 @@
                     <select id="dispatch-start" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
                         <option value="" disabled>Choose starting location...</option>
                         <optgroup label="Lantai 1 (Ground Floor)">
+                            @if(isset($locations['1_Markas Robot']))
+                            <option value="1_Markas Robot" selected>Base Station (Markas Robot - Lantai 1)</option>
+                            @elseif(isset($locations['1_N7']))
                             <option value="1_N7" selected>Base Station (N7 - Lantai 1)</option>
+                            @endif
                             @foreach($locations as $id => $coords)
-                            @if(($coords['floor'] ?? 1) == 1 && $id !== '1_N7' && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
+                            @if(($coords['floor'] ?? 1) == 1 && $id !== '1_Markas Robot' && $id !== '1_N7' && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
                             <option value="{{ $id }}">{{ $coords['name'] }} (Lantai 1)</option>
                             @endif
                             @endforeach
@@ -535,8 +539,9 @@
         return sprite;
     }
     function worldPosForLoc(loc, size){
-        const u=(loc._u ?? loc.x/100), v=(loc._v ?? loc.y/100);
-        return new THREE.Vector3((u-0.5)*(size.x*0.95),0,(v-0.5)*(size.z*0.95));
+        const u = (loc._u ?? loc.x/100), v = (loc._v ?? loc.y/100);
+        const yElev = (loc.y_elev !== undefined && loc.y_elev !== null) ? Number(loc.y_elev) : (loc._fy ?? 0);
+        return new THREE.Vector3((u-0.5)*(size.x*0.95), yElev, (v-0.5)*(size.z*0.95));
     }
 
     // Helper: Unified Cached GLB loader leveraging window.RobopathGLBCache (Memory + IDB + CacheStorage)
@@ -1021,7 +1026,7 @@
         }
         window.addEventListener('resize', onResize);
 
-        return { scene,camera,renderer,controls,labelsGroup,robotsGroup,activePathGroup,robotMeshes,getOrCreateRobotMesh,updateRobot3DAvatar,snapRobot3D,resize: onResize, getModelSize:()=>modelSize.clone(), getDefaultCamTarget:()=>defaultCamTarget.clone(), destroy: () => { if (animationFrameId) cancelAnimationFrame(animationFrameId); window.removeEventListener('resize', onResize); renderer.dispose(); } };
+        return { floor: floorNum, scene,camera,renderer,controls,labelsGroup,robotsGroup,activePathGroup,robotMeshes,getOrCreateRobotMesh,updateRobot3DAvatar,snapRobot3D,resize: onResize, getModelSize:()=>modelSize.clone(), getDefaultCamTarget:()=>defaultCamTarget.clone(), destroy: () => { if (animationFrameId) cancelAnimationFrame(animationFrameId); window.removeEventListener('resize', onResize); renderer.dispose(); } };
     }
 
     function switchLiveFloor(floorNum) {
@@ -1148,7 +1153,7 @@
                 closestId = id;
             }
         }
-        return closestId || (Number(floor) === 2 ? '2_Stairs' : '1_N7');
+        return closestId || (Number(floor) === 2 ? (locations['2_Tangga'] ? '2_Tangga' : '2_Stairs') : getBaseLocationId());
     }
 
     function resolveLocationName(x, y, floor = null) {
@@ -1162,15 +1167,23 @@
     function updateStartLocation() {
         const select = document.getElementById('dispatch-robot');
         if (!select || select.selectedIndex < 0) return;
-        const selectedOpt = select.options[select.selectedIndex];
-        if (!selectedOpt) return;
-        const rx = parseFloat(selectedOpt.getAttribute('data-x'));
-        const ry = parseFloat(selectedOpt.getAttribute('data-y'));
+        const robotId = select.value;
+        const robot = robots.find(r => Number(r.id) === Number(robotId));
         const startSelect = document.getElementById('dispatch-start');
         if (!startSelect) return;
-        const closestNodeId = resolveLocationNodeId(rx, ry);
+
+        let closestNodeId = null;
+        if (robot) {
+            const rFloor = Number(robot.floor || 1);
+            closestNodeId = resolveLocationNodeId(robot.current_x, robot.current_y, rFloor);
+        }
+        const baseId = getBaseLocationId();
         if (closestNodeId && startSelect.querySelector(`option[value="${closestNodeId}"]`)) {
             startSelect.value = closestNodeId;
+        } else if (baseId && startSelect.querySelector(`option[value="${baseId}"]`)) {
+            startSelect.value = baseId;
+        } else if (startSelect.querySelector('option[value="1_Markas Robot"]')) {
+            startSelect.value = '1_Markas Robot';
         } else if (startSelect.querySelector('option[value="1_N7"]')) {
             startSelect.value = '1_N7';
         }
@@ -1193,11 +1206,11 @@
             return;
         }
 
-        const select = document.getElementById('dispatch-robot');
-        const selectedOpt = select.options[select.selectedIndex];
-        const rx = parseFloat(selectedOpt.getAttribute('data-x'));
-        const ry = parseFloat(selectedOpt.getAttribute('data-y'));
-        const origin = resolveLocationNodeId(rx, ry);
+        const robot = robots.find(r => Number(r.id) === Number(robotId));
+        const rFloor = Number(robot?.floor || 1);
+        const origin = (robot && robot.current_x != null && robot.current_y != null)
+            ? (resolveLocationNodeId(robot.current_x, robot.current_y, rFloor) || getBaseLocationId())
+            : getBaseLocationId();
 
         fetch('/api/deliveries', {
             method: 'POST',
@@ -1542,28 +1555,39 @@
     function drawRobotPaths() {
         const viewers = allDelivViewers().filter(v=>v&&v.activePathGroup);
         viewers.forEach(v=>v.activePathGroup.clear());
-        function drawPath3D(pts, color, dashed){
-            if(pts.length<2) return;
+        function drawPath3D(pts, color, dashed, targetFloor){
+            if(!pts || pts.length<2) return;
             viewers.forEach(v=>{
                 const sz=v.getModelSize(); if(!sz||sz.x<=0.1) return;
-                const floorNum=v.floor||2;
-                const hasPt = pts.some(p=> Number((locations[p]||p).floor||floorNum)===floorNum);
-                if(!hasPt && pts[0] && typeof pts[0]==='object' && pts[0].x!=null){
-                    // pts includes robot current_x/y which may be on other floor - skip if floor mismatch
-                }
-                const vecs=pts.map(p=>{
+                const vFloor = Number(v.floor || 2);
+                if(targetFloor != null && Number(targetFloor) !== vFloor) return;
+                
+                const vecs = [];
+                for(let p of pts){
                     const loc = typeof p==='string' ? locations[p] : p;
-                    if(!loc) return null;
-                    // filter by viewer floor: if loc is node id, check floor
-                    if(loc.floor!=null && Number(loc.floor)!==floorNum) return null;
+                    if(!loc) continue;
+                    if(loc.floor!=null && Number(loc.floor)!==vFloor) continue;
                     const wp=worldPosForLoc(loc, sz);
-                    return new THREE.Vector3(wp.x, 0.06, wp.z);
-                }).filter(Boolean);
+                    vecs.push(new THREE.Vector3(wp.x, (wp.y || 0) + 0.06, wp.z));
+                }
                 if(vecs.length<2) return;
                 const geo=new THREE.BufferGeometry().setFromPoints(vecs);
-                const mat=new THREE.LineDashedMaterial({color:color, linewidth:1, scale:1, dashSize: dashed?0.6:0, gapSize: dashed?0.4:0, transparent:true, opacity:0.9});
+                const mat=new THREE.LineDashedMaterial({
+                    color: color,
+                    linewidth: 2,
+                    scale: 1,
+                    dashSize: dashed ? 0.6 : 0,
+                    gapSize: dashed ? 0.4 : 0,
+                    transparent: true,
+                    opacity: dashed ? 0.65 : 0.95,
+                    depthWrite: false,
+                    polygonOffset: true,
+                    polygonOffsetFactor: -2,
+                    polygonOffsetUnits: -2
+                });
                 const line=new THREE.Line(geo, mat);
                 line.computeLineDistances();
+                line.renderOrder = 99;
                 v.activePathGroup.add(line);
             });
         }
@@ -1580,22 +1604,27 @@
                 if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
                 const stageEndMs = st.startMs + st.durationMs;
                 if (elapsedMs >= stageEndMs && delivery.status !== 'Pending') return;
-                const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs) || delivery.status === 'Pending';
-                const isFutureStage = (elapsedMs < st.startMs);
+                const isCurrentActive = delivery.status !== 'Pending' && (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
+                const isFutureStage = delivery.status === 'Pending' || (elapsedMs < st.startMs);
                 let remainingPts=[];
-                if (isCurrentActive) {
-                    remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: robot.floor });
+                const stageFloor = Number(st.floor || 1);
+                const robotFloor = Number(robot.floor || 1);
+
+                if (isCurrentActive && robotFloor === stageFloor) {
+                    remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: stageFloor, y_elev: locations[st.path[0]]?.y_elev });
                     const segIdx = robot.currentSegIdx || 0;
-                    for (let i = segIdx + 1; i < st.path.length; i++) if (locations[st.path[i]]) remainingPts.push(st.path[i]);
-                } else if (isFutureStage) {
+                    for (let i = segIdx + 1; i < st.path.length; i++) {
+                        if (locations[st.path[i]]) remainingPts.push(st.path[i]);
+                    }
+                } else if (isFutureStage || (isCurrentActive && robotFloor !== stageFloor)) {
                     st.path.forEach(nodeId => { if (locations[nodeId]) remainingPts.push(nodeId); });
                 } else return;
                 if (remainingPts.length < 2) return;
-                drawPath3D(remainingPts, robotColor, delivery.status==='Pending');
+                drawPath3D(remainingPts, robotColor, delivery.status==='Pending', stageFloor);
             });
         });
         robots.forEach(robot => {
-            if (robot.status === 'Idle' && robot.returnMission && robot.returnMission.stages) {
+            if ((robot.status === 'Idle' || robot.status === 'Returning' || robot.isReturning) && robot.returnMission && robot.returnMission.stages) {
                 const robotColor = getRobotColor(robot.id);
                 const elapsedMs = now.getTime() - robot.returnMission.startedAt;
                 robot.returnMission.stages.forEach(st => {
@@ -1605,15 +1634,20 @@
                     const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
                     const isFutureStage = (elapsedMs < st.startMs);
                     let remainingPts=[];
-                    if (isCurrentActive) {
-                        remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: robot.floor });
+                    const stageFloor = Number(st.floor || 1);
+                    const robotFloor = Number(robot.floor || 1);
+
+                    if (isCurrentActive && robotFloor === stageFloor) {
+                        remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: stageFloor, y_elev: locations[st.path[0]]?.y_elev });
                         const segIdx = robot.returnSegIdx || 0;
-                        for (let i = segIdx + 1; i < st.path.length; i++) if (locations[st.path[i]]) remainingPts.push(st.path[i]);
-                    } else if (isFutureStage) {
+                        for (let i = segIdx + 1; i < st.path.length; i++) {
+                            if (locations[st.path[i]]) remainingPts.push(st.path[i]);
+                        }
+                    } else if (isFutureStage || (isCurrentActive && robotFloor !== stageFloor)) {
                         st.path.forEach(nodeId => { if (locations[nodeId]) remainingPts.push(nodeId); });
                     } else return;
                     if (remainingPts.length < 2) return;
-                    drawPath3D(remainingPts, robotColor, true);
+                    drawPath3D(remainingPts, robotColor, true, stageFloor);
                 });
             }
         });
@@ -1962,7 +1996,10 @@
             const isBusy = robot.status !== 'Idle' || robot.battery_level <= 20 || robot.isReturning;
             const option = document.createElement('option');
             option.value = robot.id;
-            option.textContent = `${robot.name} (${robot.isReturning ? 'Returning' : robot.status} - Bat: ${robot.battery_level}%) ${isBusy ? (robot.isReturning ? '[Returning to N7]' : (robot.status !== 'Idle' ? '[Busy]' : '[Low Battery]')) : ''}`;
+            option.setAttribute('data-x', robot.current_x ?? 0);
+            option.setAttribute('data-y', robot.current_y ?? 0);
+            option.setAttribute('data-floor', robot.floor ?? 1);
+            option.textContent = `${robot.name} (${robot.isReturning ? 'Returning' : robot.status} - Bat: ${robot.battery_level}%) ${isBusy ? (robot.isReturning ? '[Returning to Base]' : (robot.status !== 'Idle' ? '[Busy]' : '[Low Battery]')) : ''}`;
             if (isBusy) option.disabled = true;
             if (robot.id.toString() === currentValue) option.selected = true;
             select.appendChild(option);
@@ -1986,7 +2023,7 @@
                 
                 if (destinationNodeIds.length < 2) { robot.isDispatching = false; return; }
                 const item = items[Math.floor(Math.random() * items.length)];
-                let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || '1_N7';
+                let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || getBaseLocationId();
                 
                 let dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
                 let attempts = 0;

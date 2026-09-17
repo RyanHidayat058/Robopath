@@ -51,27 +51,37 @@
         background: transparent;
     }
     
-    /* Full View 1-Screen Fit (Zero Scroll) */
-    .fullview-wrapper {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        gap: 0.75rem;
+    /* Full View 3D Mode Overlay (Matching Bot Control Full Map: Fixed Inset-0, Sleek Floating Bar, Free-hand Orbit) */
+    .dashboard-fullview-overlay {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        z-index: 9999 !important;
+        margin: 0 !important;
+        background-color: #0b1120 !important;
+        padding: 0.75rem !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
     }
-    .fullview-floor-box {
-        position: relative;
-        height: calc((100vh - 210px) / 2);
-        max-height: 40vh;
-        aspect-ratio: 16/9;
-        max-width: 100%;
-        background-size: 100% 100%;
-        background-repeat: no-repeat;
-        background-position: center;
-        border-radius: 0.75rem;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.08), inset 0 0 0 1px rgba(0,0,0,0.05);
+    .dashboard-fullview-canvas-box {
+        flex: 1 1 0% !important;
+        height: 100% !important;
+        position: relative !important;
+        border-radius: 0.75rem !important;
+        overflow: hidden !important;
+        background-color: #0f172a !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
-
+    body.body-in-fullview > aside {
+        display: none !important;
+    }
+    body.body-in-fullview > main {
+        z-index: 9999 !important;
+    }
 </style>
 @endsection
 
@@ -610,46 +620,74 @@
     </div>
 </div>
 
-<!-- Container 2: Full View 2 Lantai (Single Screen Overview) -->
-<div id="fullview-mode" class="hidden space-y-3">
-    <!-- Header Bar with Back Button & Legend -->
-    <div class="bg-white border border-gray-200 px-5 py-3 rounded-2xl shadow-md flex items-center justify-between gap-4 shrink-0">
-        <div class="flex items-center gap-3">
-            <button onclick="toggleFullView(false)" class="bg-[#3b4cb8] hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow transition duration-200">
-                <i class="fa-solid fa-arrow-left"></i> Kembali ke Dashboard
-            </button>
-            <div class="hidden sm:block">
-                <h3 class="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                    <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> 2-Floor Full View (Single Screen Overview)
-                </h3>
+<!-- Container 2: Full View 3D Mode (Matching Bot Control Full Map layout: View-only, Free-hand Orbit/Pan) -->
+<div id="fullview-mode" class="hidden dashboard-fullview-overlay select-none">
+    <!-- Top Floating Navigation Bar (Single Sleek Contextual Row matching Bot Control) -->
+    <div class="flex items-center justify-between gap-3 pb-2.5 mb-2 border-b border-slate-700/60 text-xs shrink-0">
+        <!-- Left: Floor Switcher Tabs & View Badge -->
+        <div class="flex items-center gap-2 shrink-0">
+            <!-- Floor Switcher Tabs -->
+            <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
+                <button type="button" onclick="switchFullViewFloor(1)" id="fullview-tab-f1" class="px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow">
+                    <i class="fa-solid fa-layer-group mr-1"></i> Lantai 1
+                </button>
+                <button type="button" onclick="switchFullViewFloor(2)" id="fullview-tab-f2" class="px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10">
+                    <i class="fa-solid fa-layer-group mr-1"></i> Lantai 2
+                </button>
             </div>
+
+            <!-- View Only Indicator -->
+            <span class="text-[11px] bg-slate-900/90 text-sky-400 font-bold px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5 whitespace-nowrap">
+                <i class="fa-solid fa-eye text-sky-400"></i> Free Hand View Mode
+            </span>
         </div>
 
-        <!-- Robot Status Legend in Fullview -->
-        <div class="flex items-center gap-3 text-[11px] font-semibold text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
-            <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Idle</span></div>
-            <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500"></span><span>Delivering</span></div>
-            <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-orange-500"></span><span>Charging</span></div>
-            <div class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Maintenance</span></div>
+        <!-- Center: Quick View Tools (Room Labels, Follow Robot, Focus) -->
+        <div class="hidden md:flex items-center gap-2">
+            <!-- Toggle Room Labels -->
+            <button type="button" onclick="toggle3DRoomLabels()" id="fullview-btn-labels" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Tampilkan / Sembunyikan Label Ruangan">
+                <i class="fa-solid fa-tag text-emerald-400" id="fullview-icon-labels"></i> <span id="fullview-text-labels">Label: ON</span>
+            </button>
+
+            <!-- Follow Active Robot -->
+            <button type="button" onclick="toggleFollowMode()" id="fullview-btn-follow" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Kamera Mengikuti Robot Aktif">
+                <i class="fa-solid fa-crosshairs text-sky-400" id="fullview-icon-follow"></i> <span id="fullview-text-follow">Follow: OFF</span>
+            </button>
+
+            <!-- Reset Camera / Center View -->
+            <button type="button" onclick="reset3DCamera()" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Pusatkan Kembali Kamera">
+                <i class="fa-solid fa-arrows-to-dot text-amber-400"></i> <span>Center</span>
+            </button>
+        </div>
+
+        <!-- Right: Status Legend & Exit Button -->
+        <div class="flex items-center gap-3 shrink-0">
+            <!-- Compact Legend -->
+            <div class="hidden lg:flex items-center gap-3 text-[11px] font-semibold text-gray-300 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-white/10">
+                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Idle</span></div>
+                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500"></span><span>Delivering</span></div>
+                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-500"></span><span>Charging</span></div>
+                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Maintenance</span></div>
+            </div>
+
+            <!-- Exit Full View Button -->
+            <button type="button" onclick="toggleFullView(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition active:scale-95" title="Keluar Full View (Esc)">
+                <i class="fa-solid fa-compress"></i> <span>Keluar</span>
+            </button>
         </div>
     </div>
 
-    <!-- Scaled Dual Floor Canvas (Both floors fit in 1 view) -->
-    <div class="fullview-wrapper">
-        <!-- Floor 2 (Atas) -->
-        <div class="fullview-floor-box" id="fullview-container-f2" style="background-color: #0f172a;">
-            <div class="absolute top-2 left-2 z-20 bg-black/75 backdrop-blur-sm text-white font-bold text-[10px] px-2.5 py-1 rounded-lg border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
-                <i class="fa-solid fa-building-user text-sky-400"></i> LANTAI 2 (Upper Floor - Direksi &amp; Meeting Rooms) [3D Mode]
-            </div>
-            <div id="fullview-3d-canvas-f2" class="absolute inset-0 z-0 pointer-events-auto"></div>
-        </div>
+    <!-- Fullscreen 3D Canvas Viewport Container -->
+    <div class="dashboard-fullview-canvas-box" id="fullview-canvas-wrapper">
+        <!-- 3D Canvas Layer for Floor 2 -->
+        <div id="fullview-3d-canvas-f2" class="absolute inset-0 z-0 pointer-events-auto hidden"></div>
 
-        <!-- Floor 1 (Bawah) -->
-        <div class="fullview-floor-box" id="fullview-container-f1" style="background-color: #0f172a;">
-            <div class="absolute top-2 left-2 z-20 bg-black/75 backdrop-blur-sm text-white font-bold text-[10px] px-2.5 py-1 rounded-lg border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
-                <i class="fa-solid fa-building-user text-emerald-400"></i> LANTAI 1 (Ground Floor - Lobby &amp; Office) [3D Mode]
-            </div>
-            <div id="fullview-3d-canvas-f1" class="absolute inset-0 z-0 pointer-events-auto"></div>
+        <!-- 3D Canvas Layer for Floor 1 -->
+        <div id="fullview-3d-canvas-f1" class="absolute inset-0 z-0 pointer-events-auto"></div>
+
+        <!-- Floating Hint Bottom Right -->
+        <div class="absolute bottom-3 right-3 z-20 bg-slate-950/80 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-[11px] font-semibold border border-white/10 shadow flex items-center gap-2 pointer-events-none">
+            <i class="fa-solid fa-hand text-sky-400"></i> Free Hand: Klik kiri orbit &bull; Klik kanan / Shift+Drag pan &bull; Scroll zoom
         </div>
     </div>
 </div>
@@ -733,6 +771,7 @@
     let serverClientOffset = 0;
     let currentDashboardFloor = 1;
     let isFullViewMode = false;
+    let currentFullViewFloor = 1;
 
     // 3D Three.js State, Cache & Loader
     const floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
@@ -1720,6 +1759,10 @@
         const text = document.getElementById('text-3d-labels');
         const btn = document.getElementById('btn-toggle-3d-labels');
 
+        const f_icon = document.getElementById('fullview-icon-labels');
+        const f_text = document.getElementById('fullview-text-labels');
+        const f_btn = document.getElementById('fullview-btn-labels');
+
         allViewers().forEach(viewer => {
             if (viewer && viewer.labelsGroup) viewer.labelsGroup.visible = show3DRoomLabels;
         });
@@ -1728,10 +1771,16 @@
             if (icon) icon.className = 'fa-solid fa-tag text-emerald-400';
             if (text) text.textContent = 'Label: ON';
             if (btn) btn.className = 'bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition';
+            if (f_icon) f_icon.className = 'fa-solid fa-tag text-emerald-400';
+            if (f_text) f_text.textContent = 'Label: ON';
+            if (f_btn) f_btn.className = 'bg-slate-900/90 hover:bg-slate-800 border border-emerald-500/30 text-emerald-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap';
         } else {
             if (icon) icon.className = 'fa-solid fa-tag text-gray-500';
             if (text) text.textContent = 'Label: OFF';
             if (btn) btn.className = 'bg-slate-900/40 hover:bg-slate-900/80 backdrop-blur-md text-gray-400 px-3 py-1.5 rounded-xl text-xs font-bold border border-white/5 shadow-lg flex items-center gap-1.5 transition';
+            if (f_icon) f_icon.className = 'fa-solid fa-tag text-gray-500';
+            if (f_text) f_text.textContent = 'Label: OFF';
+            if (f_btn) f_btn.className = 'bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap';
         }
     }
 
@@ -1808,6 +1857,17 @@
         if(ic) ic.className = isFollowMode ? 'fa-solid fa-eye text-emerald-400 animate-pulse' : 'fa-solid fa-eye text-sky-400';
         if(btn) btn.classList.toggle('ring-2', isFollowMode);
         if(btn) btn.classList.toggle('ring-emerald-400', isFollowMode);
+
+        const f_t = document.getElementById('fullview-text-follow');
+        const f_ic = document.getElementById('fullview-icon-follow');
+        const f_btn = document.getElementById('fullview-btn-follow');
+        if (f_t) f_t.textContent = isFollowMode ? 'Follow: ON' : 'Follow: OFF';
+        if (f_ic) f_ic.className = isFollowMode ? 'fa-solid fa-crosshairs text-emerald-400 animate-pulse' : 'fa-solid fa-crosshairs text-sky-400';
+        if (f_btn) {
+            f_btn.classList.toggle('ring-2', isFollowMode);
+            f_btn.classList.toggle('ring-emerald-400', isFollowMode);
+        }
+
         updateFocusBadge();
     }
     function updateNetworkButton(){
@@ -2126,40 +2186,50 @@
         if(isFollowClick) isFollowMode=true, updateFollowButton();
         // Monitoring mode: fokus ke avatar 3D di lantai tempat robot berada
         const robotFloor = Number(robot.floor) === 1 ? 1 : 2;
-        if(Number(currentDashboardFloor)!==robotFloor){
-            switchDashboardFloor(robotFloor);
-            // wait for viewer then focus
-            setTimeout(()=>focusRobotOnMap(rid, isFollowClick), 250);
-            return;
+        if (isFullViewMode) {
+            if (Number(currentFullViewFloor) !== robotFloor) {
+                switchFullViewFloor(robotFloor);
+                setTimeout(() => focusRobotOnMap(rid, isFollowClick), 250);
+                return;
+            }
+        } else {
+            if (Number(currentDashboardFloor) !== robotFloor) {
+                switchDashboardFloor(robotFloor);
+                // wait for viewer then focus
+                setTimeout(() => focusRobotOnMap(rid, isFollowClick), 250);
+                return;
+            }
         }
-        const stdViewer = activeStdViewer();
-        if(!stdViewer || !stdViewer.robotMeshes){
+        const activeViewerInst = isFullViewMode 
+            ? (robotFloor === 1 ? threeFullF1 : threeFull)
+            : activeStdViewer();
+        if (!activeViewerInst || !activeViewerInst.robotMeshes) {
             // viewer belum ready, retry
-            setTimeout(()=>focusRobotOnMap(rid, isFollowClick), 300);
+            setTimeout(() => focusRobotOnMap(rid, isFollowClick), 300);
             return;
         }
         // ensure mesh exists (create if needed) then snap/follow
-        let holder=null;
-        try{ holder=stdViewer.getOrCreateRobotMesh(robot); }catch(e){}
-        if(!holder) return;
+        let holder = null;
+        try { holder = activeViewerInst.getOrCreateRobotMesh(robot); } catch(e) {}
+        if (!holder) return;
         // paksa visible & ambil posisi aktual (parkir atau delivery)
-        holder.visible=true;
+        holder.visible = true;
         // if follow, animate loop will lerp; if click once, lerp target instantly + keep offset
         const tgt = holder.position.clone(); tgt.y += 0.3;
-        const cam = stdViewer.camera; const ctrl = stdViewer.controls;
-        const savedDistVal=parseFloat(current3DSettings.camera.dist ?? 5.0);
+        const cam = activeViewerInst.camera; const ctrl = activeViewerInst.controls;
+        const savedDistVal = parseFloat(current3DSettings.camera.dist ?? 5.0);
         // Clamp jarak fokus relatif ukuran model — setting tersimpan bisa terlalu jauh/dekat utk lantai ini
-        const fSize = stdViewer.getModelSize();
+        const fSize = activeViewerInst.getModelSize();
         const fMaxDim = Math.max(fSize.x || 30, fSize.z || 30);
-        let savedDist=5+(savedDistVal/10)*115;
+        let savedDist = 5 + (savedDistVal / 10) * 115;
         savedDist = Math.min(Math.max(savedDist, fMaxDim * 0.5), fMaxDim * 2.2);
         const dir = cam.position.clone().sub(ctrl.target).normalize();
-        if(dir.length()<0.01) dir.set(0.35,0.55,0.75).normalize();
+        if (dir.length() < 0.01) dir.set(0.35, 0.55, 0.75).normalize();
         const newTarget = tgt.clone();
         const newPos = newTarget.clone().add(dir.multiplyScalar(savedDist));
         // smooth snap 450ms
-        const startPos=cam.position.clone(); const startTarget=ctrl.target.clone();
-        const t0=performance.now(); const dur=450;
+        const startPos = cam.position.clone(); const startTarget = ctrl.target.clone();
+        const t0 = performance.now(); const dur = 450;
         function step(now){
             const p=Math.min(1,(now-t0)/dur); const e=1-Math.pow(1-p,3);
             cam.position.lerpVectors(startPos, newPos, e);
@@ -2280,7 +2350,9 @@
     }
 
     function reset3DCamera() {
-        const v = activeStdViewer();
+        const v = isFullViewMode 
+            ? (Number(currentFullViewFloor) === 1 ? threeFullF1 : threeFull)
+            : activeStdViewer();
         if (!v) return;
         const defaultPos = v.getDefaultCamPos();
         const size = v.getModelSize();
@@ -2290,16 +2362,20 @@
         if (typeof v.getDefaultCamTarget === 'function') v.controls.target.copy(v.getDefaultCamTarget());
         else v.controls.target.set(0, (size.y || 5) * 0.1, 0);
         v.controls.update();
-        current3DSettings.camera.dist = 5.0;
-        current3DSettings.camera.fov = 5.0;
-        current3DSettings.camera.preset = 'iso';
-        document.getElementById('val-cam-dist').textContent = '5.0';
-        document.getElementById('val-cam-fov').textContent = '5.0';
-        const distInput = document.getElementById('input-cam-dist');
-        const fovInput = document.getElementById('input-cam-fov');
-        if (distInput) distInput.value = '5.0';
-        if (fovInput) fovInput.value = '5.0';
-        save3DSettingsDebounced('camera-settings-status');
+        if (!isFullViewMode) {
+            current3DSettings.camera.dist = 5.0;
+            current3DSettings.camera.fov = 5.0;
+            current3DSettings.camera.preset = 'iso';
+            const valDist = document.getElementById('val-cam-dist');
+            const valFov = document.getElementById('val-cam-fov');
+            if (valDist) valDist.textContent = '5.0';
+            if (valFov) valFov.textContent = '5.0';
+            const distInput = document.getElementById('input-cam-dist');
+            const fovInput = document.getElementById('input-cam-fov');
+            if (distInput) distInput.value = '5.0';
+            if (fovInput) fovInput.value = '5.0';
+            save3DSettingsDebounced('camera-settings-status');
+        }
     }
 
     // Light Adjustments — langsung simpan ke graph.json (berlaku ke semua viewer, setting dishare)
@@ -2457,37 +2533,96 @@
         runSimulationStep();
     }
 
+    function switchFullViewFloor(floorNum) {
+        currentFullViewFloor = floorNum;
+        
+        const tabF1 = document.getElementById('fullview-tab-f1');
+        const tabF2 = document.getElementById('fullview-tab-f2');
+        const canvasF1 = document.getElementById('fullview-3d-canvas-f1');
+        const canvasF2 = document.getElementById('fullview-3d-canvas-f2');
+
+        if (floorNum === 1) {
+            if (tabF1) tabF1.className = "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow";
+            if (tabF2) tabF2.className = "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10";
+            if (canvasF2) canvasF2.classList.add('hidden');
+            if (canvasF1) {
+                canvasF1.classList.remove('hidden');
+                setTimeout(() => {
+                    if (!threeFullF1) {
+                        threeFullF1 = initThreeViewer('fullview-3d-canvas-f1', 1);
+                    } else {
+                        threeFullF1.resize();
+                    }
+                }, 50);
+            }
+        } else {
+            if (tabF2) tabF2.className = "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow";
+            if (tabF1) tabF1.className = "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10";
+            if (canvasF1) canvasF1.classList.add('hidden');
+            if (canvasF2) {
+                canvasF2.classList.remove('hidden');
+                setTimeout(() => {
+                    if (!threeFull) {
+                        threeFull = initThreeViewer('fullview-3d-canvas-f2', 2);
+                    } else {
+                        threeFull.resize();
+                    }
+                }, 50);
+            }
+        }
+
+        setTimeout(runSimulationStep, 60);
+    }
+
     function toggleFullView(showFull) {
-        isFullViewMode = showFull;
+        if (showFull === undefined) isFullViewMode = !isFullViewMode;
+        else isFullViewMode = !!showFull;
+
         const stdView = document.getElementById('standard-view');
         const fullView = document.getElementById('fullview-mode');
         const mainScroll = document.querySelector('main > div');
+        const asideEl = document.querySelector('body > aside') || document.querySelector('aside');
 
-        if (showFull) {
-            stdView.classList.add('hidden');
-            fullView.classList.remove('hidden');
+        if (asideEl) {
+            asideEl.style.display = isFullViewMode ? 'none' : '';
+        }
+        document.body.classList.toggle('body-in-fullview', isFullViewMode);
+
+        if (isFullViewMode) {
+            if (stdView) stdView.classList.add('hidden');
+            if (fullView) fullView.classList.remove('hidden');
             if (mainScroll) mainScroll.scrollTop = 0;
             window.scrollTo(0, 0);
-            setTimeout(() => {
-                if (!threeFull) {
-                    threeFull = initThreeViewer('fullview-3d-canvas-f2', 2);
-                } else {
-                    threeFull.resize();
-                }
-                if (!threeFullF1) {
-                    threeFullF1 = initThreeViewer('fullview-3d-canvas-f1', 1);
-                } else {
-                    threeFullF1.resize();
-                }
-            }, 100);
+
+            // Sync floor view
+            const targetFloor = currentDashboardFloor ? Number(currentDashboardFloor) : 1;
+            switchFullViewFloor(targetFloor);
+
+            // Sync indicators in full view top bar
+            if (typeof updateFollowButton === 'function') updateFollowButton();
+            const f_icon = document.getElementById('fullview-icon-labels');
+            const f_text = document.getElementById('fullview-text-labels');
+            const f_btn = document.getElementById('fullview-btn-labels');
+            if (f_icon) f_icon.className = show3DRoomLabels ? 'fa-solid fa-tag text-emerald-400' : 'fa-solid fa-tag text-gray-500';
+            if (f_text) f_text.textContent = show3DRoomLabels ? 'Label: ON' : 'Label: OFF';
+            if (f_btn) {
+                f_btn.className = show3DRoomLabels
+                    ? 'bg-slate-900/90 hover:bg-slate-800 border border-emerald-500/30 text-emerald-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap'
+                    : 'bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap';
+            }
         } else {
-            fullView.classList.add('hidden');
-            stdView.classList.remove('hidden');
+            if (fullView) fullView.classList.add('hidden');
+            if (stdView) stdView.classList.remove('hidden');
             if (mainScroll) mainScroll.scrollTop = 0;
             window.scrollTo(0, 0);
+
+            setTimeout(() => {
+                const stdV = activeStdViewer();
+                if (stdV) stdV.resize();
+            }, 60);
         }
 
-        setTimeout(runSimulationStep, 50);
+        setTimeout(runSimulationStep, 80);
     }
 
     function getNode(nameOrId, preferredFloor = null) {
@@ -2601,7 +2736,7 @@
                 closestId = id;
             }
         }
-        return closestId || (Number(floor) === 2 ? '2_Stairs' : '1_N7');
+        return closestId || (Number(floor) === 2 ? (locations['2_Tangga'] ? '2_Tangga' : '2_Stairs') : getBaseLocationId());
     }
 
     function resolveLocationName(x, y, floor = null) {
@@ -3064,12 +3199,29 @@
             if (!v || !v.activePathGroup) return;
             const sz = v.getModelSize ? v.getModelSize() : null;
             if (!sz || sz.x < 0.1) return;
-            const y = 0.035; // Menempel langsung di atas lantai 3D
-            const pts3 = remainingPts.map(pt => { const vv = worldPosForLoc(pt, sz); vv.y = y; return vv; });
+            const extraY = (yOff !== undefined && yOff !== null) ? yOff : 0.06;
+            const pts3 = remainingPts.map(pt => {
+                const locObj = typeof pt === 'string' ? locations[pt] : pt;
+                const vv = worldPosForLoc(locObj, sz);
+                vv.y = (vv.y || 0) + extraY;
+                return vv;
+            });
             if (pts3.length < 2) return;
             const geo = new THREE.BufferGeometry().setFromPoints(pts3);
-            const mat = new THREE.LineDashedMaterial({ color: new THREE.Color(robotColor), transparent: true, opacity: opacity, dashSize: dashSize, gapSize: gapSize });
-            const line = new THREE.Line(geo, mat); line.computeLineDistances();
+            const mat = new THREE.LineDashedMaterial({
+                color: new THREE.Color(robotColor),
+                transparent: true,
+                opacity: opacity,
+                dashSize: dashSize,
+                gapSize: gapSize,
+                depthWrite: false,
+                polygonOffset: true,
+                polygonOffsetFactor: -2,
+                polygonOffsetUnits: -2
+            });
+            const line = new THREE.Line(geo, mat);
+            line.computeLineDistances();
+            line.renderOrder = 99;
             v.activePathGroup.add(line);
         });
     }
@@ -3098,15 +3250,18 @@
                 const stageEndMs = st.startMs + st.durationMs;
                 if (elapsedMs >= stageEndMs && delivery.status !== 'Pending') return;
 
-                const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs) || delivery.status === 'Pending';
-                const isFutureStage = (elapsedMs < st.startMs);
+                const isCurrentActive = delivery.status !== 'Pending' && (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
+                const isFutureStage = delivery.status === 'Pending' || (elapsedMs < st.startMs);
 
                 const remainingPts = [];
-                if (isCurrentActive) {
-                    remainingPts.push({ x: robot.current_x, y: robot.current_y });
+                const stageFloor = Number(st.floor || 1);
+                const robotFloor = Number(robot.floor || 1);
+
+                if (isCurrentActive && robotFloor === stageFloor) {
+                    remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: stageFloor, y_elev: locations[st.path[0]]?.y_elev });
                     const segIdx = robot.currentSegIdx || 0;
                     for (let i = segIdx + 1; i < st.path.length; i++) if (locations[st.path[i]]) remainingPts.push(locations[st.path[i]]);
-                } else if (isFutureStage) {
+                } else if (isFutureStage || (isCurrentActive && robotFloor !== stageFloor)) {
                     st.path.forEach(nodeId => { if (locations[nodeId]) remainingPts.push(locations[nodeId]); });
                 } else return;
 
@@ -3114,11 +3269,11 @@
 
                 // Garis aktif 3D per lantai (std + fullview)
                 const isPending = delivery.status === 'Pending';
-                if (Number(st.floor) === 2) {
-                    drawPath3D([threeStd, threeFull], remainingPts, robotColor, isPending ? 0.52 : 0.92, 0.38, 0.22, 0.08);
+                if (stageFloor === 2) {
+                    drawPath3D([threeStd, threeFull], remainingPts, robotColor, isPending ? 0.6 : 0.95, isPending ? 0.6 : 0, isPending ? 0.4 : 0, 0.06);
                     return;
                 }
-                drawPath3D([threeStdF1, threeFullF1], remainingPts, robotColor, isPending ? 0.52 : 0.92, 0.38, 0.22, 0.08);
+                drawPath3D([threeStdF1, threeFullF1], remainingPts, robotColor, isPending ? 0.6 : 0.95, isPending ? 0.6 : 0, isPending ? 0.4 : 0, 0.06);
             });
         });
 
@@ -3138,13 +3293,16 @@
                     const isFutureStage = (elapsedMs < st.startMs);
 
                     const remainingPts = [];
-                    if (isCurrentActive) {
-                        remainingPts.push({ x: robot.current_x, y: robot.current_y });
+                    const stageFloor = Number(st.floor || 1);
+                    const robotFloor = Number(robot.floor || 1);
+
+                    if (isCurrentActive && robotFloor === stageFloor) {
+                        remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: stageFloor, y_elev: locations[st.path[0]]?.y_elev });
                         const segIdx = robot.returnSegIdx || 0;
                         for (let i = segIdx + 1; i < st.path.length; i++) {
                             if (locations[st.path[i]]) remainingPts.push(locations[st.path[i]]);
                         }
-                    } else if (isFutureStage) {
+                    } else if (isFutureStage || (isCurrentActive && robotFloor !== stageFloor)) {
                         st.path.forEach(nodeId => {
                             if (locations[nodeId]) remainingPts.push(locations[nodeId]);
                         });
@@ -3155,11 +3313,11 @@
                     if (remainingPts.length < 2) return;
 
                     // Return path 3D per lantai (std + fullview)
-                    if (Number(st.floor) === 2) {
-                        drawPath3D([threeStd, threeFull], remainingPts, robotColor, 0.78, 0.32, 0.20, 0.07);
+                    if (stageFloor === 2) {
+                        drawPath3D([threeStd, threeFull], remainingPts, robotColor, 0.78, 0.6, 0.4, 0.06);
                         return;
                     }
-                    drawPath3D([threeStdF1, threeFullF1], remainingPts, robotColor, 0.78, 0.32, 0.20, 0.07);
+                    drawPath3D([threeStdF1, threeFullF1], remainingPts, robotColor, 0.78, 0.6, 0.4, 0.06);
                 });
             }
         });
@@ -3814,7 +3972,7 @@
         eligibleRobots.forEach((robot, idx) => {
             robot.isDispatching = true;
             const item = items[(idx + Math.floor(Math.random() * items.length)) % items.length];
-            let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || '1_N7';
+            let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || getBaseLocationId();
 
             let dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
             let attempts = 0;
@@ -3999,6 +4157,12 @@
         };
         if ('requestIdleCallback' in window) requestIdleCallback(preloadOther, { timeout: 8000 });
         else setTimeout(preloadOther, 4000);
+    });
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isFullViewMode) {
+            toggleFullView(false);
+        }
     });
 </script>
 @endsection

@@ -96,9 +96,13 @@
                     <select id="dispatch-start" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
                         <option value="" disabled>Choose starting location...</option>
                         <optgroup label="Lantai 1 (Ground Floor)">
+                            @if(isset($locations['1_Markas Robot']))
+                            <option value="1_Markas Robot" selected>Base Station (Markas Robot - Lantai 1)</option>
+                            @elseif(isset($locations['1_N7']))
                             <option value="1_N7" selected>Base Station (N7 - Lantai 1)</option>
+                            @endif
                             @foreach($locations as $id => $coords)
-                            @if(($coords['floor'] ?? 1) == 1 && $id !== '1_N7' && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
+                            @if(($coords['floor'] ?? 1) == 1 && $id !== '1_Markas Robot' && $id !== '1_N7' && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
                             <option value="{{ $id }}">{{ $coords['name'] }} (Lantai 1)</option>
                             @endif
                             @endforeach
