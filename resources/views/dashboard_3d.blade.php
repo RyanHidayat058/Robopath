@@ -724,6 +724,23 @@
     function allViewers(){ return [threeStd, threeStdF1, threeFull, threeFullF1].filter(v => !!v); }
     // Koordinat parkir avatar (% denah) per lantai — dekat Stairs masing-masing
     function parkCoordsForFloor(f){ return Number(f) === 1 ? { x: 72.1, y: 85.71 } : { x: 72.3, y: 66.3 }; }
+    function getBaseLocationId() {
+        if (locations['1_Markas Robot']) return '1_Markas Robot';
+        if (locations['1_N7']) return '1_N7';
+        for (const [id, loc] of Object.entries(locations)) {
+            if (Number(loc.floor) === 1 && (loc.name?.toLowerCase().includes('markas') || loc.name?.toLowerCase().includes('base'))) {
+                return id;
+            }
+        }
+        for (const [id, loc] of Object.entries(locations)) {
+            if (Number(loc.floor) === 1) return id;
+        }
+        return '1_Markas Robot';
+    }
+    function getBaseLocation() {
+        const id = getBaseLocationId();
+        return locations[id] || { x: 85.48, y: 51.07, floor: 1, name: 'Markas Robot' };
+    }
     // Cari viewer pemilik holder (utk kontrol manual D-pad)
     function viewerOfHolder(holder){
         for (const v of [threeStd, threeStdF1, threeFull, threeFullF1]) {
@@ -752,40 +769,38 @@
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = 384;
-        canvas.height = 96;
+        canvas.height = 80;
 
-        const bgFill = isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.90)' : 'rgba(30, 41, 59, 0.85)');
-        const borderColor = isStairs ? '#fbbf24' : (isDest ? '#ff0000' : '#94a3b8');
-        const textColor = '#ffffff';
+        const isMarkas = String(text).toLowerCase().includes('markas');
+        const bgFill = isMarkas 
+            ? 'rgba(16, 185, 129, 0.95)' 
+            : (isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.88)' : 'rgba(30, 41, 59, 0.80)'));
+        const borderColor = isMarkas 
+            ? '#34d399' 
+            : (isStairs ? '#fbbf24' : (isDest ? '#38bdf8' : '#94a3b8'));
 
-        // Rounded Rect pill
-        const radius = 18;
+        const radius = 16;
         ctx.fillStyle = bgFill;
         ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 4;
-
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.roundRect(8, 8, canvas.width - 16, canvas.height - 16, radius);
+        ctx.roundRect(6, 6, canvas.width - 12, canvas.height - 12, radius);
         ctx.fill();
         ctx.stroke();
 
-        // Icon indicator dot
         ctx.fillStyle = borderColor;
         ctx.beginPath();
-        ctx.arc(32, canvas.height / 2, 7, 0, Math.PI * 2);
+        ctx.arc(28, canvas.height / 2, 6, 0, Math.PI * 2);
         ctx.fill();
 
-        // Label Text
-        ctx.fillStyle = textColor;
-        ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
 
         let cleanText = String(text).replace(/^[12]_/, '');
-        if (cleanText.length > 20) {
-            cleanText = cleanText.substring(0, 18) + '...';
-        }
-        ctx.fillText(cleanText, 52, canvas.height / 2);
+        if (cleanText.length > 18) cleanText = cleanText.substring(0, 16) + '...';
+        ctx.fillText((isMarkas ? '🏠 ' : '') + cleanText, 46, canvas.height / 2);
 
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
@@ -795,15 +810,15 @@
         const spriteMaterial = new THREE.SpriteMaterial({
             map: texture,
             transparent: true,
-            depthTest: false,
+            depthTest: true,
             depthWrite: false
         });
 
         const sprite = new THREE.Sprite(spriteMaterial);
-        const baseW = 3.6 * labelScaleMultiplier;
-        const baseH = 0.9 * labelScaleMultiplier;
+        const baseW = 1.35 * labelScaleMultiplier;
+        const baseH = 0.28 * labelScaleMultiplier;
         sprite.scale.set(baseW, baseH, 1);
-        sprite.renderOrder = 999;
+        sprite.renderOrder = 900;
         return sprite;
     }
 
@@ -1071,59 +1086,78 @@
             if(robotMeshes.has(id)) return robotMeshes.get(id);
             const holder=new THREE.Group(); holder.userData.robotId=id;
             const rSc = parseFloat(current3DSettings.robot_scale ?? 0.1);
-            holder.scale.set(rSc, rSc, rSc);
+
+            // Sub-group untuk model fisik robot (di-scale rSc)
+            const modelHolder=new THREE.Group();
+            modelHolder.scale.set(rSc, rSc, rSc);
+            holder.add(modelHolder);
+            holder.userData.modelHolder = modelHolder;
+
             // placeholder box until glb ready
             const boxMesh=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.5,0.35), new THREE.MeshStandardMaterial({color:getRobotColor(id)}));
             boxMesh.position.y=0.25; boxMesh.castShadow=true; boxMesh.receiveShadow=true;
-            holder.add(boxMesh); holder.userData.boxMesh=boxMesh;
-            // Panah kecil ke bawah (cone 3D) — indicator arah robot
-            const robotCol=getRobotColor(id);
-            const coneGeo=new THREE.ConeGeometry(0.14, 0.32, 8);
-            const coneMat=new THREE.MeshStandardMaterial({color:robotCol, emissive:robotCol, emissiveIntensity:0.35, metalness:0.3, roughness:0.5});
-            const cone=new THREE.Mesh(coneGeo, coneMat);
-            cone.position.set(0, 1.0, 0); cone.rotation.x=Math.PI; // cone default up, flip to point down
-            cone.castShadow=true;
-            holder.add(cone); holder.userData.arrowCone=cone;
-            // Badge nomor kecil di atas cone (sprite mini)
-            const c=document.createElement('canvas'); c.width=128; c.height=48;
+            modelHolder.add(boxMesh); holder.userData.boxMesh=boxMesh;
+
+            // Beacon Ring di lantai (World space: diameter 0.36m, berpendar terang menandai lokasi robot)
+            const ringGeo=new THREE.RingGeometry(0.24, 0.36, 32);
+            ringGeo.rotateX(-Math.PI / 2);
+            const ringMat=new THREE.MeshBasicMaterial({color: new THREE.Color(getRobotColor(id)), side: THREE.DoubleSide, transparent:true, opacity:0.88});
+            const ringMesh=new THREE.Mesh(ringGeo, ringMat);
+            ringMesh.position.y=0.005;
+            holder.add(ringMesh);
+            holder.userData.ringMesh=ringMesh;
+
+            // Pin / Avatar Icon di atas robot (World space)
+            const cPin=document.createElement('canvas'); cPin.width=128; cPin.height=128;
+            const ctxPin=cPin.getContext('2d');
+            ctxPin.fillStyle=getRobotColor(id); ctxPin.beginPath(); ctxPin.arc(64,64,48,0,Math.PI*2); ctxPin.fill();
+            ctxPin.strokeStyle='#ffffff'; ctxPin.lineWidth=6; ctxPin.stroke();
+            ctxPin.fillStyle='#ffffff'; ctxPin.font='bold 44px Segoe UI, sans-serif'; ctxPin.textAlign='center'; ctxPin.textBaseline='middle'; ctxPin.fillText('🤖',64,66);
+            const pinTex=new THREE.CanvasTexture(cPin);
+            const pinMat=new THREE.SpriteMaterial({map:pinTex, transparent:true, depthTest:false, depthWrite:false});
+            const pinSprite=new THREE.Sprite(pinMat);
+            pinSprite.scale.set(0.38, 0.38, 1);
+            pinSprite.position.set(0, 0.52, 0);
+            pinSprite.renderOrder=1002;
+            holder.add(pinSprite);
+
+            // Badge nama robot di atas robot (World space: jelas terbaca)
+            const c=document.createElement('canvas'); c.width=512; c.height=96;
             const cx=c.getContext('2d');
-            cx.fillStyle=robotCol; cx.strokeStyle='#ffffff'; cx.lineWidth=2;
-            cx.beginPath(); cx.roundRect(4,4,120,40,10); cx.fill(); cx.stroke();
-            cx.fillStyle='#ffffff'; cx.font='bold 20px sans-serif'; cx.textAlign='center'; cx.textBaseline='middle';
-            const shortName=(robot.name||('Robot '+id)).replace('Robot ','R').split(' ')[0];
-            cx.fillText('#'+id+' '+shortName,64,24);
+            cx.fillStyle='rgba(15,23,42,0.92)'; cx.strokeStyle=getRobotColor(id); cx.lineWidth=4;
+            cx.beginPath(); cx.roundRect(8,8,496,80,18); cx.fill(); cx.stroke();
+            cx.fillStyle='#ffffff'; cx.font='bold 32px Segoe UI'; cx.textAlign='center'; cx.textBaseline='middle';
+            cx.fillText(String(robot.name||('Robot '+id)),256,48);
             const tex=new THREE.CanvasTexture(c); tex.minFilter=THREE.LinearFilter;
             const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false, depthWrite:false}));
-            spr.scale.set(0.6,0.22,1); spr.position.set(0,1.25,0); spr.renderOrder=999;
+            spr.scale.set(1.3,0.25,1); spr.position.set(0,0.32,0); spr.renderOrder=1001;
             holder.add(spr); holder.userData.nameSprite=spr;
-            // Sprite status dinamis (badge mengambang) — update per tick di updateRobotStatusSprite()
+
+            // Sprite status dinamis (badge mengambang)
             const stC=document.createElement('canvas'); stC.width=512; stC.height=72;
             const stTex=new THREE.CanvasTexture(stC); stTex.minFilter=THREE.LinearFilter;
             const stSpr=new THREE.Sprite(new THREE.SpriteMaterial({map:stTex, transparent:true, depthTest:false, depthWrite:false}));
-            stSpr.scale.set(1.35,0.2,1); stSpr.position.set(0,1.78,0); stSpr.renderOrder=1000; stSpr.visible=false;
+            stSpr.scale.set(1.25,0.18,1); stSpr.position.set(0,0.16,0); stSpr.renderOrder=1000; stSpr.visible=false;
             stSpr.userData={canvas:stC, texture:stTex};
             holder.add(stSpr); holder.userData.statusSprite=stSpr;
+
             robotsGroup.add(holder); robotMeshes.set(id, holder);
-            // ganti box placeholder dengan clone GLB (atau segera bila template sudah siap)
             const swapBoxForGlb=(tpl)=>{
                 if(!tpl || !holder.parent) return;
-                if(holder.userData.glbClone) return; // sudah swap
+                if(holder.userData.glbClone) return;
                 const clone=tpl.clone(true);
-                // tint: traverse and keep but add emissive hint
                 const col=new THREE.Color(getRobotColor(id));
                 clone.traverse(n=>{
                     if(n.isMesh && n.material){
                         n.material=n.material.clone();
-                        // blend toward robot color lightly
                         if(n.material.color) n.material.color.lerp(col,0.25);
                         n.castShadow=true; n.receiveShadow=true;
                     }
                 });
                 clone.position.set(0,0,0);
-                holder.remove(boxMesh); boxMesh.geometry.dispose();
-                holder.add(clone); holder.userData.glbClone=clone;
+                modelHolder.remove(boxMesh); boxMesh.geometry.dispose();
+                modelHolder.add(clone); holder.userData.glbClone=clone;
             };
-            // bila template sudah siap (holder dibuat belakangan) swap langsung; bila tidak, antre + retry otomatis
             if(robotTemplateReady){ swapBoxForGlb(robotTemplate); }
             else { try{ ensureRobotTemplate(swapBoxForGlb); }catch(e){} }
             return holder;
@@ -1206,67 +1240,77 @@
                 // Build 3D Room Labels — hanya destinasi + stairs (transit disembunyikan agar bersih)
                 // Stagger ketinggian per label agar tidak saling tumpuk di denah padat
                 labelsGroup.clear();
+                const floorElev = (floorNum === 2)
+                    ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+                    : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+
                 let labelIdx = 0;
                 for (let id in locations) {
                     const loc = locations[id];
                     if (Number(loc.floor) !== floorNum) continue;
-                    const isStairs = id.includes('Stairs');
+                    const isStairs = id.includes('Stairs') || id.includes('Tangga');
                     if (!loc.is_destination && !isStairs) continue;
                     const sprite = createRoomLabelSprite(loc.name || id, loc.is_destination, isStairs);
-                    sprite.position.copy(worldPosForLoc(loc, modelSize));
-                    sprite.position.y = (modelSize.y || 0.22) + 0.32 + (labelIdx % 5) * 0.22;
+                    const wp = worldPosForLoc(loc, modelSize);
+                    // Posisikan tepat di atas lantai ruangan (bukan melayang di langit-langit!)
+                    sprite.position.set(wp.x, floorElev + 0.16 + (labelIdx % 3) * 0.03, wp.z);
                     labelIdx++;
                     labelsGroup.add(sprite);
                 }
+                labelsGroup.visible = show3DRoomLabels;
                 // Build network lines (Lantai 2 adj) — garis ke semua ruangan
                 try{ buildNetworkLines(); }catch(e){}
 
                 // Eager-create semua robot mesh saat model lantai ready
-                // Fix bug m0428: getOrCreateRobotMesh hanya dipanggil saat floorNum cocok di runSimulationStep,
-                // tapi robot default Idle di lantai lain → mesh tidak pernah dibuat → robot 3D tidak muncul.
-                // Solusi: buat semua mesh di sini, paksa visible=true & posisi di area Stairs lantai ini (parkir)
-                // supaya monitoring mode langsung menampilkan avatar. Saat delivery update, runSimulationStep akan
-                // override posisi sesuai koordinat aktual robot.
                 try {
-                    // area parkir dekat Stairs lantai ini — tersebar agar tidak tumpang tindih
-                    const park = parkCoordsForFloor(floorNum);
-                    const parkX = park.x, parkY = park.y;
+                    const baseLoc = getBaseLocation();
                     robots.forEach((r, idx) => {
                         const holder = getOrCreateRobotMesh(r);
-                        const offX = (idx - (robots.length - 1) / 2) * 2.0; // tersebar horizontal
-                        const wp = worldPosForLoc({ x: parkX + offX, y: parkY }, modelSize);
-                        holder.position.set(wp.x, 0.02, wp.z);
+                        const rx = (r.current_x !== undefined && r.current_x !== null) ? r.current_x : baseLoc.x;
+                        const ry = (r.current_y !== undefined && r.current_y !== null) ? r.current_y : baseLoc.y;
+                        const rf = Number(r.floor || 1);
+                        const offX = (r.status === 'Idle' && Math.hypot(rx - baseLoc.x, ry - baseLoc.y) < 2) ? (idx * 0.6) : 0;
+                        const wp = worldPosForLoc({ x: rx + offX, y: ry }, modelSize);
+                        const rElev = (rf === 2)
+                            ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+                            : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+                        holder.position.set(wp.x, rElev, wp.z);
                         if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
                         holder.userData.targetWp.copy(holder.position);
                         holder.rotation.y = -((r.rotation || 0) * Math.PI / 180);
-                        holder.visible = true; // paksa tampil di lantai ini saat init
+                        holder.visible = (rf === floorNum);
                     });
-                    console.log('[Robopath] robotMeshes eager-created:', robotMeshes.size, `(parked near Stairs Lantai ${floorNum})`);
+                    console.log('[Robopath] robotMeshes eager-created:', robotMeshes.size, `(Lantai ${floorNum})`);
                 } catch (e) { console.warn('[Robopath] eager-create robotMeshes fail', e); }
 
-                const maxDim = Math.max(modelSize.x, modelSize.z);
-                // FIX: pusatkan kamera ke tengah bangunan aktual (Box3 center),
-                // bukan origin (0,0,0) — model GLB tidak selalu centered di origin.
+                // Posisikan target kamera ke lantai (Markas Robot jika Lantai 1, atau tengah denah)
+                let focusTarget = new THREE.Vector3(0, floorElev, 0);
                 try {
-                    const bbox = new THREE.Box3().setFromObject(loadedModel);
-                    if (!bbox.isEmpty()) {
-                        const c = bbox.getCenter(new THREE.Vector3());
-                        defaultCamTarget.set(c.x, c.y * 0.5, c.z);
+                    const baseLoc = getBaseLocation();
+                    if (floorNum === 1 && baseLoc) {
+                        const baseWp = worldPosForLoc(baseLoc, modelSize);
+                        focusTarget.set(baseWp.x, floorElev, baseWp.z);
                     } else {
-                        defaultCamTarget.set(0, (modelSize.y || 0.22) * 0.15, 0);
+                        const bbox = new THREE.Box3().setFromObject(loadedModel);
+                        if (!bbox.isEmpty()) {
+                            const c = bbox.getCenter(new THREE.Vector3());
+                            focusTarget.set(c.x, floorElev, c.z);
+                        }
                     }
-                } catch (e) { defaultCamTarget.set(0, (modelSize.y || 0.22) * 0.15, 0); }
-                defaultCamPos.set(
-                    defaultCamTarget.x,
-                    defaultCamTarget.y + maxDim * 0.45,
-                    defaultCamTarget.z + maxDim * 0.55
+                } catch(e) {}
+
+                defaultCamTarget.copy(focusTarget);
+                controls.target.copy(focusTarget);
+
+                // Langsung zoom dekat ke lantai saat awal tampil (detail lantai dan robot langsung terlihat!)
+                camera.position.set(
+                    focusTarget.x + 3.2,
+                    floorElev + 5.2,
+                    focusTarget.z + 6.2
                 );
-                // apply saved camera dist if exists
-                const savedDistVal = parseFloat(current3DSettings.camera.dist ?? 5.0);
-                const savedDist = 5 + (savedDistVal / 10) * 115;
-                const dir0 = defaultCamPos.clone().sub(defaultCamTarget).normalize();
-                camera.position.copy(defaultCamTarget).add(dir0.multiplyScalar(savedDist));
-                controls.target.copy(defaultCamTarget);
+                camera.lookAt(focusTarget);
+                controls.minDistance = 0.1;
+                controls.maxDistance = 250;
                 controls.update();
 
                 // Hide loader with smooth fade — hanya jika lantai aktif masih lantai ini

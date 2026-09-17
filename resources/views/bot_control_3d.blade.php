@@ -891,8 +891,13 @@
         canvas.width = 384;
         canvas.height = 96;
 
-        const bgFill = isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.90)' : 'rgba(30, 41, 59, 0.85)');
-        const borderColor = isStairs ? '#fbbf24' : (isDest ? '#ff0000' : '#94a3b8');
+        const isMarkas = String(text).toLowerCase().includes('markas');
+        const bgFill = isMarkas 
+            ? 'rgba(16, 185, 129, 0.95)' 
+            : (isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.90)' : 'rgba(30, 41, 59, 0.85)'));
+        const borderColor = isMarkas 
+            ? '#34d399' 
+            : (isStairs ? '#fbbf24' : (isDest ? '#ff0000' : '#94a3b8'));
 
         const radius = 18;
         ctx.fillStyle = bgFill;
@@ -915,7 +920,7 @@
 
         let cleanText = String(text).replace(/^[12]_/, '');
         if (cleanText.length > 20) cleanText = cleanText.substring(0, 18) + '...';
-        ctx.fillText(cleanText, 52, canvas.height / 2);
+        ctx.fillText((isMarkas ? '🏠 ' : '') + cleanText, 52, canvas.height / 2);
 
         const texture = new THREE.CanvasTexture(canvas);
         const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false });

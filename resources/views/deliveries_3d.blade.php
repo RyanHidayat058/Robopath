@@ -181,13 +181,23 @@
                     </h3>
                     <p class="text-xs text-gray-500" id="live-map-subtitle">Lantai 1 (Ground Floor - Lobby, Office & Receptionist)</p>
                 </div>
-                <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
-                    <button onclick="switchLiveFloor(1)" id="btn-deliv-f1" class="px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition">
-                        Lantai 1
+                <div class="flex items-center gap-2">
+                    <button onclick="focusOnRobotOrBase()" class="px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold border border-white/10 shadow flex items-center gap-1.5 transition" title="Fokuskan kamera ke Robot / Markas">
+                        <i class="fa-solid fa-crosshairs text-sky-400"></i>
+                        <span>Fokus Robot</span>
                     </button>
-                    <button onclick="switchLiveFloor(2)" id="btn-deliv-f2" class="px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">
-                        Lantai 2
+                    <button onclick="toggle3DRoomLabels()" id="btn-toggle-deliv-labels" class="px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold border border-white/10 shadow flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Nama Ruangan">
+                        <i class="fa-solid fa-tag text-emerald-400" id="icon-deliv-labels"></i>
+                        <span id="text-deliv-labels">Label: ON</span>
                     </button>
+                    <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
+                        <button onclick="switchLiveFloor(1)" id="btn-deliv-f1" class="px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition">
+                            Lantai 1
+                        </button>
+                        <button onclick="switchLiveFloor(2)" id="btn-deliv-f2" class="px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">
+                            Lantai 2
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -271,51 +281,105 @@
     let robotTemplateCallbacks = [], robotTemplateTries = 0;
     function activeDelivViewer(){ return Number(liveCurrentFloor)===1 ? threeDelivF1 : threeDeliv; }
     function allDelivViewers(){ return [threeDeliv, threeDelivF1].filter(Boolean); }
-    function parkCoordsForFloor(f){ return f===1 ? {x:72.1,y:85.71} : {x:72.3,y:66.3}; }
     function viewerOfHolder(holder){
         if(!holder) return null;
         for(const v of allDelivViewers()){ if(v && v.robotMeshes && v.robotMeshes.has(Number(holder.userData?.robotId))) return v; }
         return activeDelivViewer();
     }
 
-    // Helper: Create room label sprite (compact & sleek)
+    let showRoomLabels = true;
+    function toggle3DRoomLabels() {
+        showRoomLabels = !showRoomLabels;
+        allDelivViewers().forEach(v => {
+            if (v && v.labelsGroup) v.labelsGroup.visible = showRoomLabels;
+        });
+        const icon = document.getElementById('icon-deliv-labels');
+        const text = document.getElementById('text-deliv-labels');
+        const btn = document.getElementById('btn-toggle-deliv-labels');
+        if (showRoomLabels) {
+            if (icon) icon.className = 'fa-solid fa-tag text-emerald-400';
+            if (text) text.textContent = 'Label: ON';
+            if (btn) btn.className = 'px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold border border-white/10 shadow flex items-center gap-1.5 transition';
+        } else {
+            if (icon) icon.className = 'fa-solid fa-tag text-gray-500';
+            if (text) text.textContent = 'Label: OFF';
+            if (btn) btn.className = 'px-2.5 py-1.5 rounded-xl bg-slate-900/40 hover:bg-slate-900/80 text-gray-400 text-xs font-bold border border-white/5 shadow flex items-center gap-1.5 transition';
+        }
+    }
+
+    function focusOnRobotOrBase() {
+        const viewer = activeDelivViewer();
+        if (!viewer || !viewer.controls || !viewer.camera) return;
+        const baseLoc = getBaseLocation();
+        const sz = viewer.getModelSize ? viewer.getModelSize() : null;
+        if (!sz || sz.x <= 0.1) return;
+
+        const activeRob = robots.find(r => Number(r.floor || 1) === Number(liveCurrentFloor)) || robots[0];
+        let targetPt = null;
+        if (activeRob && activeRob.current_x !== undefined) {
+            targetPt = worldPosForLoc({ x: activeRob.current_x, y: activeRob.current_y }, sz);
+        } else if (baseLoc && Number(liveCurrentFloor) === 1) {
+            targetPt = worldPosForLoc(baseLoc, sz);
+        }
+
+        if (targetPt) {
+            const elev = (Number(liveCurrentFloor) === 2)
+                ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+                : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+            
+            const targetPos = new THREE.Vector3(targetPt.x, elev, targetPt.z);
+            viewer.controls.target.copy(targetPos);
+            viewer.camera.position.set(targetPos.x + 2.5, elev + 3.8, targetPos.z + 4.2);
+            viewer.controls.update();
+        }
+    }
+
+    // Helper: Create room label sprite (compact, elegant & close to floor)
     function createRoomLabelSprite(text, isDest = true, isStairs = false) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = 384;
-        canvas.height = 96;
+        canvas.height = 80;
 
-        const bgFill = isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.90)' : 'rgba(30, 41, 59, 0.85)');
-        const borderColor = isStairs ? '#fbbf24' : (isDest ? '#38bdf8' : '#94a3b8');
+        const isMarkas = String(text).toLowerCase().includes('markas');
+        const bgFill = isMarkas 
+            ? 'rgba(16, 185, 129, 0.95)' 
+            : (isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.88)' : 'rgba(30, 41, 59, 0.80)'));
+        const borderColor = isMarkas 
+            ? '#34d399' 
+            : (isStairs ? '#fbbf24' : (isDest ? '#38bdf8' : '#94a3b8'));
 
-        const radius = 18;
+        const radius = 16;
         ctx.fillStyle = bgFill;
         ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.roundRect(8, 8, canvas.width - 16, canvas.height - 16, radius);
+        ctx.roundRect(6, 6, canvas.width - 12, canvas.height - 12, radius);
         ctx.fill();
         ctx.stroke();
 
         ctx.fillStyle = borderColor;
         ctx.beginPath();
-        ctx.arc(32, canvas.height / 2, 7, 0, Math.PI * 2);
+        ctx.arc(28, canvas.height / 2, 6, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
 
         let cleanText = String(text).replace(/^[12]_/, '');
-        if (cleanText.length > 20) cleanText = cleanText.substring(0, 18) + '...';
-        ctx.fillText(cleanText, 52, canvas.height / 2);
+        if (cleanText.length > 18) cleanText = cleanText.substring(0, 16) + '...';
+        ctx.fillText((isMarkas ? '🏠 ' : '') + cleanText, 46, canvas.height / 2);
 
         const texture = new THREE.CanvasTexture(canvas);
-        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false });
+        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: true, depthWrite: false });
         const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(3.6 * labelScaleMultiplier, 0.9 * labelScaleMultiplier, 1);
-        sprite.renderOrder = 999;
+        // Skala proporsional & rapi (tidak raksasa)
+        const lw = 1.35 * labelScaleMultiplier;
+        const lh = 0.28 * labelScaleMultiplier;
+        sprite.scale.set(lw, lh, 1);
+        sprite.renderOrder = 900;
         return sprite;
     }
     function worldPosForLoc(loc, size){
@@ -447,8 +511,8 @@
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.maxPolarAngle = Math.PI / 2.05;
-        controls.minDistance = 2;
-        controls.maxDistance = 200;
+        controls.minDistance = 0.2;
+        controls.maxDistance = 120;
 
         const ambientLight = new THREE.AmbientLight(0xffffff, parseFloat(current3DSettings.lighting.ambient ?? 1.4));
         scene.add(ambientLight);
@@ -509,8 +573,8 @@
             else if(robot.status==='Delivering' && delivery){ label='▶ MENGANTAR → '+(destName||delivery.destination_location||''); bg='rgba(59,130,246,0.94)'; }
             else if(robot.status==='Charging'){ label='⚡ CHARGING'; bg='rgba(234,88,12,0.94)'; }
             else if(robot.status==='Maintenance'){ label='🔧 MAINTENANCE'; bg='rgba(225,29,72,0.94)'; }
-            else { label='● IDLE'; bg='rgba(16,185,129,0.94)'; }
-            ctx.font='bold 30px Segoe UI, sans-serif'; const pad=26, h=50, tw=Math.min(512-16, ctx.measureText(label).width+52), radius=h/2;
+            else { label='● IDLE (Markas)'; bg='rgba(16,185,129,0.94)'; }
+            ctx.font='bold 28px Segoe UI, sans-serif'; const pad=24, h=48, tw=Math.min(512-16, ctx.measureText(label).width+48), radius=h/2;
             const x0=(512-tw)/2, y0=(72-h)/2;
             ctx.fillStyle=bg; ctx.beginPath(); ctx.roundRect(x0,y0,tw,h,radius); ctx.fill();
             ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=3; ctx.stroke();
@@ -522,27 +586,92 @@
             if(robotMeshes.has(rid)) return robotMeshes.get(rid);
             const holder=new THREE.Group(); holder.userData.robotId=rid;
             const rSc = parseFloat(current3DSettings.robot_scale ?? 0.1);
-            holder.scale.set(rSc, rSc, rSc);
+            
+            // Sub-group untuk model fisik robot (di-scale rSc agar fisik robot pas)
+            const modelHolder=new THREE.Group();
+            modelHolder.scale.set(rSc, rSc, rSc);
+            holder.add(modelHolder);
+            holder.userData.modelHolder = modelHolder;
+
             const boxGeo=new THREE.BoxGeometry(0.5,0.5,0.5);
-            const boxMat=new THREE.MeshStandardMaterial({color:getRobotColor(rid)});
-            const box=new THREE.Mesh(boxGeo, boxMat); box.position.y=0.25; holder.add(box);
+            const boxMat=new THREE.MeshStandardMaterial({color:getRobotColor(rid), metalness:0.3, roughness:0.4});
+            const box=new THREE.Mesh(boxGeo, boxMat); box.position.y=0.25; 
+            modelHolder.add(box);
+            holder.userData.boxMesh=box;
+
+            // Beacon Ring di lantai (World space: diameter 0.36m, berpendar terang menandai lokasi robot)
+            const ringGeo=new THREE.RingGeometry(0.24, 0.36, 32);
+            ringGeo.rotateX(-Math.PI / 2);
+            const ringMat=new THREE.MeshBasicMaterial({color: new THREE.Color(getRobotColor(rid)), side: THREE.DoubleSide, transparent:true, opacity:0.88});
+            const ringMesh=new THREE.Mesh(ringGeo, ringMat);
+            ringMesh.position.y=0.005;
+            holder.add(ringMesh);
+            holder.userData.ringMesh=ringMesh;
+
+            // Pin / Avatar Icon di atas robot (World space: terlihat jelas dari sudut manapun)
+            const cPin=document.createElement('canvas'); cPin.width=128; cPin.height=128;
+            const ctxPin=cPin.getContext('2d');
+            ctxPin.fillStyle=getRobotColor(rid); ctxPin.beginPath(); ctxPin.arc(64,64,48,0,Math.PI*2); ctxPin.fill();
+            ctxPin.strokeStyle='#ffffff'; ctxPin.lineWidth=6; ctxPin.stroke();
+            ctxPin.fillStyle='#ffffff'; ctxPin.font='bold 44px Segoe UI, sans-serif'; ctxPin.textAlign='center'; ctxPin.textBaseline='middle'; ctxPin.fillText('🤖',64,66);
+            const pinTex=new THREE.CanvasTexture(cPin);
+            const pinMat=new THREE.SpriteMaterial({map:pinTex, transparent:true, depthTest:false, depthWrite:false});
+            const pinSprite=new THREE.Sprite(pinMat);
+            pinSprite.scale.set(0.38, 0.38, 1);
+            pinSprite.position.set(0, 0.52, 0);
+            pinSprite.renderOrder=1002;
+            holder.add(pinSprite);
+
+            // Badge Nama Robot (World space: teks tajam, kontras tinggi & jelas terbaca)
             const c2=document.createElement('canvas'); c2.width=512; c2.height=96;
             const sMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c2), transparent:true, depthTest:false, depthWrite:false});
-            const nameSprite=new THREE.Sprite(sMat); nameSprite.scale.set(1.4,0.26,1); nameSprite.position.set(0,1.35,0); nameSprite.renderOrder=999;
-            nameSprite.userData={canvas:c2, texture:sMat.map}; holder.add(nameSprite); holder.userData.nameSprite=nameSprite;
+            const nameSprite=new THREE.Sprite(sMat); 
+            nameSprite.scale.set(1.3, 0.25, 1); 
+            nameSprite.position.set(0, 0.32, 0); 
+            nameSprite.renderOrder=1001;
+            nameSprite.userData={canvas:c2, texture:sMat.map}; 
+            holder.add(nameSprite); 
+            holder.userData.nameSprite=nameSprite;
+
+            // Status Badge Sprite
             const c3=document.createElement('canvas'); c3.width=512; c3.height=72;
             const stMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c3), transparent:true, depthTest:false, depthWrite:false});
-            const stSpr=new THREE.Sprite(stMat); stSpr.scale.set(1.35,0.2,1); stSpr.position.set(0,1.78,0); stSpr.renderOrder=1000; stSpr.visible=false;
-            stSpr.userData={canvas:c3, texture:stMat.map}; holder.add(stSpr); holder.userData.statusSprite=stSpr;
-            holder.userData.boxMesh=box; holder.visible=false;
+            const stSpr=new THREE.Sprite(stMat); 
+            stSpr.scale.set(1.25, 0.18, 1); 
+            stSpr.position.set(0, 0.16, 0); 
+            stSpr.renderOrder=1000; 
+            stSpr.visible=false;
+            stSpr.userData={canvas:c3, texture:stMat.map}; 
+            holder.add(stSpr); 
+            holder.userData.statusSprite=stSpr;
+
+            holder.visible=false;
             const swap=(tpl)=>{
                 if(!tpl || !holder.userData.boxMesh) return;
-                try{ const clone=tpl.clone(true); clone.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; }}); holder.remove(holder.userData.boxMesh); holder.add(clone); holder.userData.glbClone=clone; }catch(e){}
+                try{ 
+                    const clone=tpl.clone(true); 
+                    clone.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; }}); 
+                    modelHolder.remove(holder.userData.boxMesh); 
+                    modelHolder.add(clone); 
+                    holder.userData.glbClone=clone; 
+                }catch(e){}
             };
             if(robotTemplateReady) swap(robotTemplate); else try{ ensureRobotTemplate(swap);}catch(e){}
+            
             // update name sprite text
-            try{ const ctx=c2.getContext('2d'); ctx.clearRect(0,0,512,96); ctx.fillStyle='rgba(15,23,42,0.9)'; ctx.beginPath(); ctx.roundRect(8,8,496,80,18); ctx.fill(); ctx.strokeStyle='#38bdf8'; ctx.lineWidth=3; ctx.stroke(); ctx.fillStyle='#fff'; ctx.font='bold 28px Segoe UI'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(String(robot.name||('Robot '+rid)),256,48); sMat.map.needsUpdate=true; }catch(e){}
-            robotsGroup.add(holder); robotMeshes.set(rid, holder); return holder;
+            try{ 
+                const ctx=c2.getContext('2d'); ctx.clearRect(0,0,512,96); 
+                ctx.fillStyle='rgba(15,23,42,0.92)'; 
+                ctx.beginPath(); ctx.roundRect(8,8,496,80,18); ctx.fill(); 
+                ctx.strokeStyle=getRobotColor(rid); ctx.lineWidth=4; ctx.stroke(); 
+                ctx.fillStyle='#ffffff'; ctx.font='bold 32px Segoe UI'; ctx.textAlign='center'; ctx.textBaseline='middle'; 
+                ctx.fillText(String(robot.name||('Robot '+rid)),256,48); 
+                sMat.map.needsUpdate=true; 
+            }catch(e){}
+            
+            robotsGroup.add(holder); 
+            robotMeshes.set(rid, holder); 
+            return holder;
         }
         function updateRobot3DAvatar(viewer, robot, coords, destName){
             if(!viewer || !viewer.getModelSize || !viewer.robotMeshes) return false;
@@ -613,43 +742,67 @@
                 try { resolveAllObjectAnchors(locations, model, _delivSize, floorNum); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
 
                 labelsGroup.clear();
-                let labelIdx=0;
+                const floorElev = (floorNum === 2)
+                    ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+                    : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+
+                let labelIdx = 0;
                 for (let id in locations) {
                     const loc = locations[id];
                     if (Number(loc.floor) !== floorNum) continue;
-                    const isStairs = id.includes('Stairs');
+                    const isStairs = id.includes('Stairs') || id.includes('Tangga');
                     if (!loc.is_destination && !isStairs) continue;
                     const sprite = createRoomLabelSprite(loc.name || id, loc.is_destination, isStairs);
                     const wp = worldPosForLoc(loc, _delivSize);
-                    sprite.position.set(wp.x, (_delivSize.y||0.22)+0.32+(labelIdx%5)*0.22, wp.z);
-                    labelIdx++; labelsGroup.add(sprite);
+                    // Posisikan tepat di atas lantai ruangan (bukan melayang di langit-langit!)
+                    sprite.position.set(wp.x, floorElev + 0.16 + (labelIdx % 3) * 0.03, wp.z);
+                    labelIdx++;
+                    labelsGroup.add(sprite);
                 }
+                labelsGroup.visible = showRoomLabels;
 
-                try{
-                    const park=parkCoordsForFloor(floorNum); const parkX=park.x, parkY=park.y;
-                    robots.forEach((r,idx)=>{
-                        const holder=getOrCreateRobotMesh(r);
-                        const offX=(idx-(robots.length-1)/2)*2.0;
-                        const wp=worldPosForLoc({x:parkX+offX,y:parkY}, _delivSize);
-                        holder.position.set(wp.x,0.02,wp.z);
-                        if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3();
-                        holder.userData.targetWp.copy(holder.position);
-                        holder.rotation.y=-((r.rotation||0)*Math.PI/180);
-                        holder.visible=true;
+                try {
+                    const baseLoc = getBaseLocation();
+                    robots.forEach((r, idx) => {
+                        const holder = getOrCreateRobotMesh(r);
+                        const rx = (r.current_x !== undefined && r.current_x !== null) ? r.current_x : baseLoc.x;
+                        const ry = (r.current_y !== undefined && r.current_y !== null) ? r.current_y : baseLoc.y;
+                        const rf = Number(r.floor || 1);
+                        const offX = (r.status === 'Idle' && Math.hypot(rx - baseLoc.x, ry - baseLoc.y) < 2) ? (idx * 0.6) : 0;
+                        snapRobot3D(holder, { x: rx, y: ry + offX }, _delivSize, rf);
+                        smoothFaceTowards(holder, r.rotation || 0);
+                        holder.visible = (rf === floorNum);
                     });
-                }catch(e){}
+                } catch(e) {}
 
-                const maxDim = Math.max(_delivSize.x, _delivSize.z);
-                try{
-                    const bbox=new THREE.Box3().setFromObject(model);
-                    if(!bbox.isEmpty()){ const c=bbox.getCenter(new THREE.Vector3()); defaultCamTarget.set(c.x,c.y*0.5,c.z); } else defaultCamTarget.set(0,_delivSize.y*0.15,0);
-                }catch(e){ defaultCamTarget.set(0,_delivSize.y*0.15,0); }
-                defaultCamPos.set(defaultCamTarget.x, defaultCamTarget.y+maxDim*0.45, defaultCamTarget.z+maxDim*0.55);
-                const savedDistVal = parseFloat(current3DSettings.camera.dist ?? 5.0);
-                const savedDist = 5 + (savedDistVal / 10) * 115;
-                const dir0 = defaultCamPos.clone().sub(defaultCamTarget).normalize();
-                camera.position.copy(defaultCamTarget).add(dir0.multiplyScalar(savedDist));
-                controls.target.copy(defaultCamTarget);
+                // Posisikan target kamera ke lantai (Markas Robot jika Lantai 1, atau tengah denah)
+                let focusTarget = new THREE.Vector3(0, floorElev, 0);
+                try {
+                    const baseLoc = getBaseLocation();
+                    if (floorNum === 1 && baseLoc) {
+                        const baseWp = worldPosForLoc(baseLoc, _delivSize);
+                        focusTarget.set(baseWp.x, floorElev, baseWp.z);
+                    } else {
+                        const bbox = new THREE.Box3().setFromObject(model);
+                        if (!bbox.isEmpty()) {
+                            const c = bbox.getCenter(new THREE.Vector3());
+                            focusTarget.set(c.x, floorElev, c.z);
+                        }
+                    }
+                } catch(e) {}
+
+                defaultCamTarget.copy(focusTarget);
+                controls.target.copy(focusTarget);
+
+                // Langsung zoom dekat ke lantai saat awal tampil (detail lantai dan robot langsung terlihat!)
+                camera.position.set(
+                    focusTarget.x + 3.2,
+                    floorElev + 5.2,
+                    focusTarget.z + 6.2
+                );
+                camera.lookAt(focusTarget);
+                controls.minDistance = 0.2;
+                controls.maxDistance = 120;
                 controls.update();
                 if(loaderEl && Number(liveCurrentFloor)===floorNum){
                     if(loaderBar) loaderBar.style.width='100%'; if(loaderPct) loaderPct.textContent='100%'; if(loaderStatus) loaderStatus.textContent='Model siap!';
