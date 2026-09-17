@@ -330,7 +330,9 @@
                 const cache = await caches.open(MODEL_CACHE_NAME);
                 const cachedResponse = await cache.match(url);
                 if (cachedResponse) {
-                    if (onProgress) onProgress(1,1,true);
+                    if (onProgress) {
+                        try { onProgress(1, 1, true); } catch (e) { console.warn('[Robopath Cache] onProgress error:', e); }
+                    }
                     return await cachedResponse.arrayBuffer();
                 }
             } catch (e) { console.warn('[Robopath Cache] read bypass', e); }
@@ -344,7 +346,9 @@
             const {done,value}=await reader.read();
             if(done) break;
             chunks.push(value); loadedBytes+=value.length;
-            if(onProgress) onProgress(loadedBytes,totalBytes,false);
+            if(onProgress) {
+                try { onProgress(loadedBytes, totalBytes, false); } catch (e) {}
+            }
         }
         const all=new Uint8Array(loadedBytes); let pos=0; for(const c of chunks){ all.set(c,pos); pos+=c.length; }
         const buffer=all.buffer;
@@ -571,10 +575,18 @@
 
         let _delivModel = null;
         let _delivSize = new THREE.Vector3();
-        fetchGLBBufferWithCache(modelUrl, (loadedBytes,totalBytes,fromCache)=>{
-            if(!loaderEl || Number(currentDashboardFloor||liveCurrentFloor)===floorNum && modelLoadedByFloor[floorNum]) return;
-            if(fromCache){ if(loaderBar) loaderBar.style.width='90%'; if(loaderPct) loaderPct.textContent='90%'; if(loaderStatus) loaderStatus.textContent='Memuat dari Cache Lokal (Instan)...'; }
-            else { const pct=Math.min(Math.round((loadedBytes/totalBytes)*100),99); if(loaderBar) loaderBar.style.width=pct+'%'; if(loaderPct) loaderPct.textContent=pct+'%'; if(loaderStatus) loaderStatus.textContent=`Mengunduh: ${(loadedBytes/1048576).toFixed(1)} MB / ${(totalBytes/1048576).toFixed(1)} MB`; }
+        fetchGLBBufferWithCache(modelUrl, (loadedBytes, totalBytes, fromCache) => {
+            if (!loaderEl || (Number(liveCurrentFloor) === floorNum && modelLoadedByFloor[floorNum])) return;
+            if (fromCache) {
+                if (loaderBar) loaderBar.style.width = '95%';
+                if (loaderPct) loaderPct.textContent = '95%';
+                if (loaderStatus) loaderStatus.textContent = 'Memuat dari Cache Lokal (Instan)...';
+            } else {
+                const pct = Math.min(Math.round((loadedBytes / totalBytes) * 100), 99);
+                if (loaderBar) loaderBar.style.width = pct + '%';
+                if (loaderPct) loaderPct.textContent = pct + '%';
+                if (loaderStatus) loaderStatus.textContent = `Mengunduh: ${(loadedBytes / 1048576).toFixed(1)} MB / ${(totalBytes / 1048576).toFixed(1)} MB`;
+            }
         }).then(buffer => {
             gltfLoader.parse(buffer, '', (gltf) => {
                 const model = gltf.scene;
@@ -1927,12 +1939,23 @@
         fetchData();
         reloadPageDropdowns();
         
+        switchLiveFloor(1);
+        
         simulationInterval = setInterval(runSimulationStep, 50);
         
         syncInterval = setInterval(() => {
             syncTelemetry();
             fetchData();
         }, 2000);
+
+        // Preload model lantai 2 di background ke CacheStorage agar switch instan
+        const preloadOther = () => {
+            try {
+                fetchGLBBufferWithCache(floor2ModelUrl, null).catch(() => {});
+            } catch (e) {}
+        };
+        if ('requestIdleCallback' in window) requestIdleCallback(preloadOther, { timeout: 8000 });
+        else setTimeout(preloadOther, 4000);
     });
 </script>
 @endsection
