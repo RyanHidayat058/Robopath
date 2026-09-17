@@ -2626,25 +2626,6 @@
         };
     }
 
-    function getBaseLocationId() {
-        if (locations['1_Markas Robot']) return '1_Markas Robot';
-        if (locations['1_N7']) return '1_N7';
-        for (const [id, loc] of Object.entries(locations)) {
-            if (Number(loc.floor) === 1 && (loc.name?.toLowerCase().includes('markas') || loc.name?.toLowerCase().includes('base'))) {
-                return id;
-            }
-        }
-        for (const [id, loc] of Object.entries(locations)) {
-            if (Number(loc.floor) === 1) return id;
-        }
-        return '1_Markas Robot';
-    }
-
-    function getBaseLocation() {
-        const id = getBaseLocationId();
-        return locations[id] || { x: 85.48, y: 51.07, floor: 1, name: 'Markas Robot' };
-    }
-
     function getStairsNodeId(floor) {
         const f = Number(floor || 1);
         if (f === 1) {
@@ -2727,8 +2708,6 @@
 
         return { coords, angle, segIdx: currentSegIdx };
     }
-
-    const findShortestPath = findPathAStar;
 
     function planRouteBetween(fromId, toId) {
         if (!locations[fromId] || !locations[toId]) return [];
