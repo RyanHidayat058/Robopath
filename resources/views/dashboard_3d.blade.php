@@ -764,6 +764,91 @@
     let robotTemplateTries = 0;
     let robotTemplateFailed = false;
 
+    // Helper: Create sleek 2D-style robot icon sprite (white card + vector robot icon + colored border, compact)
+    function create2DRobotMarkerSprite(robotId, robotName, robotColor) {
+        const cPin = document.createElement('canvas');
+        cPin.width = 128;
+        cPin.height = 128;
+        const ctx = cPin.getContext('2d');
+
+        // White rounded card
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(12, 12, 104, 104, 24);
+        else {
+            const x = 12, y = 12, w = 104, h = 104, r = 24;
+            ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+        }
+        ctx.fill();
+        ctx.strokeStyle = robotColor;
+        ctx.lineWidth = 8;
+        ctx.stroke();
+
+        // Vector robot icon (FontAwesome fa-robot style)
+        ctx.fillStyle = robotColor;
+        // Antenna
+        ctx.fillRect(60, 26, 8, 12);
+        ctx.beginPath(); ctx.arc(64, 26, 6, 0, Math.PI * 2); ctx.fill();
+        // Head / Body box
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(30, 42, 68, 54, 10);
+        else ctx.rect(30, 42, 68, 54);
+        ctx.fill();
+        // Ears / side nodes
+        ctx.fillRect(22, 54, 8, 18);
+        ctx.fillRect(98, 54, 8, 18);
+        // Eyes (white dots)
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(48, 58, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(80, 58, 6, 0, Math.PI * 2); ctx.fill();
+        // Mouth slot
+        ctx.fillRect(44, 76, 40, 5);
+
+        const pinTex = new THREE.CanvasTexture(cPin);
+        pinTex.minFilter = THREE.LinearFilter;
+        const pinMat = new THREE.SpriteMaterial({ map: pinTex, transparent: true, depthTest: false, depthWrite: false });
+        const markerSprite = new THREE.Sprite(pinMat);
+        markerSprite.scale.set(0.18, 0.18, 1);
+        markerSprite.position.set(0, 0.38, 0);
+        markerSprite.renderOrder = 1002;
+        return markerSprite;
+    }
+
+    // Helper: Create compact, sleek robot name badge (not giant!)
+    function create2DRobotNameSprite(robotName, robotColor) {
+        const c = document.createElement('canvas');
+        c.width = 256;
+        c.height = 64;
+        const ctx = c.getContext('2d');
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(6, 6, 244, 52, 12);
+        else ctx.rect(6, 6, 244, 52);
+        ctx.fill();
+        ctx.strokeStyle = robotColor;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        let cleanName = String(robotName || 'Robot').replace(/^Robot\s*/i, '');
+        ctx.fillText(cleanName, 128, 32);
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.minFilter = THREE.LinearFilter;
+        const sMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
+        const nameSprite = new THREE.Sprite(sMat);
+        nameSprite.scale.set(0.38, 0.095, 1);
+        nameSprite.position.set(0, 0.24, 0);
+        nameSprite.renderOrder = 1001;
+        nameSprite.userData = { canvas: c, texture: tex };
+        return nameSprite;
+    }
+
     // Helper: Create high-DPI room label sprite (compact & sleek)
     function createRoomLabelSprite(text, isDest = true, isStairs = false) {
         const canvas = document.createElement('canvas');
@@ -822,8 +907,11 @@
         return sprite;
     }
 
-    // Helper: Load GLB with browser CacheStorage API (Instant reload)
+    // Helper: Unified Cached GLB loader leveraging window.RobopathGLBCache (Memory + IDB + CacheStorage)
     async function fetchGLBBufferWithCache(url, onProgress) {
+        if (window.RobopathGLBCache && typeof window.RobopathGLBCache.fetchWithProgress === 'function') {
+            return await window.RobopathGLBCache.fetchWithProgress(url, onProgress);
+        }
         if ('caches' in window) {
             try {
                 const cache = await caches.open(MODEL_CACHE_NAME);
@@ -1098,48 +1186,38 @@
             boxMesh.position.y=0.25; boxMesh.castShadow=true; boxMesh.receiveShadow=true;
             modelHolder.add(boxMesh); holder.userData.boxMesh=boxMesh;
 
-            // Beacon Ring di lantai (World space: diameter 0.36m, berpendar terang menandai lokasi robot)
-            const ringGeo=new THREE.RingGeometry(0.24, 0.36, 32);
+            // Beacon Ring di lantai (diameter rapi ~0.24m)
+            const ringGeo=new THREE.RingGeometry(0.07, 0.12, 32);
             ringGeo.rotateX(-Math.PI / 2);
-            const ringMat=new THREE.MeshBasicMaterial({color: new THREE.Color(getRobotColor(id)), side: THREE.DoubleSide, transparent:true, opacity:0.88});
+            const ringMat=new THREE.MeshBasicMaterial({color: new THREE.Color(getRobotColor(id)), side: THREE.DoubleSide, transparent:true, opacity:0.85});
             const ringMesh=new THREE.Mesh(ringGeo, ringMat);
-            ringMesh.position.y=0.005;
+            ringMesh.position.y=0.003;
             holder.add(ringMesh);
             holder.userData.ringMesh=ringMesh;
 
-            // Pin / Avatar Icon di atas robot (World space)
-            const cPin=document.createElement('canvas'); cPin.width=128; cPin.height=128;
-            const ctxPin=cPin.getContext('2d');
-            ctxPin.fillStyle=getRobotColor(id); ctxPin.beginPath(); ctxPin.arc(64,64,48,0,Math.PI*2); ctxPin.fill();
-            ctxPin.strokeStyle='#ffffff'; ctxPin.lineWidth=6; ctxPin.stroke();
-            ctxPin.fillStyle='#ffffff'; ctxPin.font='bold 44px Segoe UI, sans-serif'; ctxPin.textAlign='center'; ctxPin.textBaseline='middle'; ctxPin.fillText('🤖',64,66);
-            const pinTex=new THREE.CanvasTexture(cPin);
-            const pinMat=new THREE.SpriteMaterial({map:pinTex, transparent:true, depthTest:false, depthWrite:false});
-            const pinSprite=new THREE.Sprite(pinMat);
-            pinSprite.scale.set(0.38, 0.38, 1);
-            pinSprite.position.set(0, 0.52, 0);
-            pinSprite.renderOrder=1002;
-            holder.add(pinSprite);
+            // 2D Style Robot Marker Card Sprite (sleek white card with vector robot icon & robot border)
+            const markerSprite = create2DRobotMarkerSprite(id, robot.name, getRobotColor(id));
+            markerSprite.position.set(0, 0.38, 0);
+            holder.add(markerSprite);
+            holder.userData.markerSprite = markerSprite;
 
-            // Badge nama robot di atas robot (World space: jelas terbaca)
-            const c=document.createElement('canvas'); c.width=512; c.height=96;
-            const cx=c.getContext('2d');
-            cx.fillStyle='rgba(15,23,42,0.92)'; cx.strokeStyle=getRobotColor(id); cx.lineWidth=4;
-            cx.beginPath(); cx.roundRect(8,8,496,80,18); cx.fill(); cx.stroke();
-            cx.fillStyle='#ffffff'; cx.font='bold 32px Segoe UI'; cx.textAlign='center'; cx.textBaseline='middle';
-            cx.fillText(String(robot.name||('Robot '+id)),256,48);
-            const tex=new THREE.CanvasTexture(c); tex.minFilter=THREE.LinearFilter;
-            const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false, depthWrite:false}));
-            spr.scale.set(1.3,0.25,1); spr.position.set(0,0.32,0); spr.renderOrder=1001;
-            holder.add(spr); holder.userData.nameSprite=spr;
+            // Compact Badge Nama Robot (World space: proporsional, tajam & rapi)
+            const nameSprite = create2DRobotNameSprite(robot.name, getRobotColor(id));
+            nameSprite.position.set(0, 0.24, 0);
+            holder.add(nameSprite); 
+            holder.userData.nameSprite=nameSprite;
 
-            // Sprite status dinamis (badge mengambang)
-            const stC=document.createElement('canvas'); stC.width=512; stC.height=72;
-            const stTex=new THREE.CanvasTexture(stC); stTex.minFilter=THREE.LinearFilter;
-            const stSpr=new THREE.Sprite(new THREE.SpriteMaterial({map:stTex, transparent:true, depthTest:false, depthWrite:false}));
-            stSpr.scale.set(1.25,0.18,1); stSpr.position.set(0,0.16,0); stSpr.renderOrder=1000; stSpr.visible=false;
-            stSpr.userData={canvas:stC, texture:stTex};
-            holder.add(stSpr); holder.userData.statusSprite=stSpr;
+            // Compact Status Badge Sprite
+            const c3=document.createElement('canvas'); c3.width=384; c3.height=64;
+            const stMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c3), transparent:true, depthTest:false, depthWrite:false});
+            const stSpr=new THREE.Sprite(stMat); 
+            stSpr.scale.set(0.38, 0.08, 1); 
+            stSpr.position.set(0, 0.14, 0); 
+            stSpr.renderOrder=1000; 
+            stSpr.visible=false;
+            stSpr.userData={canvas:c3, texture:stMat.map}; 
+            holder.add(stSpr); 
+            holder.userData.statusSprite=stSpr;
 
             robotsGroup.add(holder); robotMeshes.set(id, holder);
             const swapBoxForGlb=(tpl)=>{
@@ -1440,7 +1518,11 @@
             // Fase 2.1: lerp per-frame posisi robot 3D menuju target sim step -> gerak halus, bukan teleport
             robotMeshes.forEach(holder => {
                 const tgt = holder.userData.targetWp;
-                if (tgt) holder.position.lerp(tgt, Math.min(1, 0.25));
+                if (tgt) {
+                    holder.position.x += (tgt.x - holder.position.x) * 0.25;
+                    holder.position.z += (tgt.z - holder.position.z) * 0.25;
+                    holder.position.y = tgt.y;
+                }
             });
             // Follow mode: kamera ngikut robot yang difokuskan (Lantai 2 only)
             if(isFollowMode && focusedRobotId!=null && robotMeshes.has(Number(focusedRobotId))){
@@ -1535,16 +1617,19 @@
         } else if (robot.status === 'Maintenance') {
             label = '🔧 MAINTENANCE'; bg = 'rgba(225,29,72,0.94)';
         }
-        ctx.font = 'bold 30px "Segoe UI", system-ui, sans-serif';
+        ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         const wRaw = ctx.measureText(label).width;
-        const pad = 26, h = 50, tw = Math.min(c.width - 16, wRaw + pad * 2);
+        const pad = 20, h = 40, tw = Math.min(c.width - 16, wRaw + pad * 2);
         const x = (c.width - tw) / 2, y = (c.height - h) / 2, r = h / 2;
         ctx.beginPath();
-        ctx.moveTo(x + r, y); ctx.arcTo(x + tw, y, x + tw, y + h, r); ctx.arcTo(x + tw, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + tw, y, r);
+        if (ctx.roundRect) ctx.roundRect(x, y, tw, h, r);
+        else {
+            ctx.moveTo(x + r, y); ctx.arcTo(x + tw, y, x + tw, y + h, r); ctx.arcTo(x + tw, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + tw, y, r);
+        }
         ctx.closePath(); ctx.fillStyle = bg; ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3; ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2.5; ctx.stroke();
         ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(label, c.width / 2, c.height / 2 + 2);
+        ctx.fillText(label, c.width / 2, c.height / 2);
         tex.needsUpdate = true;
         spr.visible = true;
     }

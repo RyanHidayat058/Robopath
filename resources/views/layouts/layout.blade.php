@@ -24,6 +24,201 @@
     <script src="{{ asset('js/OrbitControls.js') }}"></script>
     <script src="{{ asset('js/GLTFLoader.js') }}"></script>
     <script src="{{ asset('js/DRACOLoader.js') }}"></script>
+    <script>
+    // Unified Persistent GLB Cache System (Memory + IndexedDB + CacheStorage)
+    (function() {
+        const DB_NAME = 'robopath-glb-db-v2';
+        const STORE_NAME = 'glb_models';
+        const CACHE_NAME = 'robopath-glb-cache-v1';
+        const memoryCache = window.__ROBOPATH_GLB_MEM__ || new Map();
+        window.__ROBOPATH_GLB_MEM__ = memoryCache;
+
+        let dbPromise = null;
+        function getDB() {
+            if (!dbPromise) {
+                dbPromise = new Promise((resolve) => {
+                    if (!window.indexedDB) return resolve(null);
+                    try {
+                        const req = indexedDB.open(DB_NAME, 1);
+                        req.onupgradeneeded = (e) => {
+                            const db = e.target.result;
+                            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                                db.createObjectStore(STORE_NAME);
+                            }
+                        };
+                        req.onsuccess = () => resolve(req.result);
+                        req.onerror = () => resolve(null);
+                    } catch (e) {
+                        resolve(null);
+                    }
+                });
+            }
+            return dbPromise;
+        }
+
+        async function getFromIDB(key) {
+            try {
+                const db = await getDB();
+                if (!db) return null;
+                return new Promise((resolve) => {
+                    const tx = db.transaction(STORE_NAME, 'readonly');
+                    const store = tx.objectStore(STORE_NAME);
+                    const req = store.get(key);
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => resolve(null);
+                });
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function putToIDB(key, val) {
+            try {
+                const db = await getDB();
+                if (!db) return;
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.put(val, key);
+            } catch (e) {}
+        }
+
+        async function getFromCacheStorage(url) {
+            if (!('caches' in window)) return null;
+            try {
+                const cache = await caches.open(CACHE_NAME);
+                const res = await cache.match(url);
+                if (res) return await res.arrayBuffer();
+            } catch (e) {}
+            return null;
+        }
+
+        async function putToCacheStorage(url, buffer) {
+            if (!('caches' in window)) return;
+            try {
+                const cache = await caches.open(CACHE_NAME);
+                const headers = new Headers();
+                headers.append('Content-Type', 'model/gltf-binary');
+                headers.append('Content-Length', String(buffer.byteLength));
+                await cache.put(url, new Response(buffer.slice(0), { headers }));
+            } catch (e) {}
+        }
+
+        window.RobopathGLBCache = {
+            async get(url) {
+                if (memoryCache.has(url)) return memoryCache.get(url);
+                const idbBuf = await getFromIDB(url);
+                if (idbBuf) {
+                    memoryCache.set(url, idbBuf);
+                    return idbBuf;
+                }
+                const csBuf = await getFromCacheStorage(url);
+                if (csBuf) {
+                    memoryCache.set(url, csBuf);
+                    putToIDB(url, csBuf);
+                    return csBuf;
+                }
+                return null;
+            },
+
+            async put(url, buffer) {
+                memoryCache.set(url, buffer);
+                await Promise.all([
+                    putToIDB(url, buffer),
+                    putToCacheStorage(url, buffer)
+                ]);
+            },
+
+            async isCached(url) {
+                if (memoryCache.has(url)) return true;
+                const buf = await getFromIDB(url);
+                if (buf) {
+                    memoryCache.set(url, buf);
+                    return true;
+                }
+                if ('caches' in window) {
+                    try {
+                        const cache = await caches.open(CACHE_NAME);
+                        const match = await cache.match(url);
+                        if (match) return true;
+                    } catch (e) {}
+                }
+                return false;
+            },
+
+            async fetchWithProgress(url, onProgress) {
+                const cached = await this.get(url);
+                if (cached) {
+                    if (onProgress) {
+                        try { onProgress(cached.byteLength, cached.byteLength, true); } catch (e) {}
+                    }
+                    return cached;
+                }
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status} loading ${url}`);
+
+                const contentLength = response.headers.get('content-length');
+                const totalBytes = contentLength ? parseInt(contentLength, 10) : 10000000;
+                let loadedBytes = 0;
+                const chunks = [];
+
+                if (response.body && response.body.getReader) {
+                    const reader = response.body.getReader();
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                        loadedBytes += value.length;
+                        if (onProgress) {
+                            try { onProgress(loadedBytes, totalBytes, false); } catch (e) {}
+                        }
+                    }
+                } else {
+                    const raw = await response.arrayBuffer();
+                    chunks.push(new Uint8Array(raw));
+                    loadedBytes = raw.byteLength;
+                    if (onProgress) {
+                        try { onProgress(loadedBytes, totalBytes, false); } catch (e) {}
+                    }
+                }
+
+                const allChunks = new Uint8Array(loadedBytes);
+                let pos = 0;
+                for (const c of chunks) {
+                    allChunks.set(c, pos);
+                    pos += c.length;
+                }
+                const finalBuffer = allChunks.buffer;
+                await this.put(url, finalBuffer);
+                return finalBuffer;
+            },
+
+            preload(urls) {
+                const list = Array.isArray(urls) ? urls : [urls];
+                list.forEach(u => {
+                    if (!u) return;
+                    this.get(u).then(cached => {
+                        if (!cached) {
+                            this.fetchWithProgress(u, null).catch(() => {});
+                        }
+                    });
+                });
+            }
+        };
+
+        // Otomatis preload seluruh model 3D di background saat idle
+        const glbToPreload = [
+            "{{ asset('models/Denah_Lantai_1-opt.glb') }}",
+            "{{ asset('models/Lantai_2-final.glb') }}",
+            "{{ asset('models/robot.glb') }}"
+        ];
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => window.RobopathGLBCache.preload(glbToPreload), { timeout: 3000 });
+        } else {
+            setTimeout(() => window.RobopathGLBCache.preload(glbToPreload), 1000);
+        }
+    })();
+    </script>
     @endif
 
     <script>

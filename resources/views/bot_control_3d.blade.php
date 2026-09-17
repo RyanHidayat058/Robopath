@@ -1123,6 +1123,9 @@
 
     // Helper: Cached GLB buffer loader with progress (Streaming + CacheStorage)
     async function fetchGLBBufferWithCache(url, onProgress) {
+        if (window.RobopathGLBCache && typeof window.RobopathGLBCache.fetchWithProgress === 'function') {
+            return await window.RobopathGLBCache.fetchWithProgress(url, onProgress);
+        }
         if ('caches' in window) {
             try {
                 const cache = await caches.open(MODEL_CACHE_NAME);

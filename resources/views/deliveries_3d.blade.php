@@ -259,6 +259,36 @@
 
 @section('scripts')
 <script>
+    const locations = {
+        @foreach($locations as $id => $loc)
+        '{{ $id }}': { 
+            id: '{{ $id }}',
+            name: '{{ addslashes($loc['name'] ?? $id) }}',
+            x: {{ $loc['x'] }}, 
+            y: {{ $loc['y'] }}, 
+            floor: {{ $loc['floor'] ?? 1 }},
+            hidden: {{ ($loc['hidden'] ?? false) ? 'true' : 'false' }},
+            is_destination: {{ ($loc['is_destination'] ?? false) ? 'true' : 'false' }},
+            objectName: {!! isset($loc['objectName']) && $loc['objectName'] ? ("'" . addslashes($loc['objectName']) . "'") : 'null' !!}
+        },
+        @endforeach
+    };
+
+    const adj = {
+        @foreach($adj as $node => $neighbors)
+        '{{ $node }}': [ @foreach($neighbors as $nbr) '{{ $nbr }}', @endforeach ],
+        @endforeach
+    };
+
+    let robots = @json($robots);
+    let activeDeliveries = @json($activeDeliveries);
+    let activeAlerts = [];
+    let serverClientOffset = 0;
+    let liveCurrentFloor = 1;
+    let simulationInterval = null;
+    let syncInterval = null;
+    let autopilotEnabled = {{ Illuminate\Support\Facades\Cache::get('autopilot_enabled', false) ? 'true' : 'false' }};
+
     const floor1ModelUrl = "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
     const floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
     const robotModelUrl = "{{ asset('models/robot.glb') }}";
@@ -334,6 +364,106 @@
         }
     }
 
+    // Helper: Create sleek 2D-style robot icon sprite (white card + vector robot icon + colored border, compact)
+    function create2DRobotMarkerSprite(robotId, robotName, robotColor) {
+        const cPin = document.createElement('canvas');
+        cPin.width = 128;
+        cPin.height = 128;
+        const ctx = cPin.getContext('2d');
+
+        // White rounded card
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(12, 12, 104, 104, 24);
+        else {
+            const x = 12, y = 12, w = 104, h = 104, r = 24;
+            ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+        }
+        ctx.fill();
+        ctx.strokeStyle = robotColor;
+        ctx.lineWidth = 8;
+        ctx.stroke();
+
+        // Vector robot icon (FontAwesome fa-robot style)
+        ctx.fillStyle = robotColor;
+        // Antenna
+        ctx.beginPath();
+        ctx.arc(64, 30, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(62, 34, 4, 8);
+
+        // Robot Head
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(36, 42, 56, 46, 8);
+        else ctx.rect(36, 42, 56, 46);
+        ctx.fill();
+
+        // Ears
+        ctx.fillRect(28, 54, 8, 18);
+        ctx.fillRect(92, 54, 8, 18);
+
+        // Eye Visor / Eyes
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(44, 52, 40, 14, 4);
+        else ctx.rect(44, 52, 40, 14);
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(52, 59, 4, 0, Math.PI * 2);
+        ctx.arc(76, 59, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Mouth grill
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(48, 74, 32, 4);
+
+        const pinTex = new THREE.CanvasTexture(cPin);
+        pinTex.minFilter = THREE.LinearFilter;
+        const pinMat = new THREE.SpriteMaterial({ map: pinTex, transparent: true, depthTest: false, depthWrite: false });
+        const markerSprite = new THREE.Sprite(pinMat);
+        markerSprite.scale.set(0.18, 0.18, 1);
+        markerSprite.position.set(0, 0.14, 0);
+        markerSprite.renderOrder = 1002;
+        return markerSprite;
+    }
+
+    // Helper: Create compact, sleek robot name badge (not giant!)
+    function create2DRobotNameSprite(robotName, robotColor) {
+        const c = document.createElement('canvas');
+        c.width = 256;
+        c.height = 64;
+        const ctx = c.getContext('2d');
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(6, 6, 244, 52, 12);
+        else ctx.rect(6, 6, 244, 52);
+        ctx.fill();
+        ctx.strokeStyle = robotColor;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        let cleanName = String(robotName || 'Robot').replace(/^Robot\s*/i, '');
+        ctx.fillText(cleanName, 128, 32);
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.minFilter = THREE.LinearFilter;
+        const sMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
+        const nameSprite = new THREE.Sprite(sMat);
+        nameSprite.scale.set(0.38, 0.095, 1);
+        nameSprite.position.set(0, 0.25, 0);
+        nameSprite.renderOrder = 1001;
+        nameSprite.userData = { canvas: c, texture: tex };
+        return nameSprite;
+    }
+
     // Helper: Create room label sprite (compact, elegant & close to floor)
     function createRoomLabelSprite(text, isDest = true, isStairs = false) {
         const canvas = document.createElement('canvas');
@@ -387,19 +517,22 @@
         return new THREE.Vector3((u-0.5)*(size.x*0.95),0,(v-0.5)*(size.z*0.95));
     }
 
-    // Helper: Cached GLB buffer loader (with progress cb)
+    // Helper: Unified Cached GLB loader leveraging window.RobopathGLBCache (Memory + IDB + CacheStorage)
     async function fetchGLBBufferWithCache(url, onProgress) {
+        if (window.RobopathGLBCache && typeof window.RobopathGLBCache.fetchWithProgress === 'function') {
+            return await window.RobopathGLBCache.fetchWithProgress(url, onProgress);
+        }
         if ('caches' in window) {
             try {
                 const cache = await caches.open(MODEL_CACHE_NAME);
                 const cachedResponse = await cache.match(url);
                 if (cachedResponse) {
                     if (onProgress) {
-                        try { onProgress(1, 1, true); } catch (e) { console.warn('[Robopath Cache] onProgress error:', e); }
+                        try { onProgress(1, 1, true); } catch (e) {}
                     }
                     return await cachedResponse.arrayBuffer();
                 }
-            } catch (e) { console.warn('[Robopath Cache] read bypass', e); }
+            } catch (e) {}
         }
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -426,6 +559,7 @@
         }
         return buffer;
     }
+
     function ensureRobotTemplate(cb){
         if(robotTemplateReady){ cb(robotTemplate); return; }
         if(robotTemplateFailed){ cb(null); return; }
@@ -574,11 +708,14 @@
             else if(robot.status==='Charging'){ label='⚡ CHARGING'; bg='rgba(234,88,12,0.94)'; }
             else if(robot.status==='Maintenance'){ label='🔧 MAINTENANCE'; bg='rgba(225,29,72,0.94)'; }
             else { label='● IDLE (Markas)'; bg='rgba(16,185,129,0.94)'; }
-            ctx.font='bold 28px Segoe UI, sans-serif'; const pad=24, h=48, tw=Math.min(512-16, ctx.measureText(label).width+48), radius=h/2;
-            const x0=(512-tw)/2, y0=(72-h)/2;
-            ctx.fillStyle=bg; ctx.beginPath(); ctx.roundRect(x0,y0,tw,h,radius); ctx.fill();
-            ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=3; ctx.stroke();
-            ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,256,36);
+            ctx.font='bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'; 
+            const pad=20, h=40, tw=Math.min(c.width-16, ctx.measureText(label).width+32), radius=h/2;
+            const x0=(c.width-tw)/2, y0=(c.height-h)/2;
+            ctx.fillStyle=bg; ctx.beginPath(); 
+            if(ctx.roundRect) ctx.roundRect(x0,y0,tw,h,radius); else ctx.rect(x0,y0,tw,h);
+            ctx.fill();
+            ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=2.5; ctx.stroke();
+            ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,c.width/2,c.height/2);
             tex.needsUpdate=true; spr.visible=true;
         }
         function getOrCreateRobotMesh(robot){
@@ -599,46 +736,33 @@
             modelHolder.add(box);
             holder.userData.boxMesh=box;
 
-            // Beacon Ring di lantai (World space: diameter 0.36m, berpendar terang menandai lokasi robot)
-            const ringGeo=new THREE.RingGeometry(0.24, 0.36, 32);
+            // Beacon Ring di lantai (diameter rapi ~0.24m)
+            const ringGeo=new THREE.RingGeometry(0.07, 0.12, 32);
             ringGeo.rotateX(-Math.PI / 2);
-            const ringMat=new THREE.MeshBasicMaterial({color: new THREE.Color(getRobotColor(rid)), side: THREE.DoubleSide, transparent:true, opacity:0.88});
+            const ringMat=new THREE.MeshBasicMaterial({color: new THREE.Color(getRobotColor(rid)), side: THREE.DoubleSide, transparent:true, opacity:0.85});
             const ringMesh=new THREE.Mesh(ringGeo, ringMat);
-            ringMesh.position.y=0.005;
+            ringMesh.position.y=0.003;
             holder.add(ringMesh);
             holder.userData.ringMesh=ringMesh;
 
-            // Pin / Avatar Icon di atas robot (World space: terlihat jelas dari sudut manapun)
-            const cPin=document.createElement('canvas'); cPin.width=128; cPin.height=128;
-            const ctxPin=cPin.getContext('2d');
-            ctxPin.fillStyle=getRobotColor(rid); ctxPin.beginPath(); ctxPin.arc(64,64,48,0,Math.PI*2); ctxPin.fill();
-            ctxPin.strokeStyle='#ffffff'; ctxPin.lineWidth=6; ctxPin.stroke();
-            ctxPin.fillStyle='#ffffff'; ctxPin.font='bold 44px Segoe UI, sans-serif'; ctxPin.textAlign='center'; ctxPin.textBaseline='middle'; ctxPin.fillText('🤖',64,66);
-            const pinTex=new THREE.CanvasTexture(cPin);
-            const pinMat=new THREE.SpriteMaterial({map:pinTex, transparent:true, depthTest:false, depthWrite:false});
-            const pinSprite=new THREE.Sprite(pinMat);
-            pinSprite.scale.set(0.38, 0.38, 1);
-            pinSprite.position.set(0, 0.52, 0);
-            pinSprite.renderOrder=1002;
-            holder.add(pinSprite);
+            // 2D Style Robot Marker Card Sprite (sleek white card with vector robot icon & robot border)
+            const markerSprite = create2DRobotMarkerSprite(rid, robot.name, getRobotColor(rid));
+            markerSprite.position.set(0, 0.38, 0);
+            holder.add(markerSprite);
+            holder.userData.markerSprite = markerSprite;
 
-            // Badge Nama Robot (World space: teks tajam, kontras tinggi & jelas terbaca)
-            const c2=document.createElement('canvas'); c2.width=512; c2.height=96;
-            const sMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c2), transparent:true, depthTest:false, depthWrite:false});
-            const nameSprite=new THREE.Sprite(sMat); 
-            nameSprite.scale.set(1.3, 0.25, 1); 
-            nameSprite.position.set(0, 0.32, 0); 
-            nameSprite.renderOrder=1001;
-            nameSprite.userData={canvas:c2, texture:sMat.map}; 
+            // Compact Badge Nama Robot (World space: proporsional, tajam & rapi)
+            const nameSprite = create2DRobotNameSprite(robot.name, getRobotColor(rid));
+            nameSprite.position.set(0, 0.24, 0);
             holder.add(nameSprite); 
             holder.userData.nameSprite=nameSprite;
 
-            // Status Badge Sprite
-            const c3=document.createElement('canvas'); c3.width=512; c3.height=72;
+            // Compact Status Badge Sprite
+            const c3=document.createElement('canvas'); c3.width=384; c3.height=64;
             const stMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c3), transparent:true, depthTest:false, depthWrite:false});
             const stSpr=new THREE.Sprite(stMat); 
-            stSpr.scale.set(1.25, 0.18, 1); 
-            stSpr.position.set(0, 0.16, 0); 
+            stSpr.scale.set(0.38, 0.08, 1); 
+            stSpr.position.set(0, 0.14, 0); 
             stSpr.renderOrder=1000; 
             stSpr.visible=false;
             stSpr.userData={canvas:c3, texture:stMat.map}; 
@@ -657,17 +781,6 @@
                 }catch(e){}
             };
             if(robotTemplateReady) swap(robotTemplate); else try{ ensureRobotTemplate(swap);}catch(e){}
-            
-            // update name sprite text
-            try{ 
-                const ctx=c2.getContext('2d'); ctx.clearRect(0,0,512,96); 
-                ctx.fillStyle='rgba(15,23,42,0.92)'; 
-                ctx.beginPath(); ctx.roundRect(8,8,496,80,18); ctx.fill(); 
-                ctx.strokeStyle=getRobotColor(rid); ctx.lineWidth=4; ctx.stroke(); 
-                ctx.fillStyle='#ffffff'; ctx.font='bold 32px Segoe UI'; ctx.textAlign='center'; ctx.textBaseline='middle'; 
-                ctx.fillText(String(robot.name||('Robot '+rid)),256,48); 
-                sMat.map.needsUpdate=true; 
-            }catch(e){}
             
             robotsGroup.add(holder); 
             robotMeshes.set(rid, holder); 
@@ -770,10 +883,14 @@
                         const rf = Number(r.floor || 1);
                         const offX = (r.status === 'Idle' && Math.hypot(rx - baseLoc.x, ry - baseLoc.y) < 2) ? (idx * 0.6) : 0;
                         snapRobot3D(holder, { x: rx, y: ry + offX }, _delivSize, rf);
-                        smoothFaceTowards(holder, r.rotation || 0);
+                        try { holder.rotation.y = -((r.rotation || 0) * Math.PI / 180); } catch(e) {}
+                        const d = (r.status === 'Delivering') ? (r._activeDelivery || null) : null;
+                        try { updateRobotStatusSprite(holder, r, d, !!r.hasIssue, null); } catch(e) {}
                         holder.visible = (rf === floorNum);
                     });
-                } catch(e) {}
+                } catch(e) {
+                    console.warn('[Robopath] Initial robot placement error:', e);
+                }
 
                 // Posisikan target kamera ke lantai (Markas Robot jika Lantai 1, atau tengah denah)
                 let focusTarget = new THREE.Vector3(0, floorElev, 0);
@@ -830,7 +947,14 @@
         let animationFrameId = null;
         function animate() {
             animationFrameId = requestAnimationFrame(animate);
-            robotMeshes.forEach(holder=>{ const tgt=holder.userData.targetWp; if(tgt) holder.position.lerp(tgt, 0.25); });
+            robotMeshes.forEach(holder=>{ 
+                const tgt=holder.userData.targetWp; 
+                if(tgt) {
+                    holder.position.x += (tgt.x - holder.position.x) * 0.25;
+                    holder.position.z += (tgt.z - holder.position.z) * 0.25;
+                    holder.position.y = tgt.y;
+                }
+            });
             controls.update();
             renderer.render(scene, camera);
         }
@@ -848,37 +972,6 @@
 
         return { scene,camera,renderer,controls,labelsGroup,robotsGroup,activePathGroup,robotMeshes,getOrCreateRobotMesh,updateRobot3DAvatar,snapRobot3D,resize: onResize, getModelSize:()=>modelSize.clone(), getDefaultCamTarget:()=>defaultCamTarget.clone(), destroy: () => { if (animationFrameId) cancelAnimationFrame(animationFrameId); window.removeEventListener('resize', onResize); renderer.dispose(); } };
     }
-
-    const locations = {
-        @foreach($locations as $id => $loc)
-        '{{ $id }}': { 
-            id: '{{ $id }}',
-            name: '{{ addslashes($loc['name'] ?? $id) }}',
-            x: {{ $loc['x'] }}, 
-            y: {{ $loc['y'] }}, 
-            floor: {{ $loc['floor'] ?? 1 }},
-            hidden: {{ ($loc['hidden'] ?? false) ? 'true' : 'false' }},
-            is_destination: {{ ($loc['is_destination'] ?? false) ? 'true' : 'false' }},
-            objectName: {!! isset($loc['objectName']) && $loc['objectName'] ? ("'" . addslashes($loc['objectName']) . "'") : 'null' !!}
-        },
-        @endforeach
-    };
-
-    const adj = {
-        @foreach($adj as $node => $neighbors)
-        '{{ $node }}': [ @foreach($neighbors as $nbr) '{{ $nbr }}', @endforeach ],
-        @endforeach
-    };
-
-    let robots = @json($robots);
-    let activeDeliveries = @json($activeDeliveries);
-    let activeAlerts = [];
-    let serverClientOffset = 0;
-    let liveCurrentFloor = 1;
-    
-    let simulationInterval = null;
-    let syncInterval = null;
-    let autopilotEnabled = {{ Illuminate\Support\Facades\Cache::get('autopilot_enabled', false) ? 'true' : 'false' }};
 
     function switchLiveFloor(floorNum) {
         liveCurrentFloor = floorNum;
@@ -903,6 +996,7 @@
             if (canvas3DF1) {
                 canvas3DF1.classList.remove('hidden');
                 if (loaderEl && !modelLoadedByFloor[1]) { loaderEl.classList.remove('hidden'); const t=document.getElementById('deliv-3d-loader-title'); if(t) t.textContent='Memuat Model 3D Lantai 1...'; const s=document.getElementById('deliv-3d-loader-status'); if(s) s.textContent='Mengunduh aset GLB (8 MB)...'; }
+                else if (loaderEl && modelLoadedByFloor[1]) { loaderEl.classList.add('hidden'); }
                 setTimeout(() => {
                     if (!threeDelivF1) {
                         threeDelivF1 = initThreeViewer('deliv-3d-canvas-f1', 1);
@@ -922,6 +1016,7 @@
             if (canvas3D) {
                 canvas3D.classList.remove('hidden');
                 if (loaderEl && !modelLoadedByFloor[2]) { loaderEl.classList.remove('hidden'); const t=document.getElementById('deliv-3d-loader-title'); if(t) t.textContent='Memuat Model 3D Lantai 2...'; const s=document.getElementById('deliv-3d-loader-status'); if(s) s.textContent='Mengunduh aset GLB (14 MB)...'; }
+                else if (loaderEl && modelLoadedByFloor[2]) { loaderEl.classList.add('hidden'); }
                 setTimeout(() => {
                     if (!threeDeliv) {
                         threeDeliv = initThreeViewer('deliv-3d-canvas-container', 2);
