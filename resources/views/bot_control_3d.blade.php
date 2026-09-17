@@ -2,14 +2,14 @@
 
 @section('title', 'ROBOPATH - Control')
 @section('page_title', 'Control')
-@section('page_subtitle', 'Pantau status armada, pulihkan robot yang menabrak dinding, atau kelola perbaikan tugas.')
+@section('page_subtitle', 'Pusat kendali armada, perbaikan, dan editor denah 3D')
 
 @section('topbar_actions')
-<div class="flex items-center gap-2 bg-gray-100 p-1.5 rounded-2xl border border-gray-200 shadow-xs">
-    <button type="button" onclick="handleEditRobotClick()" id="topbar-btn-edit-robot" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-white text-[#3b4cb8] shadow-sm hover:bg-gray-50 active:scale-95" title="Buka Mode Edit Robot (Atur Posisi 3D & Elevasi)">
+<div class="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl border border-gray-200 shadow-xs">
+    <button type="button" onclick="handleEditRobotClick()" id="topbar-btn-edit-robot" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-white text-[#3b4cb8] shadow-xs hover:bg-gray-50 active:scale-95" title="Buka Mode Edit Robot (Atur Posisi 3D & Elevasi)">
         <i class="fa-solid fa-robot text-[#3b4cb8]"></i> <span>Edit Robot 3D</span>
     </button>
-    <button type="button" onclick="handleEditJalurClick()" id="topbar-btn-edit-jalur" class="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 text-gray-700 hover:text-[#3b4cb8] hover:bg-white/80 active:scale-95" title="Buka Mode Edit Jalur &amp; Ruangan (Layar Penuh)">
+    <button type="button" onclick="handleEditJalurClick()" id="topbar-btn-edit-jalur" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-700 hover:text-[#3b4cb8] hover:bg-white/80 active:scale-95" title="Buka Mode Edit Jalur &amp; Ruangan (Layar Penuh)">
         <i class="fa-solid fa-route text-indigo-600"></i> <span>Edit Jalur &amp; Ruangan</span>
     </button>
 </div>
