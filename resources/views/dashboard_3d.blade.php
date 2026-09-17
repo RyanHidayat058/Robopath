@@ -698,7 +698,9 @@
             fill: parseFloat(settings3D?.lighting?.fill ?? 0.8)
         },
         model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
-        robot_scale: parseFloat(settings3D?.robot_scale ?? 0.6),
+        robot_scale: parseFloat(settings3D?.robot_scale ?? 0.1),
+        robot_elevation_f1: parseFloat(settings3D?.robot_elevation_f1 ?? 0.059),
+        robot_elevation_f2: parseFloat(settings3D?.robot_elevation_f2 ?? 0.112),
         node_scale: parseFloat(settings3D?.node_scale ?? 0.6),
         node_color: settings3D?.node_color ?? '#ff0000'
     };
@@ -1068,7 +1070,7 @@
             const id=Number(robot.id);
             if(robotMeshes.has(id)) return robotMeshes.get(id);
             const holder=new THREE.Group(); holder.userData.robotId=id;
-            const rSc = parseFloat(current3DSettings.robot_scale ?? 0.6);
+            const rSc = parseFloat(current3DSettings.robot_scale ?? 0.1);
             holder.scale.set(rSc, rSc, rSc);
             // placeholder box until glb ready
             const boxMesh=new THREE.Mesh(new THREE.BoxGeometry(0.35,0.5,0.35), new THREE.MeshStandardMaterial({color:getRobotColor(id)}));
@@ -1453,13 +1455,24 @@
 
     // --- Fase 2: gerak halus + badge status 3D robot ---
     // Setel posisi mesh 3D sekaligus target lerp per-frame (dipakai animate())
-    function snapRobot3D(holder, worldPct, sz) {
+    function snapRobot3D(holder, worldPct, sz, floorNum) {
         const wp = worldPosForLoc({ x: worldPct.x, y: worldPct.y }, sz);
-        holder.position.set(wp.x, 0.02, wp.z);
+        const f = Number(floorNum || 1);
+        const elev = (f === 2)
+            ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+            : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+        holder.position.set(wp.x, elev, wp.z);
         if(!holder.userData.targetWp) holder.userData.targetWp = new THREE.Vector3();
         holder.userData.targetWp.copy(holder.position);
         return wp;
     }
+
+    function hideRobot3DAvatar(viewer, robot) {
+        if (!viewer || !viewer.robotMeshes) return;
+        const holder = viewer.robotMeshes.get(Number(robot.id));
+        if (holder) holder.visible = false;
+    }
+
     // Perbarui badge status 3D di atas robot (idle / mengantar → tujuan / charging / maintenance / masalah)
     function updateRobotStatusSprite(holder, robot, delivery, hasIssue, destName) {
         const spr = holder.userData.statusSprite;
@@ -1500,7 +1513,7 @@
             const holder = viewer.getOrCreateRobotMesh(robot);
             const isEditingThis = isEditingRobot3D && Number(robot.id) === Number(focusedRobotId);
             if (!isEditingThis) {
-                snapRobot3D(holder, coords, sz);
+                snapRobot3D(holder, coords, sz, robot.floor || viewer.floor);
                 smoothFaceTowards(holder, robot.rotation);
             }
             holder.visible = true;
@@ -2423,6 +2436,110 @@
         };
     }
 
+    function getBaseLocationId() {
+        if (locations['1_Markas Robot']) return '1_Markas Robot';
+        if (locations['1_N7']) return '1_N7';
+        for (const [id, loc] of Object.entries(locations)) {
+            if (Number(loc.floor) === 1 && (loc.name?.toLowerCase().includes('markas') || loc.name?.toLowerCase().includes('base'))) {
+                return id;
+            }
+        }
+        for (const [id, loc] of Object.entries(locations)) {
+            if (Number(loc.floor) === 1) return id;
+        }
+        return '1_Markas Robot';
+    }
+
+    function getBaseLocation() {
+        const id = getBaseLocationId();
+        return locations[id] || { x: 85.48, y: 51.07, floor: 1, name: 'Markas Robot' };
+    }
+
+    function getStairsNodeId(floor) {
+        const f = Number(floor || 1);
+        if (f === 1) {
+            if (locations['1_Tangga']) return '1_Tangga';
+            if (locations['1_Stairs']) return '1_Stairs';
+        } else {
+            if (locations['2_Tangga']) return '2_Tangga';
+            if (locations['2_Stairs']) return '2_Stairs';
+        }
+        for (const [id, loc] of Object.entries(locations)) {
+            if (Number(loc.floor) === f && (loc.name?.toLowerCase().includes('tangga') || loc.name?.toLowerCase().includes('stairs'))) {
+                return id;
+            }
+        }
+        return f === 1 ? '1_Tangga' : '2_Tangga';
+    }
+
+    function calculatePathDistance(path) {
+        if (!path || path.length < 2) return 0;
+        let dist = 0;
+        for (let i = 0; i < path.length - 1; i++) {
+            const p1 = locations[path[i]];
+            const p2 = locations[path[i + 1]];
+            dist += (p1 && p2) ? Math.hypot(p2.x - p1.x, p2.y - p1.y) : 3.0;
+        }
+        return Math.max(1.0, dist);
+    }
+
+    function interpolateAlongPath(path, ratio) {
+        if (!path || path.length === 0) return null;
+        if (path.length === 1) {
+            const p = locations[path[0]] || { x: 0, y: 0 };
+            return { coords: { x: p.x, y: p.y }, angle: 0, segIdx: 0 };
+        }
+
+        const clampedRatio = Math.max(0, Math.min(1.0, ratio));
+        const segDistances = [];
+        let totalDistance = 0;
+
+        for (let i = 0; i < path.length - 1; i++) {
+            const p1 = locations[path[i]];
+            const p2 = locations[path[i + 1]];
+            const dist = (p1 && p2) ? Math.hypot(p2.x - p1.x, p2.y - p1.y) : 0.001;
+            segDistances.push(dist);
+            totalDistance += dist;
+        }
+
+        if (totalDistance <= 0.0001) {
+            const p = locations[path[0]] || { x: 0, y: 0 };
+            return { coords: { x: p.x, y: p.y }, angle: 0, segIdx: 0 };
+        }
+
+        const targetDist = clampedRatio * totalDistance;
+        let accumulated = 0;
+        let currentSegIdx = path.length - 2;
+        let ratioInSeg = 1.0;
+
+        for (let i = 0; i < segDistances.length; i++) {
+            const nextAcc = accumulated + segDistances[i];
+            if (targetDist <= nextAcc || i === segDistances.length - 1) {
+                currentSegIdx = i;
+                const segLen = segDistances[i];
+                ratioInSeg = segLen > 0 ? (targetDist - accumulated) / segLen : 0;
+                ratioInSeg = Math.max(0, Math.min(1.0, ratioInSeg));
+                break;
+            }
+            accumulated = nextAcc;
+        }
+
+        const p1 = locations[path[currentSegIdx]] || { x: 0, y: 0 };
+        const p2 = locations[path[currentSegIdx + 1]] || p1;
+        const coords = interpolate(p1, p2, ratioInSeg);
+
+        let angle = 0;
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        if (dx !== 0 || dy !== 0) {
+            angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+        }
+
+        return { coords, angle, segIdx: currentSegIdx };
+    }
+
+    const findShortestPath = findPathAStar;
+
     function planRouteBetween(fromId, toId) {
         if (!locations[fromId] || !locations[toId]) return [];
         const f1 = Number(locations[fromId].floor || 1);
@@ -2432,8 +2549,8 @@
             const p = findPathAStar(fromId, toId);
             return [{ type: 'travel', floor: f1, path: p }];
         } else {
-            const stairsFrom = f1 === 1 ? '1_Stairs' : '2_Stairs';
-            const stairsTo = f2 === 1 ? '1_Stairs' : '2_Stairs';
+            const stairsFrom = getStairsNodeId(f1);
+            const stairsTo = getStairsNodeId(f2);
             const p1 = findPathAStar(fromId, stairsFrom);
             const p2 = findPathAStar(stairsTo, toId);
             return [
@@ -2445,9 +2562,17 @@
     }
 
     function buildReturnMission(robot, now) {
-        const currentLocId = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1);
-        const targetId = '1_N7';
-        if (!currentLocId || currentLocId === targetId) return null;
+        const baseLoc = getBaseLocation();
+        const baseId = getBaseLocationId();
+        const robotFloor = Number(robot.floor || 1);
+        if (robotFloor === 1 && Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) < 1.5) {
+            robot.floor = 1;
+            return null;
+        }
+
+        const currentLocId = resolveLocationNodeId(robot.current_x, robot.current_y, robotFloor);
+        const targetId = baseId;
+        if (!currentLocId || (robotFloor === 1 && currentLocId === targetId)) return null;
 
         const rawStages = planRouteBetween(currentLocId, targetId);
         if (!rawStages || rawStages.length === 0) return null;
@@ -2466,20 +2591,14 @@
             consolidatedStages.push(st);
         }
 
-        let totalTravelSegments = 0;
-        consolidatedStages.forEach(st => {
-            if (st.type === 'travel') totalTravelSegments += Math.max(1, (st.path?.length || 1) - 1);
-        });
-
-        const baseTravelTimeMs = 24000;
         let accumulatedMs = 0;
         consolidatedStages.forEach(st => {
             st.startMs = accumulatedMs;
             if (st.type === 'stairs') {
-                st.durationMs = 5500;
+                st.durationMs = 5000;
             } else {
-                const segCount = Math.max(1, (st.path?.length || 1) - 1);
-                st.durationMs = Math.max(5000, Math.round(baseTravelTimeMs * (segCount / Math.max(1, totalTravelSegments))));
+                const dist = calculatePathDistance(st.path);
+                st.durationMs = Math.max(2500, Math.round(dist * 700));
             }
             accumulatedMs += st.durationMs;
         });
@@ -2489,12 +2608,27 @@
             destId: targetId,
             stages: consolidatedStages,
             totalDurationMs: accumulatedMs,
-            startedAt: now.getTime() + 1500
+            startedAt: now.getTime() + 200
         };
     }
 
-    function syncRobotBaseLocation(robotId, bx, by) {
+    function syncRobotBaseLocation(robotId, bx, by, floor = 1, status = 'Idle', batteryLevel = null) {
+        const robot = robots.find(r => Number(r.id) === Number(robotId));
+        const effectiveBattery = (batteryLevel !== null && batteryLevel !== undefined) 
+            ? batteryLevel 
+            : (robot ? robot.battery_level : null);
+
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const payload = {
+            status: status,
+            current_x: bx,
+            current_y: by,
+            floor: floor
+        };
+        if (effectiveBattery !== null && effectiveBattery !== undefined) {
+            payload.battery_level = Math.round(effectiveBattery);
+        }
+
         fetch(`/api/robots/${robotId}/telemetry`, {
             method: 'POST',
             headers: {
@@ -2502,11 +2636,158 @@
                 'X-CSRF-TOKEN': csrf || '',
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({
-                current_x: bx,
-                current_y: by
-            })
+            body: JSON.stringify(payload)
         }).catch(err => console.error('Error syncing base station location:', err));
+    }
+
+    function syncRobotPosition(robotId, x, y, floor, status, batteryLevel) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const payload = {
+            current_x: x,
+            current_y: y,
+            floor: floor || 1
+        };
+        if (batteryLevel !== undefined && batteryLevel !== null) {
+            payload.battery_level = Math.round(batteryLevel);
+        }
+        if (status === 'Maintenance' || status === 'Charging' || status === 'Returning') {
+            payload.status = status;
+        }
+        fetch(`/api/robots/${robotId}/telemetry`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf || '',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        }).catch(err => console.error('Error syncing robot telemetry:', err));
+    }
+
+    function triggerAutonomousCrash(robot, delivery, coords, floorNum, elapsedMs) {
+        robot.hasIssue = true;
+        robot.pausedElapsedMs = elapsedMs;
+        robot.current_x = coords.x;
+        robot.current_y = coords.y;
+        robot.floor = floorNum;
+        if (delivery) delivery.status = 'Pending';
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        fetch(`/api/robots/${robot.id}/simulate-issue`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                issue_type: 'Collision',
+                description: `Robot ${robot.name} menabrak hambatan/dinding koridor di ${resolveLocationName(coords.x, coords.y, floorNum)}! Pengantaran mandek (pending).`,
+                current_x: coords.x,
+                current_y: coords.y,
+                floor: floorNum,
+                paused_elapsed_ms: elapsedMs
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            fetchData();
+        })
+        .catch(err => console.error('Error triggering autonomous crash:', err));
+    }
+
+    function triggerLowBatteryReturn(robot, delivery, coords, floorNum, elapsedMs) {
+        robot.current_x = coords.x;
+        robot.current_y = coords.y;
+        robot.floor = floorNum;
+        robot.isLowBatteryReturning = true;
+        robot.status = 'Returning';
+        robot.isReturning = true;
+        robot.pausedElapsedMs = elapsedMs;
+
+        if (delivery) {
+            const mission = delivery._cachedMission || getDeliveryMission(delivery, robot);
+            const isPickedUp = mission && mission.pickupStartMs && (elapsedMs >= mission.pickupStartMs + 3000);
+            delivery._itemPickedUp = !!isPickedUp;
+            delivery.status = 'Pending';
+        }
+
+        const now = new Date(new Date().getTime() + serverClientOffset);
+        robot.returnMission = buildReturnMission(robot, now);
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        fetch(`/api/robots/${robot.id}/pause-for-charge`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                current_x: coords.x,
+                current_y: coords.y,
+                floor: floorNum,
+                battery_level: robot.battery_level
+            })
+        })
+        .then(res => res.json())
+        .catch(err => console.error('Error triggering low battery return:', err));
+    }
+
+    function resumeFromBaseAfterCharge(robot) {
+        const pendingDeliv = activeDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'Pending' || d.status === 'In Progress'));
+        const now = new Date(new Date().getTime() + serverClientOffset);
+        const baseLoc = getBaseLocation();
+        const baseId = getBaseLocationId();
+
+        robot.isLowBatteryReturning = false;
+        robot.isReturning = false;
+        robot.returnMission = null;
+        robot.current_x = baseLoc.x;
+        robot.current_y = baseLoc.y;
+        robot.floor = 1;
+        robot.battery_level = 100;
+        robot._justCharged = true;
+
+        if (pendingDeliv) {
+            const itemPickedUp = !!pendingDeliv._itemPickedUp;
+
+            delete pendingDeliv._cachedMission;
+            pendingDeliv.origin_location = baseId;
+            if (itemPickedUp) {
+                pendingDeliv.start_location = baseId;
+            }
+            pendingDeliv.status = 'In Progress';
+            pendingDeliv._clientStartedAt = now.getTime();
+            pendingDeliv.started_at = now.toISOString();
+
+            robot.status = 'Delivering';
+
+            getDeliveryMission(pendingDeliv, robot);
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            fetch(`/api/robots/${robot.id}/resume-from-base`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ item_picked_up: itemPickedUp })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.delivery) {
+                    delete data.delivery._cachedMission;
+                    pendingDeliv.started_at = data.delivery.started_at;
+                    pendingDeliv._clientStartedAt = parseServerDate(data.delivery.started_at).getTime();
+                }
+            })
+            .catch(err => console.error('Error resuming from base after charge:', err));
+        } else {
+            robot.status = 'Idle';
+            syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Idle', 100);
+        }
     }
 
     function getDeliveryMission(delivery, robot) {
@@ -2517,29 +2798,38 @@
         const startNodeId = getNode(delivery.start_location);
         const destNodeId = getNode(delivery.destination_location);
         
+        const robotFloor = Number(robot?.floor || 1);
+        const baseLoc = getBaseLocation();
+        const baseId = getBaseLocationId();
+
         let originNodeId = getNode(delivery.origin_location);
-        if (!originNodeId && robot && robot.current_x && robot.current_y) {
-            originNodeId = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1);
+        if (robot && robot.current_x && robot.current_y) {
+            const isAtBase = robotFloor === 1 && Math.hypot(robot.current_x - baseLoc.x, robot.current_y - baseLoc.y) < 2.0;
+            if (isAtBase) {
+                originNodeId = baseId;
+            } else {
+                originNodeId = resolveLocationNodeId(robot.current_x, robot.current_y, robotFloor) || baseId;
+            }
         }
         if (!originNodeId || !locations[originNodeId]) {
-            originNodeId = '1_N7';
+            originNodeId = baseId;
         }
 
-        const validStart = (startNodeId && locations[startNodeId]) ? startNodeId : '1_Waiting Room';
-        const validDest = (destNodeId && locations[destNodeId]) ? destNodeId : '2_Ruang Direktur';
+        const validStart = (startNodeId && locations[startNodeId]) ? startNodeId : Object.keys(locations)[0];
+        const validDest = (destNodeId && locations[destNodeId]) ? destNodeId : Object.keys(locations)[1];
 
         const pickupStage = {
             type: 'pickup',
             nodeId: validStart,
             floor: locations[validStart]?.floor || 1,
-            durationMs: 2500
+            durationMs: 3000
         };
 
         const dropoffStage = {
             type: 'dropoff',
             nodeId: validDest,
             floor: locations[validDest]?.floor || 1,
-            durationMs: 2500
+            durationMs: 3000
         };
 
         let rawStages = [];
@@ -2572,22 +2862,16 @@
             consolidatedStages.push(st);
         }
 
-        let totalTravelSegments = 0;
-        consolidatedStages.forEach(st => {
-            if (st.type === 'travel') totalTravelSegments += Math.max(1, (st.path?.length || 1) - 1);
-        });
-
-        const baseTravelTimeMs = 26000;
         let accumulatedMs = 0;
         consolidatedStages.forEach(st => {
             st.startMs = accumulatedMs;
             if (st.type === 'stairs') {
-                st.durationMs = 5500;
+                st.durationMs = 5000;
             } else if (st.type === 'pickup' || st.type === 'dropoff') {
-                st.durationMs = 2500;
+                st.durationMs = 3000;
             } else {
-                const segCount = Math.max(1, (st.path?.length || 1) - 1);
-                st.durationMs = Math.max(6000, Math.round(baseTravelTimeMs * (segCount / Math.max(1, totalTravelSegments))));
+                const dist = calculatePathDistance(st.path);
+                st.durationMs = Math.max(3000, Math.round(dist * 700));
             }
             accumulatedMs += st.durationMs;
         });
@@ -2671,7 +2955,7 @@
 
         // 2. Draw return paths for returning idle robots (with past segment trimming)
         robots.forEach(robot => {
-            if (robot.status === 'Idle' && robot.returnMission && robot.returnMission.stages) {
+            if ((robot.status === 'Idle' || robot.status === 'Returning' || robot.isReturning) && robot.returnMission && robot.returnMission.stages) {
                 const robotColor = getRobotColor(robot.id);
                 const elapsedMs = now.getTime() - robot.returnMission.startedAt;
 
@@ -2721,7 +3005,7 @@
         
         robots.forEach(robot => {
             const delivery = activeDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending'));
-            robot._activeDelivery = delivery || null; // Fase 2: referensi utk badge status 3D (satu sumber data gerak)
+            robot._activeDelivery = delivery || null;
             
             // Check if robot has active issue / alert
             const robotAlert = activeAlerts.find(a => Number(a.robot_id) === Number(robot.id) && a.status === 'Active');
@@ -2731,7 +3015,8 @@
 
             let coords = { x: robot.current_x, y: robot.current_y };
             let floorNum = robot.floor || 1;
-            let taskText = 'Standby at base station (N7)';
+            const baseLoc = getBaseLocation();
+            let taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
             let currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
 
             if (hasIssue) {
@@ -2744,12 +3029,40 @@
                     currentLocName = `Tertahan di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
                 }
             } else if (robot.status === 'Charging') {
-                taskText = '<i class="fa-solid fa-bolt text-orange-500 mr-1"></i> Battery charging';
+                coords = { x: baseLoc.x, y: baseLoc.y };
+                floorNum = 1;
+                robot.current_x = baseLoc.x;
+                robot.current_y = baseLoc.y;
+                robot.floor = 1;
+
+                taskText = `<i class="fa-solid fa-bolt text-orange-500 mr-1 animate-pulse"></i> Pengisian Daya di ${baseLoc.name || 'Base'} (${robot.battery_level}%)...`;
+                currentLocName = baseLoc.name || 'Base Station';
+                
+                // Active charging at base station
+                const nowTime = now.getTime();
+                if (!robot.lastChargeTick) robot.lastChargeTick = nowTime;
+                if (nowTime - robot.lastChargeTick >= 1000) {
+                    robot.lastChargeTick = nowTime;
+                    const nextBat = Math.min(100, (Number(robot.battery_level) || 0) + 15);
+                    robot.battery_level = nextBat;
+                    
+                    if (nextBat >= 100) {
+                        robot.battery_level = 100;
+                        robot._justCharged = true;
+                        robot.isLowBatteryReturning = false;
+                        robot.isReturning = false;
+                        robot.returnMission = null;
+                        resumeFromBaseAfterCharge(robot);
+                    } else {
+                        syncRobotPosition(robot.id, baseLoc.x, baseLoc.y, 1, 'Charging', nextBat);
+                    }
+                }
             } else if (robot.status === 'Maintenance') {
                 taskText = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Maintenance required</span>';
             }
             
-            if (robot.status === 'Delivering' && delivery && !hasIssue) {
+            if (delivery && delivery.status === 'In Progress' && !hasIssue && robot.status !== 'Charging' && !robot.isLowBatteryReturning && robot.status !== 'Returning') {
+                robot.status = 'Delivering';
                 robot.returnMission = null;
                 robot.isReturning = false;
                 const mission = getDeliveryMission(delivery, robot);
@@ -2791,6 +3104,7 @@
                             floorNum = isSecondHalf ? activeStage.toFloor : activeStage.fromFloor;
                             const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
                             coords = locations[currentNodeId] || coords;
+                            angle = 0;
                             taskText = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-stairs animate-bounce mr-1"></i> Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...</span>`;
                             currentLocName = `Tangga (Transit Lantai ${activeStage.toFloor})`;
                             robot.currentSegIdx = 0;
@@ -2801,6 +3115,7 @@
                                 coords = locNode;
                                 floorNum = locNode.floor || 1;
                             }
+                            angle = 0;
                             taskText = `<span class="text-blue-600 font-bold"><i class="fa-solid fa-box-open animate-bounce mr-1"></i> Mengambil ${delivery.item_name} di ${locations[mission.startId]?.name || delivery.start_location} (${remainingSec}s)...</span>`;
                             currentLocName = locations[mission.startId]?.name || delivery.start_location;
                             robot.currentSegIdx = 0;
@@ -2811,30 +3126,18 @@
                                 coords = locNode;
                                 floorNum = locNode.floor || 1;
                             }
+                            angle = 0;
                             taskText = `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-dolly animate-bounce mr-1"></i> Menyerahkan ${delivery.item_name} di ${locations[mission.destId]?.name || delivery.destination_location} (${remainingSec}s)...</span>`;
                             currentLocName = locations[mission.destId]?.name || delivery.destination_location;
                             robot.currentSegIdx = 0;
                         } else {
                             floorNum = activeStage.floor || 1;
                             const path = activeStage.path || [];
-                            if (path.length >= 2) {
-                                const floatIdx = stageRatio * (path.length - 1);
-                                const currentSegIdx = Math.max(0, Math.min(Math.floor(floatIdx), path.length - 2));
-                                const ratioInSegment = floatIdx - currentSegIdx;
-                                const p1 = locations[path[currentSegIdx]];
-                                const p2 = locations[path[currentSegIdx + 1]];
-                                robot.currentSegIdx = currentSegIdx;
-                                if (p1 && p2) {
-                                    coords = interpolate(p1, p2, ratioInSegment);
-                                    const dx = p2.x - p1.x;
-                                    const dy = p2.y - p1.y;
-                                    if (dx !== 0 || dy !== 0) {
-                                        angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-                                    }
-                                }
-                            } else if (path.length === 1 && locations[path[0]]) {
-                                coords = locations[path[0]];
-                                robot.currentSegIdx = 0;
+                            const along = interpolateAlongPath(path, stageRatio);
+                            if (along) {
+                                coords = along.coords;
+                                angle = along.angle;
+                                robot.currentSegIdx = along.segIdx;
                             }
                             const isHeadingToPickup = mission.pickupStartMs && activeStage.startMs < mission.pickupStartMs;
                             if (isHeadingToPickup) {
@@ -2843,6 +3146,35 @@
                                 taskText = `Mengantar ${delivery.item_name} ke ${locations[mission.destId]?.name || delivery.destination_location}`;
                             }
                             currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
+
+                            // --- BATTERY DRAIN WHILE MOVING ---
+                            const nowTime = now.getTime();
+                            if (!robot.lastBatteryTick) robot.lastBatteryTick = nowTime;
+                            if (nowTime - robot.lastBatteryTick >= 3500) {
+                                robot.lastBatteryTick = nowTime;
+                                robot.battery_level = Math.max(0, (Number(robot.battery_level) || 100) - 1);
+                                syncRobotPosition(robot.id, coords.x, coords.y, floorNum, robot.status, robot.battery_level);
+                                
+                                // Low Battery Threshold (<= 20%) -> Auto pause & return to base for charging
+                                if (robot.battery_level <= 20 && !robot.isLowBatteryReturning && robot.status !== 'Charging') {
+                                    triggerLowBatteryReturn(robot, delivery, coords, floorNum, elapsedMs);
+                                    return;
+                                }
+                            }
+
+                            // --- AUTONOMOUS COLLISION / CRASH SIMULATION ---
+                            if (!robot.lastCrashCheck) robot.lastCrashCheck = nowTime;
+                            if (!robot.lastCrashTime) robot.lastCrashTime = 0;
+                            if (nowTime - robot.lastCrashCheck >= 12000) {
+                                robot.lastCrashCheck = nowTime;
+                                if (nowTime - robot.lastCrashTime >= 45000 && elapsedMs > 5000 && elapsedMs < (mission.totalDurationMs - 5000)) {
+                                    if (Math.random() < 0.07) {
+                                        robot.lastCrashTime = nowTime;
+                                        triggerAutonomousCrash(robot, delivery, coords, floorNum, elapsedMs);
+                                        return;
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -2851,12 +3183,12 @@
                     robot.floor = floorNum;
                     robot.rotation = angle;
                 }
-            } else if (robot.status === 'Idle' && !hasIssue) {
+            } else if ((robot.status === 'Idle' || robot.status === 'Returning') && !hasIssue) {
                 const isEditingThis = isEditingRobot3D && Number(robot.id) === Number(focusedRobotId);
-                const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
                 const distToBase = (Number(robot.floor || 1) === 1) 
                     ? Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) 
                     : 999;
+                const isNearBase = Number(robot.floor || 1) === 1 && distToBase < 1.5;
 
                 if (isEditingThis) {
                     robot.returnMission = null;
@@ -2867,7 +3199,27 @@
                     floorNum = robot.floor || currentDashboardFloor;
                     taskText = 'Mode Edit Posisi Robot (Geser 3D / D-Pad)';
                     currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
-                } else if (!isAutopilotEnabled && robot.needsReturnToBase && !robot.customPosition && distToBase > 0.8) {
+                } else if (isNearBase && (robot.status === 'Returning' || robot.isReturning || robot.returnMission)) {
+                    coords = { x: baseLoc.x, y: baseLoc.y };
+                    floorNum = 1;
+                    robot.current_x = baseLoc.x;
+                    robot.current_y = baseLoc.y;
+                    robot.floor = 1;
+                    robot.returnMission = null;
+                    robot.isReturning = false;
+
+                    if (robot.isLowBatteryReturning || robot.battery_level <= 20) {
+                        robot.isLowBatteryReturning = false;
+                        robot.status = 'Charging';
+                        taskText = `<span class="text-orange-500 font-bold"><i class="fa-solid fa-bolt mr-1"></i> Baterai Rendah! Charging di ${baseLoc.name || 'Base'}...</span>`;
+                        syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Charging', robot.battery_level);
+                    } else {
+                        robot.status = 'Idle';
+                        taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
+                        syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Idle', robot.battery_level);
+                    }
+                    currentLocName = baseLoc.name || 'Base Station';
+                } else if (!isNearBase && distToBase > 1.5 && !robot.customPosition) {
                     if (!robot.returnMission) {
                         robot.returnMission = buildReturnMission(robot, now);
                     }
@@ -2880,7 +3232,7 @@
                     let angle = 0;
 
                     if (elapsedMs < 0) {
-                        taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-box-open mr-1"></i> Selesai antar, persiapan balik ke N7...</span>`;
+                        taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-box-open mr-1"></i> Selesai antar, persiapan balik ke ${baseLoc.name || 'Base'}...</span>`;
                         coords = { x: robot.current_x, y: robot.current_y };
                         floorNum = robot.floor || 1;
                     } else if (elapsedMs >= mission.totalDurationMs) {
@@ -2891,9 +3243,18 @@
                         robot.floor = 1;
                         robot.returnMission = null;
                         robot.isReturning = false;
-                        robot.needsReturnToBase = false;
-                        taskText = 'Standby at base station (N7)';
-                        syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
+
+                        if (robot.isLowBatteryReturning || robot.battery_level <= 20) {
+                            robot.isLowBatteryReturning = false;
+                            robot.status = 'Charging';
+                            taskText = `<span class="text-orange-500 font-bold"><i class="fa-solid fa-bolt mr-1"></i> Baterai Rendah! Charging di ${baseLoc.name || 'Base'}...</span>`;
+                            syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Charging', robot.battery_level);
+                        } else {
+                            robot.status = 'Idle';
+                            taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
+                            syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Idle', robot.battery_level);
+                        }
+                        currentLocName = baseLoc.name || 'Base Station';
                     } else {
                         let activeStage = null;
                         for (let st of mission.stages) {
@@ -2913,37 +3274,65 @@
                             floorNum = isSecondHalf ? activeStage.toFloor : activeStage.fromFloor;
                             const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
                             coords = locations[currentNodeId] || coords;
+                            angle = 0;
                             taskText = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-stairs animate-bounce mr-1"></i> Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...</span>`;
                             robot.returnSegIdx = 0;
+
+                            if (robot.floor !== floorNum) {
+                                robot.floor = floorNum;
+                                syncRobotPosition(robot.id, coords.x, coords.y, floorNum, robot.status, robot.battery_level);
+                            }
                         } else {
                             floorNum = activeStage.floor || 1;
                             const path = activeStage.path || [];
-                            if (path.length >= 2) {
-                                const floatIdx = stageRatio * (path.length - 1);
-                                const currentSegIdx = Math.max(0, Math.min(Math.floor(floatIdx), path.length - 2));
-                                const ratioInSegment = floatIdx - currentSegIdx;
-                                const p1 = locations[path[currentSegIdx]];
-                                const p2 = locations[path[currentSegIdx + 1]];
-                                robot.returnSegIdx = currentSegIdx;
-                                if (p1 && p2) {
-                                    coords = interpolate(p1, p2, ratioInSegment);
-                                    const dx = p2.x - p1.x;
-                                    const dy = p2.y - p1.y;
-                                    if (dx !== 0 || dy !== 0) {
-                                        angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-                                    }
-                                }
-                            } else if (path.length === 1 && locations[path[0]]) {
-                                coords = locations[path[0]];
-                                robot.returnSegIdx = 0;
+                            const along = interpolateAlongPath(path, stageRatio);
+                            if (along) {
+                                coords = along.coords;
+                                angle = along.angle;
+                                robot.returnSegIdx = along.segIdx;
                             }
-                            taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-arrow-rotate-left mr-1"></i> Kembali ke Markas (N7)...</span>`;
+                            if (robot.isLowBatteryReturning) {
+                                taskText = `<span class="text-orange-600 font-bold animate-pulse"><i class="fa-solid fa-battery-quarter text-orange-500 mr-1"></i> Baterai Rendah (${robot.battery_level}%), Pulang ke Base...</span>`;
+                            } else {
+                                taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-arrow-rotate-left mr-1"></i> Kembali ke ${baseLoc.name || 'Base'}...</span>`;
+                            }
+                        }
+
+                        // Battery drain while returning
+                        const nowTime = now.getTime();
+                        if (!robot.lastBatteryTick) robot.lastBatteryTick = nowTime;
+                        if (nowTime - robot.lastBatteryTick >= 2500) {
+                            robot.lastBatteryTick = nowTime;
+                            robot.battery_level = Math.max(0, (Number(robot.battery_level) || 100) - 1);
+                        }
+
+                        // Throttle sync telemetry position during return
+                        if (!robot.lastPosSync || (nowTime - robot.lastPosSync >= 1500)) {
+                            robot.lastPosSync = nowTime;
+                            syncRobotPosition(robot.id, coords.x, coords.y, floorNum, robot.status, robot.battery_level);
                         }
 
                         robot.current_x = coords.x;
                         robot.current_y = coords.y;
                         robot.floor = floorNum;
                         robot.rotation = angle;
+
+                        // Immediate snap upon reaching base station during movement
+                        if (floorNum === 1 && Math.hypot(coords.x - baseLoc.x, coords.y - baseLoc.y) < 1.5) {
+                            coords = { x: baseLoc.x, y: baseLoc.y };
+                            robot.current_x = baseLoc.x;
+                            robot.current_y = baseLoc.y;
+                            robot.floor = 1;
+                            robot.returnMission = null;
+                            robot.isReturning = false;
+                            const isChargingNeeded = robot.isLowBatteryReturning || (Number(robot.battery_level) || 100) <= 20;
+                            robot.isLowBatteryReturning = false;
+                            robot.status = isChargingNeeded ? 'Charging' : 'Idle';
+                            taskText = (robot.status === 'Charging') 
+                                ? `<span class="text-orange-500 font-bold"><i class="fa-solid fa-bolt mr-1"></i> Baterai Rendah! Charging di ${baseLoc.name || 'Base'}...</span>`
+                                : `Standby di ${baseLoc.name || 'Base Station'}`;
+                            syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, robot.status, robot.battery_level);
+                        }
                     }
                     currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
                 } else if (!isEditingThis) {
@@ -2951,24 +3340,26 @@
                     floorNum = robot.floor || 1;
                     robot.current_x = coords.x;
                     robot.current_y = coords.y;
-                    const isAtBase = (Number(floorNum) === 1 && Math.hypot(coords.x - baseLoc.x, coords.y - baseLoc.y) < 1.0);
-                    taskText = isAtBase ? 'Standby at base station (N7)' : `Standby di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
+                    const isAtBase = (Number(floorNum) === 1 && Math.hypot(coords.x - baseLoc.x, coords.y - baseLoc.y) < 1.5);
+                    taskText = isAtBase ? `Standby di ${baseLoc.name || 'Base Station'}` : `Standby di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
                     currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
                 }
             }
 
-            // Create Robot marker element
-            // (createRobotMarker 2D dihapus — kedua lantai murni 3D; klik avatar 3D utk fokus)
-
-            // Avatar 3D per lantai (std + fullview); posisi & status badge sinkron dari data gerak yang sama
+            // Avatar 3D per lantai (std + fullview); posisi & status badge sinkron dari data gerak yang sama.
+            // Sembunyikan avatar di lantai lain agar tidak ada ghost mesh
             const destNodeId = (delivery && delivery.status === 'In Progress' && robot.status === 'Delivering') ? delivery.destination_location : null;
             const destName = destNodeId ? (locations[destNodeId]?.name || null) : null;
             if (Number(floorNum) === 2) {
                 updateRobot3DAvatar(threeStd, robot, coords, destName);
                 updateRobot3DAvatar(threeFull, robot, coords, destName);
+                hideRobot3DAvatar(threeStdF1, robot);
+                hideRobot3DAvatar(threeFullF1, robot);
             } else {
                 updateRobot3DAvatar(threeStdF1, robot, coords, destName);
                 updateRobot3DAvatar(threeFullF1, robot, coords, destName);
+                hideRobot3DAvatar(threeStd, robot);
+                hideRobot3DAvatar(threeFull, robot);
             }
 
             // Update Robot Cards in standard view
@@ -3333,18 +3724,66 @@
                         existing.battery_level = newRobot.battery_level;
                         return;
                     }
-                    if (existing.status !== newRobot.status) {
-                        existing.status = newRobot.status;
-                        if (!existing.isReturning && !existing.customPosition) {
-                            existing.current_x = newRobot.current_x;
-                            existing.current_y = newRobot.current_y;
+
+                    const bLoc = getBaseLocation();
+                    const isClientAtBase = Number(existing.floor || 1) === 1 && Math.hypot((existing.current_x || bLoc.x) - bLoc.x, (existing.current_y || bLoc.y) - bLoc.y) < 1.5;
+                    const hasDeliveryInProgress = activeDeliveries.some(d => Number(d.robot_id) === Number(existing.id) && d.status === 'In Progress');
+
+                    if (existing.status === 'Delivering') {
+                        if (newRobot.status === 'Maintenance') {
+                            existing.status = 'Maintenance';
+                            existing.hasIssue = true;
+                        } else if (!hasDeliveryInProgress) {
+                            existing.status = newRobot.status;
+                            if (newRobot.status === 'Idle' && !isClientAtBase) {
+                                existing.returnMission = buildReturnMission(existing, new Date(new Date().getTime() + serverClientOffset));
+                                existing.isReturning = true;
+                            }
                         }
-                    } else if (!existing.isReturning && existing.status !== 'Delivering' && !existing.customPosition) {
+                    } else if (existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
+                        if (newRobot.status === 'Maintenance') {
+                            existing.status = 'Maintenance';
+                            existing.hasIssue = true;
+                        }
+                    } else if (existing.status === 'Idle') {
+                        if (hasDeliveryInProgress) {
+                            existing.status = 'Delivering';
+                        } else if (newRobot.status === 'Charging') {
+                            existing.status = 'Charging';
+                        } else if (newRobot.status === 'Returning' && !isClientAtBase) {
+                            existing.status = 'Returning';
+                        }
+                    } else {
+                        existing.status = newRobot.status;
+                    }
+
+                    // Coordinates & Floor Merge (Firmly lock Base/Charging and Client Navigation)
+                    if (existing.status === 'Charging' || (existing.status === 'Idle' && isClientAtBase)) {
+                        existing.floor = 1;
+                        existing.current_x = bLoc.x;
+                        existing.current_y = bLoc.y;
+                    } else if (existing.status === 'Delivering' || existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
+                        // Keep live client-side coordinates along path - NEVER overwrite from server!
+                    } else if (newRobot.current_x != null && newRobot.current_y != null && !existing.customPosition) {
+                        existing.floor = newRobot.floor || existing.floor || 1;
                         existing.current_x = newRobot.current_x;
                         existing.current_y = newRobot.current_y;
                     }
-                    existing.floor = newRobot.floor || existing.floor || 1;
-                    existing.battery_level = newRobot.battery_level;
+
+                    // Battery Level Merge
+                    const isLocalCharging = (existing.status === 'Charging');
+                    const justCharged = existing._justCharged;
+
+                    if (justCharged) {
+                        existing.battery_level = Math.max(100, Number(existing.battery_level) || 100);
+                        if (Number(newRobot.battery_level) >= 95) {
+                            existing._justCharged = false;
+                        }
+                    } else if (isLocalCharging) {
+                        existing.battery_level = Math.max(Number(existing.battery_level) || 0, Number(newRobot.battery_level) || 0);
+                    } else {
+                        existing.battery_level = Number(newRobot.battery_level);
+                    }
                 } else {
                     robots.push(newRobot);
                 }

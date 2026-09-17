@@ -262,7 +262,9 @@
         camera: { dist: parseFloat(settings3D?.camera?.dist ?? 5.0), fov: parseFloat(settings3D?.camera?.fov ?? 5.0), preset: settings3D?.camera?.preset ?? 'iso' },
         lighting: { ambient: parseFloat(settings3D?.lighting?.ambient ?? 1.4), sun: parseFloat(settings3D?.lighting?.sun ?? 1.8), exposure: parseFloat(settings3D?.lighting?.exposure ?? 1.0), fill: parseFloat(settings3D?.lighting?.fill ?? 0.8) },
         model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
-        robot_scale: parseFloat(settings3D?.robot_scale ?? 0.6)
+        robot_scale: parseFloat(settings3D?.robot_scale ?? 0.1),
+        robot_elevation_f1: parseFloat(settings3D?.robot_elevation_f1 ?? 0.059),
+        robot_elevation_f2: parseFloat(settings3D?.robot_elevation_f2 ?? 0.112)
     };
     // robot template shared (same as dashboard)
     let robotTemplate = null, robotTemplateReady = false, robotTemplateLoading = false, robotTemplateFailed = false;
@@ -474,12 +476,21 @@
         let loadedModel = null;
         let modelSize = new THREE.Vector3();
 
-        function snapRobot3D(holder, worldPct, sz){
+        function snapRobot3D(holder, worldPct, sz, floorNum){
             const wp = worldPosForLoc(worldPct, sz);
-            holder.position.set(wp.x, 0.02, wp.z);
+            const f = Number(floorNum || 1);
+            const elev = (f === 2)
+                ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+                : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+            holder.position.set(wp.x, elev, wp.z);
             if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3();
             holder.userData.targetWp.copy(holder.position);
             return wp;
+        }
+        function hideRobot3DAvatar(viewer, robot) {
+            if (!viewer || !viewer.robotMeshes) return;
+            const holder = viewer.robotMeshes.get(Number(robot.id));
+            if (holder) holder.visible = false;
         }
         function smoothFaceTowards(holder, deg){
             const rad = -(deg||0)*Math.PI/180;
@@ -506,7 +517,7 @@
             const rid=Number(robot.id);
             if(robotMeshes.has(rid)) return robotMeshes.get(rid);
             const holder=new THREE.Group(); holder.userData.robotId=rid;
-            const rSc = parseFloat(current3DSettings.robot_scale ?? 0.6);
+            const rSc = parseFloat(current3DSettings.robot_scale ?? 0.1);
             holder.scale.set(rSc, rSc, rSc);
             const boxGeo=new THREE.BoxGeometry(0.5,0.5,0.5);
             const boxMat=new THREE.MeshStandardMaterial({color:getRobotColor(rid)});
@@ -532,7 +543,7 @@
         function updateRobot3DAvatar(viewer, robot, coords, destName){
             if(!viewer || !viewer.getModelSize || !viewer.robotMeshes) return false;
             const sz=viewer.getModelSize(); if(!sz||sz.x<=0.1) return false;
-            const holder=viewer.getOrCreateRobotMesh(robot); snapRobot3D(holder, coords, sz); holder.visible=true; try{holder.rotation.y=-((robot.rotation||0)*Math.PI/180);}catch(e){}
+            const holder=viewer.getOrCreateRobotMesh(robot); snapRobot3D(holder, coords, sz, robot.floor || (viewer===threeDeliv ? 2 : 1)); holder.visible=true; try{holder.rotation.y=-((robot.rotation||0)*Math.PI/180);}catch(e){}
             const d=(robot.status==='Delivering') ? (robot._activeDelivery||null) : null;
             try{ updateRobotStatusSprite(holder, robot, d, !!robot.hasIssue, destName);}catch(e){}
             return true;
@@ -929,6 +940,108 @@
         };
     }
 
+    function getBaseLocationId() {
+        if (locations['1_Markas Robot']) return '1_Markas Robot';
+        if (locations['1_N7']) return '1_N7';
+        for (const [id, loc] of Object.entries(locations)) {
+            if (Number(loc.floor) === 1 && (loc.name?.toLowerCase().includes('markas') || loc.name?.toLowerCase().includes('base'))) {
+                return id;
+            }
+        }
+        for (const [id, loc] of Object.entries(locations)) {
+            if (Number(loc.floor) === 1) return id;
+        }
+        return '1_Markas Robot';
+    }
+
+    function getBaseLocation() {
+        const id = getBaseLocationId();
+        return locations[id] || { x: 85.48, y: 51.07, floor: 1, name: 'Markas Robot' };
+    }
+
+    function getStairsNodeId(floor) {
+        const f = Number(floor || 1);
+        if (f === 1) {
+            if (locations['1_Tangga']) return '1_Tangga';
+            if (locations['1_Stairs']) return '1_Stairs';
+        } else {
+            if (locations['2_Tangga']) return '2_Tangga';
+            if (locations['2_Stairs']) return '2_Stairs';
+        }
+        for (const [id, loc] of Object.entries(locations)) {
+            if (Number(loc.floor) === f && (loc.name?.toLowerCase().includes('tangga') || loc.name?.toLowerCase().includes('stairs'))) {
+                return id;
+            }
+        }
+        return f === 1 ? '1_Tangga' : '2_Tangga';
+    }
+
+    function calculatePathDistance(path) {
+        if (!path || path.length < 2) return 0;
+        let dist = 0;
+        for (let i = 0; i < path.length - 1; i++) {
+            const p1 = locations[path[i]];
+            const p2 = locations[path[i + 1]];
+            dist += (p1 && p2) ? Math.hypot(p2.x - p1.x, p2.y - p1.y) : 3.0;
+        }
+        return Math.max(1.0, dist);
+    }
+
+    function interpolateAlongPath(path, ratio) {
+        if (!path || path.length === 0) return null;
+        if (path.length === 1) {
+            const p = locations[path[0]] || { x: 0, y: 0 };
+            return { coords: { x: p.x, y: p.y }, angle: 0, segIdx: 0 };
+        }
+
+        const clampedRatio = Math.max(0, Math.min(1.0, ratio));
+        const segDistances = [];
+        let totalDistance = 0;
+
+        for (let i = 0; i < path.length - 1; i++) {
+            const p1 = locations[path[i]];
+            const p2 = locations[path[i + 1]];
+            const dist = (p1 && p2) ? Math.hypot(p2.x - p1.x, p2.y - p1.y) : 0.001;
+            segDistances.push(dist);
+            totalDistance += dist;
+        }
+
+        if (totalDistance <= 0.0001) {
+            const p = locations[path[0]] || { x: 0, y: 0 };
+            return { coords: { x: p.x, y: p.y }, angle: 0, segIdx: 0 };
+        }
+
+        const targetDist = clampedRatio * totalDistance;
+        let accumulated = 0;
+        let currentSegIdx = path.length - 2;
+        let ratioInSeg = 1.0;
+
+        for (let i = 0; i < segDistances.length; i++) {
+            const nextAcc = accumulated + segDistances[i];
+            if (targetDist <= nextAcc || i === segDistances.length - 1) {
+                currentSegIdx = i;
+                const segLen = segDistances[i];
+                ratioInSeg = segLen > 0 ? (targetDist - accumulated) / segLen : 0;
+                ratioInSeg = Math.max(0, Math.min(1.0, ratioInSeg));
+                break;
+            }
+            accumulated = nextAcc;
+        }
+
+        const p1 = locations[path[currentSegIdx]] || { x: 0, y: 0 };
+        const p2 = locations[path[currentSegIdx + 1]] || p1;
+        const coords = interpolate(p1, p2, ratioInSeg);
+
+        let angle = 0;
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        if (dx !== 0 || dy !== 0) {
+            angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+        }
+
+        return { coords, angle, segIdx: currentSegIdx };
+    }
+
     function planRouteBetween(fromId, toId) {
         if (!locations[fromId] || !locations[toId]) return [];
         const f1 = Number(locations[fromId].floor || 1);
@@ -938,8 +1051,8 @@
             const p = findShortestPath(fromId, toId);
             return [{ type: 'travel', floor: f1, path: p }];
         } else {
-            const stairsFrom = f1 === 1 ? '1_Stairs' : '2_Stairs';
-            const stairsTo = f2 === 1 ? '1_Stairs' : '2_Stairs';
+            const stairsFrom = getStairsNodeId(f1);
+            const stairsTo = getStairsNodeId(f2);
             const p1 = findShortestPath(fromId, stairsFrom);
             const p2 = findShortestPath(stairsTo, toId);
             return [
@@ -951,9 +1064,17 @@
     }
 
     function buildReturnMission(robot, now) {
-        const currentLocId = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1);
-        const targetId = '1_N7';
-        if (!currentLocId || currentLocId === targetId) return null;
+        const baseLoc = getBaseLocation();
+        const baseId = getBaseLocationId();
+        const robotFloor = Number(robot.floor || 1);
+        if (robotFloor === 1 && Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) < 1.5) {
+            robot.floor = 1;
+            return null;
+        }
+
+        const currentLocId = resolveLocationNodeId(robot.current_x, robot.current_y, robotFloor);
+        const targetId = baseId;
+        if (!currentLocId || (robotFloor === 1 && currentLocId === targetId)) return null;
 
         const rawStages = planRouteBetween(currentLocId, targetId);
         if (!rawStages || rawStages.length === 0) return null;
@@ -963,29 +1084,21 @@
             if (consolidatedStages.length > 0) {
                 const prev = consolidatedStages[consolidatedStages.length - 1];
                 if (prev.type === 'travel' && st.type === 'travel' && prev.floor === st.floor) {
-                    if (st.path && st.path.length > 0) {
-                        prev.path = [...prev.path, ...st.path.slice(1)];
-                    }
+                    if (st.path && st.path.length > 0) prev.path = [...prev.path, ...st.path.slice(1)];
                     continue;
                 }
             }
             consolidatedStages.push(st);
         }
 
-        let totalTravelSegments = 0;
-        consolidatedStages.forEach(st => {
-            if (st.type === 'travel') totalTravelSegments += Math.max(1, (st.path?.length || 1) - 1);
-        });
-
-        const baseTravelTimeMs = 24000;
         let accumulatedMs = 0;
         consolidatedStages.forEach(st => {
             st.startMs = accumulatedMs;
             if (st.type === 'stairs') {
-                st.durationMs = 5500;
+                st.durationMs = 5000;
             } else {
-                const segCount = Math.max(1, (st.path?.length || 1) - 1);
-                st.durationMs = Math.max(5000, Math.round(baseTravelTimeMs * (segCount / Math.max(1, totalTravelSegments))));
+                const dist = calculatePathDistance(st.path);
+                st.durationMs = Math.max(2500, Math.round(dist * 700));
             }
             accumulatedMs += st.durationMs;
         });
@@ -995,7 +1108,7 @@
             destId: targetId,
             stages: consolidatedStages,
             totalDurationMs: accumulatedMs,
-            startedAt: now.getTime() + 1500
+            startedAt: now.getTime() + 200
         };
     }
 
@@ -1021,27 +1134,36 @@
         const startNodeId = getNode(delivery.start_location);
         const destNodeId = getNode(delivery.destination_location);
         
-        let originNodeId = getNode(delivery.origin_location);
-        if (!originNodeId && robot && robot.current_x && robot.current_y) {
-            originNodeId = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1);
-        }
-        if (!originNodeId || !locations[originNodeId]) originNodeId = '1_N7';
+        const robotFloor = Number(robot?.floor || 1);
+        const baseLoc = getBaseLocation();
+        const baseId = getBaseLocationId();
 
-        const validStart = (startNodeId && locations[startNodeId]) ? startNodeId : '1_Waiting Room';
-        const validDest = (destNodeId && locations[destNodeId]) ? destNodeId : '2_Ruang Direktur';
+        let originNodeId = getNode(delivery.origin_location);
+        if (robot && robot.current_x && robot.current_y) {
+            const isAtBase = robotFloor === 1 && Math.hypot(robot.current_x - baseLoc.x, robot.current_y - baseLoc.y) < 2.0;
+            if (isAtBase) {
+                originNodeId = baseId;
+            } else {
+                originNodeId = resolveLocationNodeId(robot.current_x, robot.current_y, robotFloor) || baseId;
+            }
+        }
+        if (!originNodeId || !locations[originNodeId]) originNodeId = baseId;
+
+        const validStart = (startNodeId && locations[startNodeId]) ? startNodeId : Object.keys(locations)[0];
+        const validDest = (destNodeId && locations[destNodeId]) ? destNodeId : Object.keys(locations)[1];
 
         const pickupStage = {
             type: 'pickup',
             nodeId: validStart,
             floor: locations[validStart]?.floor || 1,
-            durationMs: 2500
+            durationMs: 3000
         };
 
         const dropoffStage = {
             type: 'dropoff',
             nodeId: validDest,
             floor: locations[validDest]?.floor || 1,
-            durationMs: 2500
+            durationMs: 3000
         };
 
         let rawStages = [];
@@ -1072,20 +1194,16 @@
             consolidatedStages.push(st);
         }
 
-        let totalTravelSegments = 0;
-        consolidatedStages.forEach(st => { if (st.type === 'travel') totalTravelSegments += Math.max(1, (st.path?.length || 1) - 1); });
-
-        const baseTravelTimeMs = 26000;
         let accumulatedMs = 0;
         consolidatedStages.forEach(st => {
             st.startMs = accumulatedMs;
             if (st.type === 'stairs') {
-                st.durationMs = 5500;
+                st.durationMs = 5000;
             } else if (st.type === 'pickup' || st.type === 'dropoff') {
-                st.durationMs = 2500;
+                st.durationMs = 3000;
             } else {
-                const segCount = Math.max(1, (st.path?.length || 1) - 1);
-                st.durationMs = Math.max(6000, Math.round(baseTravelTimeMs * (segCount / Math.max(1, totalTravelSegments))));
+                const dist = calculatePathDistance(st.path);
+                st.durationMs = Math.max(3000, Math.round(dist * 700));
             }
             accumulatedMs += st.durationMs;
         });
@@ -1284,21 +1402,11 @@
                         } else {
                             floorNum = activeStage.floor || 1;
                             const path = activeStage.path || [];
-                            if (path.length >= 2) {
-                                const floatIdx = stageRatio * (path.length - 1);
-                                const currentSegIdx = Math.max(0, Math.min(Math.floor(floatIdx), path.length - 2));
-                                robot.currentSegIdx = currentSegIdx;
-                                const ratioInSegment = floatIdx - currentSegIdx;
-                                const p1 = locations[path[currentSegIdx]];
-                                const p2 = locations[path[currentSegIdx + 1]];
-                                if (p1 && p2) {
-                                    coords = interpolate(p1, p2, ratioInSegment);
-                                    const dx = p2.x - p1.x;
-                                    const dy = p2.y - p1.y;
-                                    if (dx !== 0 || dy !== 0) angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-                                }
-                            } else if (path.length === 1 && locations[path[0]]) {
-                                coords = locations[path[0]];
+                            const along = interpolateAlongPath(path, stageRatio);
+                            if (along) {
+                                coords = along.coords;
+                                angle = along.angle;
+                                robot.currentSegIdx = along.segIdx;
                             }
                             const isHeadingToPickup = mission.pickupStartMs && activeStage.startMs < mission.pickupStartMs;
                             if (isHeadingToPickup) {
@@ -1313,20 +1421,32 @@
                     robot.floor = floorNum;
                     robot.rotation = angle;
                 }
-            } else if (robot.status === 'Idle') {
-                const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
+            } else if (robot.status === 'Idle' || robot.status === 'Returning') {
+                const baseLoc = getBaseLocation();
                 const distToBase = (Number(robot.floor || 1) === 1) 
                     ? Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) 
                     : 999;
+                const isNearBase = Number(robot.floor || 1) === 1 && distToBase < 1.5;
 
                 const isAutopilot = autopilotEnabled || localStorage.getItem('autopilot_enabled') === 'true';
-                if (!isAutopilot && distToBase > 0.8) {
+                if (!isAutopilot && !isNearBase && distToBase > 1.5) {
                     if (!robot.returnMission) {
                         robot.returnMission = buildReturnMission(robot, now);
                     }
                 }
 
-                if (robot.returnMission) {
+                if (isNearBase && (robot.status === 'Returning' || robot.isReturning || robot.returnMission)) {
+                    coords = { x: baseLoc.x, y: baseLoc.y };
+                    floorNum = 1;
+                    robot.current_x = baseLoc.x;
+                    robot.current_y = baseLoc.y;
+                    robot.floor = 1;
+                    robot.returnMission = null;
+                    robot.isReturning = false;
+                    robot.status = 'Idle';
+                    taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
+                    syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
+                } else if (robot.returnMission) {
                     robot.isReturning = true;
                     statusColor = 'bg-indigo-500';
                     const mission = robot.returnMission;
@@ -1334,7 +1454,7 @@
                     let angle = 0;
 
                     if (elapsedMs < 0) {
-                        taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-box-open mr-1"></i> Selesai antar, persiapan balik ke N7...</span>`;
+                        taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-box-open mr-1"></i> Selesai antar, persiapan balik ke ${baseLoc.name || 'Base'}...</span>`;
                         coords = { x: robot.current_x, y: robot.current_y };
                         floorNum = robot.floor || 1;
                     } else if (elapsedMs >= mission.totalDurationMs) {
@@ -1345,7 +1465,7 @@
                         robot.floor = 1;
                         robot.returnMission = null;
                         robot.isReturning = false;
-                        taskText = 'Standby at base station (N7)';
+                        taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
                         syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
                     } else {
                         let activeStage = null;
@@ -1368,26 +1488,17 @@
                             coords = locations[currentNodeId] || coords;
                             taskText = `Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...`;
                             statusColor = 'bg-amber-500';
+                            robot.returnSegIdx = 0;
                         } else {
                             floorNum = activeStage.floor || 1;
                             const path = activeStage.path || [];
-                            if (path.length >= 2) {
-                                const floatIdx = stageRatio * (path.length - 1);
-                                const currentSegIdx = Math.max(0, Math.min(Math.floor(floatIdx), path.length - 2));
-                                robot.returnSegIdx = currentSegIdx;
-                                const ratioInSegment = floatIdx - currentSegIdx;
-                                const p1 = locations[path[currentSegIdx]];
-                                const p2 = locations[path[currentSegIdx + 1]];
-                                if (p1 && p2) {
-                                    coords = interpolate(p1, p2, ratioInSegment);
-                                    const dx = p2.x - p1.x;
-                                    const dy = p2.y - p1.y;
-                                    if (dx !== 0 || dy !== 0) angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-                                }
-                            } else if (path.length === 1 && locations[path[0]]) {
-                                coords = locations[path[0]];
+                            const along = interpolateAlongPath(path, stageRatio);
+                            if (along) {
+                                coords = along.coords;
+                                angle = along.angle;
+                                robot.returnSegIdx = along.segIdx;
                             }
-                            taskText = `Kembali ke Markas (N7)...`;
+                            taskText = `Kembali ke ${baseLoc.name || 'Base Station'}...`;
                         }
 
                         robot.current_x = coords.x;
@@ -1414,8 +1525,11 @@
                 const sz=viewer.getModelSize ? viewer.getModelSize() : null;
                 if(!sz || sz.x<=0.1) return;
                 const holder=viewer.getOrCreateRobotMesh(robot);
-                const wp=worldPosForLoc(coords, sz);
-                holder.position.set(wp.x, 0.02, wp.z);
+                const wp = worldPosForLoc(coords, sz);
+                const elev = (_floorNum === 2)
+                    ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+                    : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+                holder.position.set(wp.x, elev, wp.z);
                 if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3();
                 holder.userData.targetWp.copy(holder.position);
                 holder.rotation.y=-((robot.rotation||0)*Math.PI/180);
@@ -1666,13 +1780,47 @@
             data.robots.forEach(newRobot => {
                 const existing = robots.find(r => Number(r.id) === Number(newRobot.id));
                 if (existing) {
-                    if (existing.status !== newRobot.status) {
-                        existing.status = newRobot.status;
-                        if (!existing.isReturning) {
-                            existing.current_x = newRobot.current_x;
-                            existing.current_y = newRobot.current_y;
+                    const bLoc = getBaseLocation();
+                    const isClientAtBase = Number(existing.floor || 1) === 1 && Math.hypot((existing.current_x || bLoc.x) - bLoc.x, (existing.current_y || bLoc.y) - bLoc.y) < 1.5;
+                    const hasDeliveryInProgress = activeDeliveries.some(d => Number(d.robot_id) === Number(existing.id) && d.status === 'In Progress');
+
+                    if (existing.status === 'Delivering') {
+                        if (newRobot.status === 'Maintenance') {
+                            existing.status = 'Maintenance';
+                            existing.hasIssue = true;
+                        } else if (!hasDeliveryInProgress) {
+                            existing.status = newRobot.status;
+                            if (newRobot.status === 'Idle' && !isClientAtBase) {
+                                existing.returnMission = buildReturnMission(existing, new Date(new Date().getTime() + serverClientOffset));
+                                existing.isReturning = true;
+                            }
                         }
-                    } else if (!existing.isReturning && existing.status !== 'Delivering') {
+                    } else if (existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
+                        if (newRobot.status === 'Maintenance') {
+                            existing.status = 'Maintenance';
+                            existing.hasIssue = true;
+                        }
+                    } else if (existing.status === 'Idle') {
+                        if (hasDeliveryInProgress) {
+                            existing.status = 'Delivering';
+                        } else if (newRobot.status === 'Charging') {
+                            existing.status = 'Charging';
+                        } else if (newRobot.status === 'Returning' && !isClientAtBase) {
+                            existing.status = 'Returning';
+                        }
+                    } else {
+                        existing.status = newRobot.status;
+                    }
+
+                    // Coordinates & Floor Merge (Firmly lock Base/Charging and Client Navigation)
+                    if (existing.status === 'Charging' || (existing.status === 'Idle' && isClientAtBase)) {
+                        existing.floor = 1;
+                        existing.current_x = bLoc.x;
+                        existing.current_y = bLoc.y;
+                    } else if (existing.status === 'Delivering' || existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
+                        // Keep live client-side coordinates along path - NEVER overwrite from server!
+                    } else if (newRobot.current_x != null && newRobot.current_y != null) {
+                        existing.floor = newRobot.floor || existing.floor || 1;
                         existing.current_x = newRobot.current_x;
                         existing.current_y = newRobot.current_y;
                     }
