@@ -125,37 +125,41 @@
     <!-- Main Content Area -->
     <main class="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
         <!-- Topbar -->
-        <header class="h-20 border-b border-gray-200 bg-white shadow-sm flex items-center justify-between px-8 shrink-0 z-10">
-            <div>
-                <h2 class="text-xl font-bold text-gray-800">@yield('page_title')</h2>
-                <p class="text-sm text-gray-500 mt-0.5">@yield('page_subtitle')</p>
+        <header class="h-20 border-b border-gray-200 bg-white shadow-sm flex items-center justify-between px-6 lg:px-8 shrink-0 z-10 gap-4">
+            <div class="min-w-0">
+                <h2 class="text-xl font-bold text-gray-800 leading-tight">@yield('page_title')</h2>
+                <p class="text-xs sm:text-sm text-gray-500 mt-0.5 truncate max-w-xl">@yield('page_subtitle')</p>
             </div>
 
-            <!-- Topbar Custom Actions (e.g. Mode Buttons) -->
-            <div>
-                @yield('topbar_actions')
-            </div>
-            
-            <div class="flex items-center gap-4">
-                <div class="text-right hidden md:block">
-                    <p class="text-sm font-semibold text-gray-800">{{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin' : (auth()->user()->name ?? 'User') }}</p>
-                    <div class="flex items-center justify-end gap-1.5 mt-0.5">
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider {{ (auth()->check() && auth()->user()->isAdmin()) ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200' }}">
-                            {{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin' : 'Karyawan Staff' }}
-                        </span>
+            <div class="flex items-center gap-3 md:gap-4 shrink-0">
+                @hasSection('topbar_actions')
+                    <div class="shrink-0">
+                        @yield('topbar_actions')
                     </div>
+                    <div class="h-8 w-px bg-gray-200 hidden sm:block"></div>
+                @endif
+                
+                <div class="flex items-center gap-3 shrink-0">
+                    <div class="text-right hidden md:block">
+                        <p class="text-sm font-semibold text-gray-800 leading-tight">{{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin' : (auth()->user()->name ?? 'User') }}</p>
+                        <div class="flex items-center justify-end gap-1.5 mt-0.5">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider {{ (auth()->check() && auth()->user()->isAdmin()) ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200' }}">
+                                {{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin' : 'Karyawan Staff' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="w-10 h-10 rounded-full {{ (auth()->check() && auth()->user()->isAdmin()) ? 'bg-brand-light text-brand-blue border-brand-blue/30' : 'bg-emerald-100 text-emerald-700 border-emerald-300' }} border flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid {{ (auth()->check() && auth()->user()->isAdmin()) ? 'fa-user-shield' : 'fa-user' }}"></i>
+                    </div>
+                    <form id="logout-form" action="{{ route('logout') }}" method="POST" class="inline">
+                        @csrf
+                        <button type="button" title="Logout" 
+                                class="w-9 h-9 rounded-xl bg-gray-100 hover:bg-rose-50 text-gray-500 hover:text-rose-600 border border-gray-200 hover:border-rose-200 flex items-center justify-center transition"
+                                onclick="confirmLogout()">
+                            <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+                        </button>
+                    </form>
                 </div>
-                <div class="w-10 h-10 rounded-full {{ (auth()->check() && auth()->user()->isAdmin()) ? 'bg-brand-light text-brand-blue border-brand-blue/30' : 'bg-emerald-100 text-emerald-700 border-emerald-300' }} border flex items-center justify-center font-bold text-sm">
-                    <i class="fa-solid {{ (auth()->check() && auth()->user()->isAdmin()) ? 'fa-user-shield' : 'fa-user' }}"></i>
-                </div>
-                <form id="logout-form" action="{{ route('logout') }}" method="POST" class="inline">
-                    @csrf
-                    <button type="button" title="Logout" 
-                            class="w-9 h-9 rounded-xl bg-gray-100 hover:bg-rose-50 text-gray-500 hover:text-rose-600 border border-gray-200 hover:border-rose-200 flex items-center justify-center transition"
-                            onclick="confirmLogout()">
-                        <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
-                    </button>
-                </form>
             </div>
         </header>
 
