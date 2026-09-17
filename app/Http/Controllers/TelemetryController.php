@@ -49,22 +49,29 @@ class TelemetryController extends Controller
             }
             $hasActiveDelivery = Delivery::where('robot_id', $robot->id)->whereIn('status', ['In Progress', 'Pending'])->exists();
             if (! $hasActiveDelivery) {
-                $baseLoc = ['x' => 76.23, 'y' => 64.42, 'floor' => 1];
-                $distToBase = ((int) ($robot->floor ?? 1) === 1)
-                    ? hypot((float) ($robot->current_x ?? $baseLoc['x']) - $baseLoc['x'], (float) ($robot->current_y ?? $baseLoc['y']) - $baseLoc['y'])
-                    : 999.0;
+                $baseLoc2D = ['x' => 76.23, 'y' => 64.42, 'floor' => 1];
+                $baseLoc3D = ['x' => 85.48, 'y' => 51.07, 'floor' => 1];
+
+                $curX = (float) ($robot->current_x ?? $baseLoc3D['x']);
+                $curY = (float) ($robot->current_y ?? $baseLoc3D['y']);
+                $isFloor1 = ((int) ($robot->floor ?? 1) === 1);
+
+                $distTo3DBase = $isFloor1 ? hypot($curX - $baseLoc3D['x'], $curY - $baseLoc3D['y']) : 999.0;
+                $distTo2DBase = $isFloor1 ? hypot($curX - $baseLoc2D['x'], $curY - $baseLoc2D['y']) : 999.0;
+                $isNearBase = ($distTo3DBase <= 3.5 || $distTo2DBase <= 3.5);
 
                 $lastCompleted = Delivery::where('robot_id', $robot->id)->where('status', 'Completed')->latest('completed_at')->first();
                 $secondsSince = ($lastCompleted && $lastCompleted->completed_at) ? Carbon::parse($lastCompleted->completed_at)->diffInSeconds(Carbon::now()) : null;
                 $isZombie = ($secondsSince !== null && $secondsSince >= 180) || ($robot->updated_at && $robot->updated_at->diffInSeconds(Carbon::now()) >= 180);
 
-                // Only normalize to Idle/Charging if robot has genuinely arrived at base (<= 1.5) or is an abandoned/zombie session (> 180s)
-                if (($distToBase <= 1.5 && (int) ($robot->floor ?? 1) === 1) || $isZombie) {
+                // Only normalize to Idle/Charging if robot has genuinely arrived at base (<= 3.5) or is an abandoned/zombie session (> 180s)
+                if (($isNearBase && $isFloor1) || $isZombie) {
                     $nextStatus = ($robot->battery_level <= 20 || $robot->status === 'Charging') ? 'Charging' : 'Idle';
+                    $chosenBase = ($distTo3DBase <= $distTo2DBase) ? $baseLoc3D : $baseLoc2D;
                     $robot->update([
                         'status' => $nextStatus,
-                        'current_x' => $baseLoc['x'],
-                        'current_y' => $baseLoc['y'],
+                        'current_x' => $isNearBase ? $curX : $chosenBase['x'],
+                        'current_y' => $isNearBase ? $curY : $chosenBase['y'],
                         'floor' => 1,
                     ]);
                 }
@@ -73,8 +80,8 @@ class TelemetryController extends Controller
 
         // Auto Sanity Check: If a robot has an active delivery in progress, its status MUST be 'Delivering'
         $inProgressDeliveries = Delivery::where('status', 'In Progress')->get();
-        foreach ($inProgressDeliveries as $deliv) {
-            $r = Robot::find($deliv->robot_id);
+        foreach ($inProgressDeliveries as $delivery) {
+            $r = $delivery->robot;
             if ($r) {
                 $hasActiveReport = Report::where('robot_id', $r->id)->where('status', 'Active')->exists();
                 if (! $hasActiveReport && ! in_array($r->status, ['Maintenance', 'Charging']) && $r->status !== 'Delivering') {
@@ -88,10 +95,13 @@ class TelemetryController extends Controller
         foreach ($deliveringRobots as $r) {
             $hasDeliv = Delivery::where('robot_id', $r->id)->whereIn('status', ['In Progress', 'Pending'])->exists();
             if (! $hasDeliv) {
-                $distToBase = ((int) ($r->floor ?? 1) === 1)
-                    ? hypot((float) ($r->current_x ?? 76.23) - 76.23, (float) ($r->current_y ?? 64.42) - 64.42)
-                    : 999.0;
-                $r->update(['status' => ($distToBase <= 1.5) ? 'Idle' : 'Returning']);
+                $isFloor1 = ((int) ($r->floor ?? 1) === 1);
+                $curX = (float) ($r->current_x ?? 85.48);
+                $curY = (float) ($r->current_y ?? 51.07);
+                $d3D = $isFloor1 ? hypot($curX - 85.48, $curY - 51.07) : 999.0;
+                $d2D = $isFloor1 ? hypot($curX - 76.23, $curY - 64.42) : 999.0;
+                $isNear = ($d3D <= 3.5 || $d2D <= 3.5);
+                $r->update(['status' => ($isNear && $isFloor1) ? 'Idle' : 'Returning']);
             }
         }
 

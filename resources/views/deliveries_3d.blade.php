@@ -280,6 +280,31 @@
         @endforeach
     };
 
+    // Auto-bridge isolated nodes like 1_Markas Robot to adjacent corridor nodes dynamically at runtime
+    (function bridgeGraphNodes() {
+        const baseId = '1_Markas Robot';
+        if (locations[baseId]) {
+            if (!adj[baseId] || adj[baseId].length === 0) {
+                const targetNode = locations['1_N114'] ? '1_N114' : '1_N110';
+                if (targetNode && locations[targetNode]) {
+                    adj[baseId] = [targetNode];
+                    if (!adj[targetNode]) adj[targetNode] = [];
+                    if (!adj[targetNode].includes(baseId)) adj[targetNode].push(baseId);
+                }
+            }
+        }
+    })();
+
+    // Parking slot calculation for Markas Robot so robots NEVER overlap
+    function getBaseParkingOffset(robotIndex) {
+        const i = Number(robotIndex) || 0;
+        const col = i % 3; // 0, 1, 2
+        const row = Math.floor(i / 3); // 0, 1
+        const dx = (col - 1) * 1.8; // -1.8%, 0%, +1.8%
+        const dy = (row - 0.5) * 1.6; // -0.8%, +0.8%
+        return { dx, dy };
+    }
+
     let robots = @json($robots);
     let activeDeliveries = @json($activeDeliveries);
     let activeAlerts = [];
@@ -374,57 +399,54 @@
         // White rounded card
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(12, 12, 104, 104, 24);
-        else {
-            const x = 12, y = 12, w = 104, h = 104, r = 24;
-            ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
-        }
+        if (ctx.roundRect) ctx.roundRect(14, 14, 100, 100, 22);
+        else ctx.rect(14, 14, 100, 100);
         ctx.fill();
         ctx.strokeStyle = robotColor;
-        ctx.lineWidth = 8;
+        ctx.lineWidth = 7;
         ctx.stroke();
 
         // Vector robot icon (FontAwesome fa-robot style)
         ctx.fillStyle = robotColor;
         // Antenna
         ctx.beginPath();
-        ctx.arc(64, 30, 6, 0, Math.PI * 2);
+        ctx.arc(64, 30, 5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillRect(62, 34, 4, 8);
+        ctx.fillRect(62, 33, 4, 8);
 
         // Robot Head
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(36, 42, 56, 46, 8);
-        else ctx.rect(36, 42, 56, 46);
+        if (ctx.roundRect) ctx.roundRect(36, 41, 56, 46, 8);
+        else ctx.rect(36, 41, 56, 46);
         ctx.fill();
 
         // Ears
-        ctx.fillRect(28, 54, 8, 18);
-        ctx.fillRect(92, 54, 8, 18);
+        ctx.fillRect(28, 53, 8, 18);
+        ctx.fillRect(92, 53, 8, 18);
 
         // Eye Visor / Eyes
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(44, 52, 40, 14, 4);
-        else ctx.rect(44, 52, 40, 14);
+        if (ctx.roundRect) ctx.roundRect(44, 51, 40, 14, 4);
+        else ctx.rect(44, 51, 40, 14);
         ctx.fill();
 
         ctx.fillStyle = '#0f172a';
         ctx.beginPath();
-        ctx.arc(52, 59, 4, 0, Math.PI * 2);
-        ctx.arc(76, 59, 4, 0, Math.PI * 2);
+        ctx.arc(52, 58, 3.5, 0, Math.PI * 2);
+        ctx.arc(76, 58, 3.5, 0, Math.PI * 2);
         ctx.fill();
 
         // Mouth grill
         ctx.fillStyle = '#ffffff';
-        ctx.fillRect(48, 74, 32, 4);
+        ctx.fillRect(48, 73, 32, 4);
 
         const pinTex = new THREE.CanvasTexture(cPin);
         pinTex.minFilter = THREE.LinearFilter;
         const pinMat = new THREE.SpriteMaterial({ map: pinTex, transparent: true, depthTest: false, depthWrite: false });
         const markerSprite = new THREE.Sprite(pinMat);
-        markerSprite.scale.set(0.18, 0.18, 1);
-        markerSprite.position.set(0, 0.14, 0);
+        markerSprite.scale.set(0.11, 0.11, 1);
+        markerSprite.position.set(0, 0.17, 0);
         markerSprite.renderOrder = 1002;
         return markerSprite;
     }
@@ -433,32 +455,32 @@
     function create2DRobotNameSprite(robotName, robotColor) {
         const c = document.createElement('canvas');
         c.width = 256;
-        c.height = 64;
+        c.height = 56;
         const ctx = c.getContext('2d');
 
         ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(6, 6, 244, 52, 12);
-        else ctx.rect(6, 6, 244, 52);
+        if (ctx.roundRect) ctx.roundRect(6, 6, 244, 44, 10);
+        else ctx.rect(6, 6, 244, 44);
         ctx.fill();
         ctx.strokeStyle = robotColor;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2.5;
         ctx.stroke();
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
         let cleanName = String(robotName || 'Robot').replace(/^Robot\s*/i, '');
-        ctx.fillText(cleanName, 128, 32);
+        ctx.fillText(cleanName, 128, 28);
 
         const tex = new THREE.CanvasTexture(c);
         tex.minFilter = THREE.LinearFilter;
         const sMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
         const nameSprite = new THREE.Sprite(sMat);
-        nameSprite.scale.set(0.38, 0.095, 1);
-        nameSprite.position.set(0, 0.25, 0);
+        nameSprite.scale.set(0.22, 0.048, 1);
+        nameSprite.position.set(0, 0.115, 0);
         nameSprite.renderOrder = 1001;
         nameSprite.userData = { canvas: c, texture: tex };
         return nameSprite;
@@ -708,13 +730,13 @@
             else if(robot.status==='Charging'){ label='⚡ CHARGING'; bg='rgba(234,88,12,0.94)'; }
             else if(robot.status==='Maintenance'){ label='🔧 MAINTENANCE'; bg='rgba(225,29,72,0.94)'; }
             else { label='● IDLE (Markas)'; bg='rgba(16,185,129,0.94)'; }
-            ctx.font='bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'; 
-            const pad=20, h=40, tw=Math.min(c.width-16, ctx.measureText(label).width+32), radius=h/2;
+            ctx.font='bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'; 
+            const pad=16, h=36, tw=Math.min(c.width-12, ctx.measureText(label).width+28), radius=h/2;
             const x0=(c.width-tw)/2, y0=(c.height-h)/2;
             ctx.fillStyle=bg; ctx.beginPath(); 
             if(ctx.roundRect) ctx.roundRect(x0,y0,tw,h,radius); else ctx.rect(x0,y0,tw,h);
             ctx.fill();
-            ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=2.5; ctx.stroke();
+            ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=2; ctx.stroke();
             ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,c.width/2,c.height/2);
             tex.needsUpdate=true; spr.visible=true;
         }
@@ -741,28 +763,28 @@
             ringGeo.rotateX(-Math.PI / 2);
             const ringMat=new THREE.MeshBasicMaterial({color: new THREE.Color(getRobotColor(rid)), side: THREE.DoubleSide, transparent:true, opacity:0.85});
             const ringMesh=new THREE.Mesh(ringGeo, ringMat);
-            ringMesh.position.y=0.003;
+            ringMesh.position.y=0.002;
             holder.add(ringMesh);
             holder.userData.ringMesh=ringMesh;
 
             // 2D Style Robot Marker Card Sprite (sleek white card with vector robot icon & robot border)
             const markerSprite = create2DRobotMarkerSprite(rid, robot.name, getRobotColor(rid));
-            markerSprite.position.set(0, 0.38, 0);
+            markerSprite.position.set(0, 0.17, 0);
             holder.add(markerSprite);
             holder.userData.markerSprite = markerSprite;
 
             // Compact Badge Nama Robot (World space: proporsional, tajam & rapi)
             const nameSprite = create2DRobotNameSprite(robot.name, getRobotColor(rid));
-            nameSprite.position.set(0, 0.24, 0);
+            nameSprite.position.set(0, 0.115, 0);
             holder.add(nameSprite); 
             holder.userData.nameSprite=nameSprite;
 
             // Compact Status Badge Sprite
-            const c3=document.createElement('canvas'); c3.width=384; c3.height=64;
+            const c3=document.createElement('canvas'); c3.width=384; c3.height=56;
             const stMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c3), transparent:true, depthTest:false, depthWrite:false});
             const stSpr=new THREE.Sprite(stMat); 
-            stSpr.scale.set(0.38, 0.08, 1); 
-            stSpr.position.set(0, 0.14, 0); 
+            stSpr.scale.set(0.24, 0.038, 1); 
+            stSpr.position.set(0, 0.075, 0); 
             stSpr.renderOrder=1000; 
             stSpr.visible=false;
             stSpr.userData={canvas:c3, texture:stMat.map}; 
@@ -775,6 +797,7 @@
                 try{ 
                     const clone=tpl.clone(true); 
                     clone.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; }}); 
+                    clone.position.set(0, 0, 0);
                     modelHolder.remove(holder.userData.boxMesh); 
                     modelHolder.add(clone); 
                     holder.userData.glbClone=clone; 
@@ -878,11 +901,12 @@
                     const baseLoc = getBaseLocation();
                     robots.forEach((r, idx) => {
                         const holder = getOrCreateRobotMesh(r);
-                        const rx = (r.current_x !== undefined && r.current_x !== null) ? r.current_x : baseLoc.x;
-                        const ry = (r.current_y !== undefined && r.current_y !== null) ? r.current_y : baseLoc.y;
+                        const isIdleNearBase = (r.status === 'Idle' || !r.status || (Number(r.floor || 1) === 1 && Math.hypot((r.current_x || baseLoc.x) - baseLoc.x, (r.current_y || baseLoc.y) - baseLoc.y) < 3.0));
+                        const parkOffset = isIdleNearBase ? getBaseParkingOffset(idx) : { dx: 0, dy: 0 };
+                        const rx = (r.current_x !== undefined && r.current_x !== null && !isIdleNearBase) ? r.current_x : (baseLoc.x + parkOffset.dx);
+                        const ry = (r.current_y !== undefined && r.current_y !== null && !isIdleNearBase) ? r.current_y : (baseLoc.y + parkOffset.dy);
                         const rf = Number(r.floor || 1);
-                        const offX = (r.status === 'Idle' && Math.hypot(rx - baseLoc.x, ry - baseLoc.y) < 2) ? (idx * 0.6) : 0;
-                        snapRobot3D(holder, { x: rx, y: ry + offX }, _delivSize, rf);
+                        snapRobot3D(holder, { x: rx, y: ry }, _delivSize, rf);
                         try { holder.rotation.y = -((r.rotation || 0) * Math.PI / 180); } catch(e) {}
                         const d = (r.status === 'Delivering') ? (r._activeDelivery || null) : null;
                         try { updateRobotStatusSprite(holder, r, d, !!r.hasIssue, null); } catch(e) {}
@@ -1683,23 +1707,35 @@
                 }
             } else if (robot.status === 'Idle' || robot.status === 'Returning') {
                 const baseLoc = getBaseLocation();
+                const rIdx = robots.findIndex(r => Number(r.id) === Number(robot.id));
+                const parkOff = getBaseParkingOffset(rIdx >= 0 ? rIdx : 0);
                 const distToBase = (Number(robot.floor || 1) === 1) 
                     ? Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) 
                     : 999;
-                const isNearBase = Number(robot.floor || 1) === 1 && distToBase < 1.5;
+                const isNearBase = Number(robot.floor || 1) === 1 && distToBase < 2.2;
 
-                const isAutopilot = autopilotEnabled || localStorage.getItem('autopilot_enabled') === 'true';
-                if (!isAutopilot && !isNearBase && distToBase > 1.5) {
+                if (!isNearBase) {
                     if (!robot.returnMission) {
                         robot.returnMission = buildReturnMission(robot, now);
+                        if (!robot.returnMission) {
+                            // Fallback if no valid path: park safely at Markas Robot
+                            floorNum = 1;
+                            coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
+                            robot.current_x = coords.x;
+                            robot.current_y = coords.y;
+                            robot.floor = 1;
+                            robot.status = 'Idle';
+                            robot.isReturning = false;
+                            syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
+                        }
                     }
                 }
 
                 if (isNearBase && (robot.status === 'Returning' || robot.isReturning || robot.returnMission)) {
-                    coords = { x: baseLoc.x, y: baseLoc.y };
+                    coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
                     floorNum = 1;
-                    robot.current_x = baseLoc.x;
-                    robot.current_y = baseLoc.y;
+                    robot.current_x = coords.x;
+                    robot.current_y = coords.y;
                     robot.floor = 1;
                     robot.returnMission = null;
                     robot.isReturning = false;
@@ -1708,6 +1744,7 @@
                     syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
                 } else if (robot.returnMission) {
                     robot.isReturning = true;
+                    robot.status = 'Returning';
                     statusColor = 'bg-indigo-500';
                     const mission = robot.returnMission;
                     const elapsedMs = now.getTime() - mission.startedAt;
@@ -1718,13 +1755,14 @@
                         coords = { x: robot.current_x, y: robot.current_y };
                         floorNum = robot.floor || 1;
                     } else if (elapsedMs >= mission.totalDurationMs) {
-                        coords = { x: baseLoc.x, y: baseLoc.y };
+                        coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
                         floorNum = 1;
-                        robot.current_x = baseLoc.x;
-                        robot.current_y = baseLoc.y;
+                        robot.current_x = coords.x;
+                        robot.current_y = coords.y;
                         robot.floor = 1;
                         robot.returnMission = null;
                         robot.isReturning = false;
+                        robot.status = 'Idle';
                         taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
                         syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
                     } else {
@@ -1768,8 +1806,16 @@
                     }
                 } else {
                     robot.isReturning = false;
-                    coords = { x: robot.current_x || baseLoc.x, y: robot.current_y || baseLoc.y };
-                    floorNum = robot.floor || 1;
+                    if (isNearBase) {
+                        coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
+                        floorNum = 1;
+                    } else {
+                        coords = { x: robot.current_x || baseLoc.x, y: robot.current_y || baseLoc.y };
+                        floorNum = robot.floor || 1;
+                    }
+                    robot.current_x = coords.x;
+                    robot.current_y = coords.y;
+                    robot.floor = floorNum;
                 }
             }
             
@@ -1789,10 +1835,23 @@
                 const elev = (_floorNum === 2)
                     ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
                     : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
-                holder.position.set(wp.x, elev, wp.z);
-                if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3();
-                holder.userData.targetWp.copy(holder.position);
-                holder.rotation.y=-((robot.rotation||0)*Math.PI/180);
+                if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3(wp.x, elev, wp.z);
+                holder.userData.targetWp.set(wp.x, elev, wp.z);
+                
+                // First initialization or large distance jump (e.g. floor change) -> snap directly
+                if(!holder.userData.hasInitialPos || holder.position.distanceTo(holder.userData.targetWp) > 4.0){
+                    holder.position.set(wp.x, elev, wp.z);
+                    holder.userData.hasInitialPos = true;
+                }
+
+                // Smooth rotation lerp
+                const targetRot = -((robot.rotation||0)*Math.PI/180);
+                if (holder.rotation) {
+                    let diff = targetRot - holder.rotation.y;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    holder.rotation.y += diff * 0.3;
+                }
                 holder.visible=true;
                 try{
                     if(holder.userData.statusSprite && holder.userData.statusSprite.userData.canvas){
@@ -1800,13 +1859,18 @@
                         let label='', bg='';
                         if(_knownIssue){ label='⚠ '+(robot._activeIssue||'ISSUE').toString().toUpperCase(); bg='rgba(225,29,72,0.94)'; }
                         else if(robot.status==='Delivering' && _activeDeliv){ label='▶ MENGANTAR → '+(destName||_activeDeliv.destination_location||''); bg='rgba(59,130,246,0.94)'; }
+                        else if(robot.status==='Returning' || robot.isReturning){ label='◀ RETURNING'; bg='rgba(99,102,241,0.94)'; }
                         else if(robot.status==='Charging'){ label='⚡ CHARGING'; bg='rgba(234,88,12,0.94)'; }
                         else if(robot.status==='Maintenance'){ label='🔧 MAINTENANCE'; bg='rgba(225,29,72,0.94)'; }
-                        else { label='● IDLE'; bg='rgba(16,185,129,0.94)'; }
-                        ctx.font='bold 30px Segoe UI, sans-serif'; const pad=26,h=50,tw=Math.min(512-16, ctx.measureText(label).width+52),r=h/2, x0=(512-tw)/2, y0=(72-h)/2;
-                        ctx.fillStyle=bg; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(x0,y0,tw,h,r); else { ctx.moveTo(x0+r,y0); ctx.arcTo(x0+tw,y0,x0+tw,y0+h,r); ctx.arcTo(x0+tw,y0+h,x0,y0+h,r); ctx.arcTo(x0,y0+h,x0,y0,r); ctx.arcTo(x0,y0,x0+tw,y0,r); } ctx.fill();
-                        ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=3; ctx.stroke();
-                        ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,256,36);
+                        else { label='● IDLE (Markas)'; bg='rgba(16,185,129,0.94)'; }
+                        ctx.font='bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'; 
+                        const pad=16, h=36, tw=Math.min(c.width-12, ctx.measureText(label).width+28), radius=h/2;
+                        const x0=(c.width-tw)/2, y0=(c.height-h)/2;
+                        ctx.fillStyle=bg; ctx.beginPath(); 
+                        if(ctx.roundRect) ctx.roundRect(x0,y0,tw,h,radius); else ctx.rect(x0,y0,tw,h);
+                        ctx.fill();
+                        ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=2; ctx.stroke();
+                        ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,c.width/2,c.height/2);
                         spr.material.map.needsUpdate=true; spr.visible=true;
                     }
                 }catch(e){}
@@ -2022,11 +2086,13 @@
                 const clientTime = new Date();
                 serverClientOffset = serverTime.getTime() - clientTime.getTime();
             }
-            if (window.activeDeliveries && Array.isArray(window.activeDeliveries)) {
+            if (activeDeliveries && Array.isArray(activeDeliveries)) {
                 data.active_deliveries.forEach(newDeliv => {
-                    const existing = window.activeDeliveries.find(d => d.id === newDeliv.id);
-                    if (existing && existing._cachedPath) {
-                        newDeliv._cachedPath = existing._cachedPath;
+                    const existing = activeDeliveries.find(d => d.id === newDeliv.id);
+                    if (existing) {
+                        if (existing._cachedMission) newDeliv._cachedMission = existing._cachedMission;
+                        if (existing._cachedPath) newDeliv._cachedPath = existing._cachedPath;
+                        if (existing.isCompleting) newDeliv.isCompleting = existing.isCompleting;
                     }
                 });
             }
@@ -2041,7 +2107,7 @@
                 const existing = robots.find(r => Number(r.id) === Number(newRobot.id));
                 if (existing) {
                     const bLoc = getBaseLocation();
-                    const isClientAtBase = Number(existing.floor || 1) === 1 && Math.hypot((existing.current_x || bLoc.x) - bLoc.x, (existing.current_y || bLoc.y) - bLoc.y) < 1.5;
+                    const isClientAtBase = Number(existing.floor || 1) === 1 && Math.hypot((existing.current_x || bLoc.x) - bLoc.x, (existing.current_y || bLoc.y) - bLoc.y) < 2.0;
                     const hasDeliveryInProgress = activeDeliveries.some(d => Number(d.robot_id) === Number(existing.id) && d.status === 'In Progress');
 
                     if (existing.status === 'Delivering') {
@@ -2078,13 +2144,12 @@
                         existing.current_x = bLoc.x;
                         existing.current_y = bLoc.y;
                     } else if (existing.status === 'Delivering' || existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
-                        // Keep live client-side coordinates along path - NEVER overwrite from server!
+                        // Keep live client-side coordinates and floor along path - NEVER overwrite from server!
                     } else if (newRobot.current_x != null && newRobot.current_y != null) {
                         existing.floor = newRobot.floor || existing.floor || 1;
                         existing.current_x = newRobot.current_x;
                         existing.current_y = newRobot.current_y;
                     }
-                    existing.floor = newRobot.floor || existing.floor || 1;
                     existing.battery_level = newRobot.battery_level;
                 } else {
                     robots.push(newRobot);
