@@ -922,11 +922,11 @@
             "fill": 0.8
         },
         "model_scale": 1,
-        "robot_scale": 0.7,
-        "robot_elevation_f1": 0.019,
+        "robot_scale": 0.1,
+        "robot_elevation_f1": 0.059,
         "robot_elevation_f2": 0.073,
         "node_scale": 0.6,
         "node_color": "#ef4444"
     },
-    "label_scale": 1
+    "label_scale": 0.2
 }

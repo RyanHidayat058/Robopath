@@ -120,20 +120,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Sidebar Footer / System Health -->
-        <div class="p-4 border-t border-white/20 bg-brand-blue">
-            <div class="flex items-center gap-3 p-3 bg-black/10 rounded">
-                <div class="relative flex h-3 w-3">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-300 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-3 w-3 bg-green-400"></span>
-                </div>
-                <div class="flex-1 overflow-hidden">
-                    <p class="text-xs font-semibold text-white">System Online</p>
-                    <p class="text-[10px] text-white/70 truncate mt-0.5">Connected to Server</p>
-                </div>
-            </div>
-        </div>
     </aside>
 
     <!-- Main Content Area -->
@@ -147,10 +133,10 @@
             
             <div class="flex items-center gap-4">
                 <div class="text-right hidden md:block">
-                    <p class="text-sm font-semibold text-gray-800">{{ auth()->user()->name ?? 'User' }}</p>
+                    <p class="text-sm font-semibold text-gray-800">{{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin' : (auth()->user()->name ?? 'User') }}</p>
                     <div class="flex items-center justify-end gap-1.5 mt-0.5">
                         <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider {{ (auth()->check() && auth()->user()->isAdmin()) ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200' }}">
-                            {{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin Supervisor' : 'Karyawan Staff' }}
+                            {{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin' : 'Karyawan Staff' }}
                         </span>
                     </div>
                 </div>
@@ -175,6 +161,9 @@
     </main>
 
     <style>
+        .swal2-container {
+            z-index: 100000 !important;
+        }
         .custom-scrollbar::-webkit-scrollbar {
             width: 8px;
         }
