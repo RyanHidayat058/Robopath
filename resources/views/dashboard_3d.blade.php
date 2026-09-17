@@ -1218,6 +1218,7 @@
             // Sub-group untuk model fisik robot (di-scale rSc)
             const modelHolder=new THREE.Group();
             modelHolder.scale.set(rSc, rSc, rSc);
+            modelHolder.rotation.y = Math.PI;
             holder.add(modelHolder);
             holder.userData.modelHolder = modelHolder;
 

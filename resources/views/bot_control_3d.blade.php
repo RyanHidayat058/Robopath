@@ -1477,6 +1477,7 @@
                     }
                 });
                 clone.position.set(0, 0, 0);
+                clone.rotation.y = Math.PI;
                 holder.remove(boxMesh); boxMesh.geometry.dispose();
                 holder.add(clone); holder.userData.glbClone = clone;
             };
