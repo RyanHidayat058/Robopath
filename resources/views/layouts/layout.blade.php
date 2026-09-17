@@ -91,7 +91,7 @@
                 <a href="{{ route('bot-control') }}" 
                    class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('bot-control') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-sliders text-lg {{ Route::is('bot-control') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
-                    <span class="text-sm">Bot Control</span>
+                    <span class="text-sm">Control</span>
                 </a>
                 @endif
             </nav>
@@ -129,6 +129,11 @@
             <div>
                 <h2 class="text-xl font-bold text-gray-800">@yield('page_title')</h2>
                 <p class="text-sm text-gray-500 mt-0.5">@yield('page_subtitle')</p>
+            </div>
+
+            <!-- Topbar Custom Actions (e.g. Mode Buttons) -->
+            <div>
+                @yield('topbar_actions')
             </div>
             
             <div class="flex items-center gap-4">
