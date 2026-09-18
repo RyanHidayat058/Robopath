@@ -74,6 +74,33 @@
         aspect-ratio: auto !important;
         border-radius: 0.75rem !important;
     }
+    /* Floating Collapsible Inspector in Full View (Matching Bot Control) */
+    .dashboard-inspector-floating {
+        position: fixed !important;
+        top: 4.5rem !important;
+        right: 1.25rem !important;
+        z-index: 10001 !important;
+        width: 25rem !important;
+        max-height: calc(100vh - 5.5rem) !important;
+        overflow-y: auto !important;
+        background: rgba(15, 23, 42, 0.95) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        border-radius: 1.25rem !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(59, 130, 246, 0.15) !important;
+        color: #f8fafc !important;
+    }
+    .dashboard-inspector-floating::-webkit-scrollbar {
+        width: 6px;
+    }
+    .dashboard-inspector-floating::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .dashboard-inspector-floating::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.4);
+        border-radius: 3px;
+    }
     body.body-in-fullview > aside,
     body.body-in-fullview aside,
     body.body-in-fullview #main-sidebar,
@@ -312,6 +339,26 @@
                         </button>
                         <button type="button" onclick="reset3DCamera()" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Pusatkan Kembali Kamera">
                             <i class="fa-solid fa-arrows-to-dot text-amber-400"></i> <span>Center</span>
+                        </button>
+
+                        <!-- Autopilot Button in Full View -->
+                        <button type="button" id="fullview-autopilot-btn" onclick="toggleAutopilot()" 
+                                class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap {{ (auth()->check() && auth()->user()->isAdmin()) ? '' : 'cursor-not-allowed opacity-60' }}"
+                                {{ (auth()->check() && auth()->user()->isAdmin()) ? '' : 'disabled title="Akses Terbatas: Hanya Admin yang dapat mengontrol Autopilot"' }}>
+                            <i class="fa-solid fa-wand-magic-sparkles text-amber-400" id="fullview-autopilot-icon"></i>
+                            <span id="fullview-autopilot-text">Autopilot: OFF</span>
+                            @if(!auth()->check() || !auth()->user()->isAdmin())
+                            <i class="fa-solid fa-lock text-[10px] text-gray-400"></i>
+                            @endif
+                        </button>
+
+                        <!-- Manual Dispatch Inspector Button in Full View -->
+                        <button type="button" id="fullview-btn-dispatch" onclick="toggleFullViewDispatchPanel()" 
+                                class="bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition whitespace-nowrap active:scale-95" 
+                                title="Buka Panel Tugas Pengantaran Manual (Inspector)">
+                            <i class="fa-solid fa-paper-plane text-sky-300"></i>
+                            <span id="fullview-text-dispatch">Suruh Manual</span>
+                            <span id="fullview-active-deliv-badge" class="hidden text-[10px] bg-white/20 px-1.5 py-0.2 rounded-md font-mono font-bold">0</span>
                         </button>
                     </div>
 
@@ -743,6 +790,125 @@
         </button>
     </div>
     <p id="robot-3d-status" class="text-[10px] text-emerald-400 font-mono text-center pt-0.5"></p>
+</div>
+
+<!-- 4. Floating Dispatch Inspector Panel (Pop Up Kanan Full View) -->
+<div id="fullview-dispatch-panel" class="hidden dashboard-inspector-floating p-5 select-none text-slate-100 z-[10002]">
+    <!-- Header -->
+    <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-700/80">
+        <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-sky-500 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
+                <i class="fa-solid fa-paper-plane text-sm"></i>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+                    Tugas Pengantaran Manual
+                </h3>
+                <p class="text-[10px] text-slate-400">Perintahkan robot mengantar barang langsung</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">DISPATCH</span>
+            <button type="button" onclick="toggleFullViewDispatchPanel(false)" class="text-slate-400 hover:text-white w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center text-sm font-bold transition" title="Tutup Panel">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Autopilot Quick Status Indicator / Toggle -->
+    <div class="mb-4 p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-robot text-emerald-400 text-sm" id="fv-dispatch-autopilot-icon"></i>
+            <div>
+                <div class="font-bold text-slate-200 text-[11px]" id="fv-dispatch-autopilot-title">Mode Autopilot: OFF</div>
+                <div class="text-[10px] text-slate-400">Tugas manual langsung diprioritaskan</div>
+            </div>
+        </div>
+        @if(auth()->check() && auth()->user()->isAdmin())
+        <button type="button" onclick="toggleAutopilot()" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 transition shadow-sm">
+            Toggle
+        </button>
+        @endif
+    </div>
+
+    <!-- Error Alert Box -->
+    <div id="fv-dispatch-error" class="hidden mb-3.5 p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-[11px] font-semibold flex items-center gap-2">
+        <i class="fa-solid fa-circle-exclamation text-rose-400 shrink-0"></i>
+        <span id="fv-dispatch-error-text">Terjadi kesalahan.</span>
+    </div>
+
+    <!-- Success Alert Box -->
+    <div id="fv-dispatch-success" class="hidden mb-3.5 p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[11px] font-semibold flex items-center gap-2">
+        <i class="fa-solid fa-circle-check text-emerald-400 shrink-0"></i>
+        <span id="fv-dispatch-success-text">Robot berhasil ditugaskan!</span>
+    </div>
+
+    <!-- Dispatch Form -->
+    <form id="fv-dispatch-form" onsubmit="handleFullViewManualDispatch(event)" class="space-y-3 text-xs">
+        <!-- Robot Selection -->
+        <div>
+            <label class="block font-bold text-slate-300 text-[10px] uppercase tracking-wider mb-1">Pilih Robot</label>
+            <select id="fv-dispatch-robot" onchange="onFvDispatchRobotChange()" class="w-full bg-slate-800/95 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium" required>
+                <!-- Options populated dynamically -->
+            </select>
+            <div id="fv-selected-robot-info" class="mt-1 flex items-center justify-between text-[10px] text-slate-400 px-1">
+                <span id="fv-robot-pos-desc">Lokasi: -</span>
+                <span id="fv-robot-bat-desc" class="font-bold text-emerald-400">Bat: -%</span>
+            </div>
+        </div>
+
+        <!-- Item to Deliver -->
+        <div>
+            <label class="block font-bold text-slate-300 text-[10px] uppercase tracking-wider mb-1">Barang / Muatan</label>
+            <select id="fv-dispatch-item" class="w-full bg-slate-800/95 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium" required>
+                <option value="" disabled selected>Pilih barang yang diantar...</option>
+                <option value="Dokumen">📄 Dokumen (Documents)</option>
+                <option value="Makanan">🍱 Makanan (Food / Meals)</option>
+                <option value="Kopi">☕ Kopi (Coffee / Beverage)</option>
+                <option value="Paket">📦 Paket (Postal Package)</option>
+                <option value="Sparepart">⚙️ Sparepart (Replacement Parts)</option>
+                <option value="Handuk">🧺 Handuk (Towels)</option>
+                <option value="Botol Air">💧 Botol Air (Water Bottle)</option>
+            </select>
+        </div>
+
+        <!-- Starting Location -->
+        <div>
+            <label class="block font-bold text-slate-300 text-[10px] uppercase tracking-wider mb-1">Titik Jemput (Asal)</label>
+            <select id="fv-dispatch-start" class="w-full bg-slate-800/95 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium" required>
+                <!-- Dynamically populated -->
+            </select>
+        </div>
+
+        <!-- Destination Location -->
+        <div>
+            <label class="block font-bold text-slate-300 text-[10px] uppercase tracking-wider mb-1">Titik Pengantaran (Tujuan)</label>
+            <select id="fv-dispatch-dest" class="w-full bg-slate-800/95 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium" required>
+                <!-- Dynamically populated -->
+            </select>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="fv-dispatch-submit-btn" class="w-full mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2 active:scale-95">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span id="fv-dispatch-btn-text">Tugaskan Robot Sekarang</span>
+        </button>
+    </form>
+
+    <!-- Real-time Active Deliveries in Inspector -->
+    <div class="mt-4 pt-3 border-t border-slate-700/80">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-route text-sky-400"></i> Pengantaran Berjalan
+            </span>
+            <span id="fv-active-count-badge" class="text-[9px] font-black px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                0 Aktif
+            </span>
+        </div>
+        <div id="fv-active-deliv-container" class="space-y-2 max-h-44 overflow-y-auto pr-1">
+            <!-- Populated dynamically -->
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -2671,9 +2837,17 @@
         if (labelPanel) labelPanel.classList.add('hidden');
         if (robotPanel) robotPanel.classList.add('hidden');
 
+        if (!isFullViewMode) {
+            if (typeof toggleFullViewDispatchPanel === 'function') {
+                toggleFullViewDispatchPanel(false);
+            }
+        }
+
         if (isFullViewMode) {
             // Sync indicators in full view top bar
             if (typeof updateFollowButton === 'function') updateFollowButton();
+            if (typeof updateAutopilotUI === 'function') updateAutopilotUI();
+            if (typeof updateFullViewActiveDeliveriesList === 'function') updateFullViewActiveDeliveriesList();
             const f_icon = document.getElementById('fullview-icon-labels');
             const f_text = document.getElementById('fullview-text-labels');
             const f_btn = document.getElementById('fullview-btn-labels');
@@ -4044,25 +4218,352 @@
     }
 
     function updateAutopilotUI() {
+        // Standard view button
         const btn = document.getElementById('autopilot-btn');
         const text = document.getElementById('autopilot-text');
         const icon = document.getElementById('autopilot-icon');
 
-        if (!btn || !text) return;
-
-        if (isAutopilotEnabled) {
-            btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30";
-            text.innerHTML = '<span class="relative flex h-2 w-2 mr-1"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span></span> Autopilot: ON (SERENTAK)';
-            if (icon) icon.className = "fa-solid fa-robot animate-bounce";
-        } else {
-            if (window.isAdmin) {
-                btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300";
+        if (btn && text) {
+            if (isAutopilotEnabled) {
+                btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30";
+                text.innerHTML = '<span class="relative flex h-2 w-2 mr-1"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span></span> Autopilot: ON (SERENTAK)';
+                if (icon) icon.className = "fa-solid fa-robot animate-bounce";
             } else {
-                btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed";
+                if (window.isAdmin) {
+                    btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300";
+                } else {
+                    btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed";
+                }
+                text.textContent = 'Autopilot: OFF (MANUAL)';
+                if (icon) icon.className = "fa-solid fa-wand-magic-sparkles";
             }
-            text.textContent = 'Autopilot: OFF (MANUAL)';
-            if (icon) icon.className = "fa-solid fa-wand-magic-sparkles";
         }
+
+        // Full View top bar button
+        const fvBtn = document.getElementById('fullview-autopilot-btn');
+        const fvText = document.getElementById('fullview-autopilot-text');
+        const fvIcon = document.getElementById('fullview-autopilot-icon');
+        if (fvBtn && fvText) {
+            if (isAutopilotEnabled) {
+                fvBtn.className = "bg-emerald-600 hover:bg-emerald-500 border border-emerald-400/40 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shadow-lg shadow-emerald-600/30";
+                fvText.innerHTML = '<span class="relative flex h-2 w-2 mr-1"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span></span> Autopilot: ON';
+                if (fvIcon) fvIcon.className = "fa-solid fa-robot animate-bounce text-white";
+            } else {
+                const isAdmin = window.isAdmin ?? false;
+                fvBtn.className = "bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" + (isAdmin ? "" : " cursor-not-allowed opacity-60");
+                fvText.textContent = 'Autopilot: OFF';
+                if (fvIcon) fvIcon.className = "fa-solid fa-wand-magic-sparkles text-amber-400";
+            }
+        }
+
+        // Full View dispatch inspector status
+        const fvTitle = document.getElementById('fv-dispatch-autopilot-title');
+        const fvInspIcon = document.getElementById('fv-dispatch-autopilot-icon');
+        if (fvTitle) {
+            if (isAutopilotEnabled) {
+                fvTitle.textContent = "Mode Autopilot: ON (Serentak)";
+                fvTitle.className = "font-bold text-emerald-400 text-[11px]";
+                if (fvInspIcon) fvInspIcon.className = "fa-solid fa-robot text-emerald-400 text-sm animate-pulse";
+            } else {
+                fvTitle.textContent = "Mode Autopilot: OFF (Manual)";
+                fvTitle.className = "font-bold text-slate-200 text-[11px]";
+                if (fvInspIcon) fvInspIcon.className = "fa-solid fa-hand text-sky-400 text-sm";
+            }
+        }
+    }
+
+    // Full View Manual Dispatch Inspector Logic
+    function toggleFullViewDispatchPanel(forceState) {
+        const panel = document.getElementById('fullview-dispatch-panel');
+        const btn = document.getElementById('fullview-btn-dispatch');
+        if (!panel) return;
+
+        const shouldShow = (forceState !== undefined) ? !!forceState : panel.classList.contains('hidden');
+        if (shouldShow) {
+            panel.classList.remove('hidden');
+            if (btn) {
+                btn.classList.add('ring-2', 'ring-indigo-400', 'bg-indigo-500');
+            }
+            populateFullViewDispatchDropdowns();
+            updateFullViewActiveDeliveriesList();
+        } else {
+            panel.classList.add('hidden');
+            if (btn) {
+                btn.classList.remove('ring-2', 'ring-indigo-400', 'bg-indigo-500');
+            }
+        }
+    }
+
+    function populateFullViewDispatchDropdowns() {
+        const robotSelect = document.getElementById('fv-dispatch-robot');
+        const startSelect = document.getElementById('fv-dispatch-start');
+        const destSelect = document.getElementById('fv-dispatch-dest');
+        if (!robotSelect || !startSelect || !destSelect) return;
+
+        // 1. Populate Robots
+        const currentRobotVal = robotSelect.value;
+        robotSelect.innerHTML = '<option value="" disabled selected>Pilih robot pengantar...</option>';
+        let firstAvailableRobotId = null;
+
+        robots.forEach(robot => {
+            const isBusy = (robot.status !== 'Idle' && robot.status !== 'Returning') || robot.battery_level <= 20 || robot.isReturning || robot.isDispatching || robot.hasIssue;
+            const opt = document.createElement('option');
+            opt.value = robot.id;
+            
+            let label = `${robot.name} (${robot.status} - Bat: ${robot.battery_level}%)`;
+            if (robot.status !== 'Idle') {
+                label += ` [${robot.status}]`;
+            } else if (robot.battery_level <= 20) {
+                label += ' [Baterai Rendah]';
+            }
+            opt.textContent = label;
+            if (isBusy) {
+                opt.disabled = true;
+            } else if (!firstAvailableRobotId) {
+                firstAvailableRobotId = robot.id;
+            }
+            if (currentRobotVal && String(robot.id) === String(currentRobotVal)) {
+                opt.selected = true;
+            }
+            robotSelect.appendChild(opt);
+        });
+
+        if (!robotSelect.value && firstAvailableRobotId) {
+            robotSelect.value = firstAvailableRobotId;
+        }
+
+        // 2. Populate Locations if not populated yet
+        if (destSelect.options.length <= 1) {
+            let f1Opts = '';
+            let f2Opts = '';
+            Object.values(locations).forEach(loc => {
+                if (loc.is_destination || !loc.hidden) {
+                    const floor = Number(loc.floor || 1);
+                    const optHtml = `<option value="${loc.id}">${loc.name} (Lantai ${floor})</option>`;
+                    if (floor === 2) f2Opts += optHtml;
+                    else f1Opts += optHtml;
+                }
+            });
+
+            startSelect.innerHTML = `
+                <option value="" disabled selected>Pilih titik asal...</option>
+                <optgroup label="Lantai 1 (Ground Floor)">${f1Opts}</optgroup>
+                <optgroup label="Lantai 2 (Second Floor)">${f2Opts}</optgroup>
+            `;
+
+            destSelect.innerHTML = `
+                <option value="" disabled selected>Pilih tujuan pengantaran...</option>
+                <optgroup label="Lantai 1 (Ground Floor)">${f1Opts}</optgroup>
+                <optgroup label="Lantai 2 (Second Floor)">${f2Opts}</optgroup>
+            `;
+        }
+
+        onFvDispatchRobotChange();
+    }
+
+    function onFvDispatchRobotChange() {
+        const robotSelect = document.getElementById('fv-dispatch-robot');
+        const startSelect = document.getElementById('fv-dispatch-start');
+        const posDesc = document.getElementById('fv-robot-pos-desc');
+        const batDesc = document.getElementById('fv-robot-bat-desc');
+        if (!robotSelect) return;
+
+        const robotId = robotSelect.value;
+        const robot = robots.find(r => String(r.id) === String(robotId));
+
+        if (robot) {
+            const floor = Number(robot.floor || 1);
+            const resolvedNode = resolveLocationNodeId(robot.current_x, robot.current_y, floor) || getBaseLocationId();
+            const resolvedName = (resolvedNode && locations[resolvedNode]) ? locations[resolvedNode].name : `Lantai ${floor}`;
+            if (posDesc) posDesc.textContent = `Lokasi: ${resolvedName} (Lt ${floor})`;
+            if (batDesc) {
+                batDesc.textContent = `Bat: ${robot.battery_level}%`;
+                batDesc.className = robot.battery_level > 50 ? 'font-bold text-emerald-400' : (robot.battery_level > 20 ? 'font-bold text-amber-400' : 'font-bold text-rose-400');
+            }
+
+            // Auto-select starting location to the robot's current nearest location node
+            if (startSelect && resolvedNode) {
+                if (startSelect.querySelector(`option[value="${resolvedNode}"]`)) {
+                    startSelect.value = resolvedNode;
+                } else {
+                    const baseId = getBaseLocationId();
+                    if (baseId && startSelect.querySelector(`option[value="${baseId}"]`)) {
+                        startSelect.value = baseId;
+                    }
+                }
+            }
+        } else {
+            if (posDesc) posDesc.textContent = 'Lokasi: -';
+            if (batDesc) {
+                batDesc.textContent = 'Bat: -%';
+                batDesc.className = 'font-bold text-slate-400';
+            }
+        }
+    }
+
+    function handleFullViewManualDispatch(e) {
+        if (e) e.preventDefault();
+
+        const robotSelect = document.getElementById('fv-dispatch-robot');
+        const itemSelect = document.getElementById('fv-dispatch-item');
+        const startSelect = document.getElementById('fv-dispatch-start');
+        const destSelect = document.getElementById('fv-dispatch-dest');
+        const errBox = document.getElementById('fv-dispatch-error');
+        const errText = document.getElementById('fv-dispatch-error-text');
+        const succBox = document.getElementById('fv-dispatch-success');
+        const succText = document.getElementById('fv-dispatch-success-text');
+        const submitBtn = document.getElementById('fv-dispatch-submit-btn');
+        const btnText = document.getElementById('fv-dispatch-btn-text');
+
+        if (errBox) errBox.classList.add('hidden');
+        if (succBox) succBox.classList.add('hidden');
+
+        const robotId = robotSelect?.value;
+        const item = itemSelect?.value;
+        const start = startSelect?.value;
+        const dest = destSelect?.value;
+
+        if (!robotId) {
+            if (errText) errText.textContent = 'Silakan pilih robot terlebih dahulu!';
+            if (errBox) errBox.classList.remove('hidden');
+            return;
+        }
+        if (!item) {
+            if (errText) errText.textContent = 'Silakan pilih barang yang akan diantar!';
+            if (errBox) errBox.classList.remove('hidden');
+            return;
+        }
+        if (!start || !dest) {
+            if (errText) errText.textContent = 'Titik jemput dan titik tujuan wajib dipilih!';
+            if (errBox) errBox.classList.remove('hidden');
+            return;
+        }
+        if (start === dest) {
+            if (errText) errText.textContent = 'Titik tujuan tidak boleh sama dengan titik jemput!';
+            if (errBox) errBox.classList.remove('hidden');
+            return;
+        }
+
+        const robot = robots.find(r => String(r.id) === String(robotId));
+        const rFloor = Number(robot?.floor || 1);
+        const origin = (robot && robot.current_x != null && robot.current_y != null)
+            ? (resolveLocationNodeId(robot.current_x, robot.current_y, rFloor) || getBaseLocationId())
+            : getBaseLocationId();
+
+        if (submitBtn) submitBtn.disabled = true;
+        if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menugaskan...';
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        fetch('/api/deliveries', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                robot_id: robotId,
+                item_name: item,
+                origin_location: origin,
+                start_location: start,
+                destination_location: dest
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (submitBtn) submitBtn.disabled = false;
+            if (btnText) btnText.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Tugaskan Robot Sekarang';
+
+            if (data.success) {
+                if (robot) {
+                    robot.status = 'Delivering';
+                    robot.isDispatching = false;
+                }
+                if (succText) succText.textContent = `${robot ? robot.name : 'Robot'} berhasil ditugaskan mengantar ${item}!`;
+                if (succBox) succBox.classList.remove('hidden');
+
+                if (itemSelect) itemSelect.value = '';
+                
+                fetchData();
+                populateFullViewDispatchDropdowns();
+                updateFullViewActiveDeliveriesList();
+
+                setTimeout(() => {
+                    if (succBox) succBox.classList.add('hidden');
+                }, 5000);
+            } else {
+                if (errText) errText.textContent = data.message || 'Gagal menugaskan robot.';
+                if (errBox) errBox.classList.remove('hidden');
+            }
+        })
+        .catch(err => {
+            console.error('Error dispatching from full view:', err);
+            if (submitBtn) submitBtn.disabled = false;
+            if (btnText) btnText.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Tugaskan Robot Sekarang';
+            if (errText) errText.textContent = 'Terjadi kesalahan jaringan. Coba lagi.';
+            if (errBox) errBox.classList.remove('hidden');
+        });
+    }
+
+    function updateFullViewActiveDeliveriesList() {
+        const container = document.getElementById('fv-active-deliv-container');
+        const badge = document.getElementById('fv-active-count-badge');
+        const topBadge = document.getElementById('fullview-active-deliv-badge');
+
+        const activeList = (activeDeliveries || []).filter(d => d.status === 'In Progress' || d.status === 'Pending');
+        const count = activeList.length;
+
+        if (badge) badge.textContent = `${count} Aktif`;
+        if (topBadge) {
+            topBadge.textContent = count;
+            if (count > 0) {
+                topBadge.classList.remove('hidden');
+            } else {
+                topBadge.classList.add('hidden');
+            }
+        }
+
+        if (!container) return;
+
+        if (count === 0) {
+            container.innerHTML = `
+                <div class="p-3 rounded-xl bg-slate-800/40 border border-slate-700/40 text-center text-slate-400 text-xs">
+                    <i class="fa-solid fa-box-open text-slate-500 text-lg mb-1 block"></i>
+                    Tidak ada pengantaran aktif saat ini
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = activeList.map(delivery => {
+            const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
+            const robotName = robot ? robot.name : `Robot #${delivery.robot_id}`;
+            const startName = (locations[delivery.start_location] && locations[delivery.start_location].name) || delivery.start_location || '-';
+            const destName = (locations[delivery.destination_location] && locations[delivery.destination_location].name) || delivery.destination_location || '-';
+            const itemName = delivery.item_name || 'Barang';
+
+            return `
+                <div class="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 hover:border-slate-600 transition shadow-sm text-xs">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="font-bold text-slate-200 flex items-center gap-1.5 truncate">
+                            <i class="fa-solid fa-robot text-sky-400"></i> ${robotName}
+                        </span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-md font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1 shrink-0">
+                            <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> ${delivery.status}
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-1 text-[11px] text-slate-300 font-medium mb-1">
+                        <i class="fa-solid fa-box text-amber-400 text-[10px]"></i>
+                        <span class="truncate">${itemName}</span>
+                    </div>
+                    <div class="flex items-center gap-1 text-[10px] text-slate-400">
+                        <span class="truncate text-slate-300">${startName}</span>
+                        <i class="fa-solid fa-arrow-right text-[9px] text-slate-500 shrink-0"></i>
+                        <span class="truncate text-indigo-300 font-medium">${destName}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
     }
 
     function dispatchAllRobotsSerentak() {
@@ -4260,6 +4761,13 @@
                     robots.push(newRobot);
                 }
             });
+
+            if (typeof updateFullViewActiveDeliveriesList === 'function') {
+                updateFullViewActiveDeliveriesList();
+            }
+            if (typeof populateFullViewDispatchDropdowns === 'function') {
+                populateFullViewDispatchDropdowns();
+            }
         })
         .catch(err => console.error('Error fetching dashboard telemetry:', err));
     }
@@ -4299,8 +4807,15 @@
     });
 
     window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && isFullViewMode) {
-            toggleFullView(false);
+        if (e.key === 'Escape') {
+            const dispatchPanel = document.getElementById('fullview-dispatch-panel');
+            if (dispatchPanel && !dispatchPanel.classList.contains('hidden')) {
+                toggleFullViewDispatchPanel(false);
+                return;
+            }
+            if (isFullViewMode) {
+                toggleFullView(false);
+            }
         }
     });
 </script>
