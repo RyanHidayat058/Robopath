@@ -1189,9 +1189,20 @@
         if (_loaderEl && !modelLoadedByFloor[floorNum]) {
             _loaderEl.classList.remove('hidden');
             if (_loaderTitle) _loaderTitle.textContent = `Memuat Model 3D Lantai ${floorNum}...`;
-            if (_loaderStatus) _loaderStatus.textContent = `Mengunduh aset GLB (${floorNum===1?'8':'14'} MB)...`;
+            if (_loaderStatus) _loaderStatus.textContent = `Memeriksa penyimpanan lokal...`;
             if (_loaderBar) _loaderBar.style.width = '5%';
             if (_loaderPct) _loaderPct.textContent = '5%';
+            if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                window.RobopathGLBCache.isCached(modelUrl).then(isCached => {
+                    if (isCached && _loaderStatus) {
+                        _loaderStatus.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                        if (_loaderBar) _loaderBar.style.width = '85%';
+                        if (_loaderPct) _loaderPct.textContent = '85%';
+                    } else if (_loaderStatus) {
+                        _loaderStatus.textContent = `Mengunduh aset GLB (${floorNum === 1 ? '8' : '14'} MB)...`;
+                    }
+                }).catch(() => {});
+            }
         }
 
         const scene = new THREE.Scene();
@@ -1206,7 +1217,7 @@
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(width, height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = parseFloat(current3DSettings.lighting.exposure ?? 1.0);
@@ -1963,6 +1974,8 @@
         }
         function animate() {
             animationFrameId = requestAnimationFrame(animate);
+            if (document.hidden) return;
+            if (!container || container.offsetParent === null) return;
             stepManualDrive();
             controls.update();
             renderer.render(scene, camera);
@@ -2435,7 +2448,13 @@
                 if (loaderEl && !modelLoadedByFloor[1]) {
                     loaderEl.classList.remove('hidden');
                     const t=document.getElementById('botctrl-3d-loader-title'); if(t) t.textContent='Memuat Model 3D Lantai 1...';
-                    const s=document.getElementById('botctrl-3d-loader-status'); if(s) s.textContent='Mengunduh aset GLB (8 MB)...';
+                    const s=document.getElementById('botctrl-3d-loader-status'); if(s) s.textContent='Memeriksa penyimpanan lokal...';
+                    if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                        window.RobopathGLBCache.isCached(floor1ModelUrl).then(isCached => {
+                            if (isCached && s) s.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                            else if (s) s.textContent = 'Mengunduh aset GLB (8 MB)...';
+                        }).catch(() => {});
+                    }
                 }
                 setTimeout(() => {
                     if (!threeBotCtrlF1) {
@@ -2455,7 +2474,13 @@
                 if (loaderEl && !modelLoadedByFloor[2]) {
                     loaderEl.classList.remove('hidden');
                     const t=document.getElementById('botctrl-3d-loader-title'); if(t) t.textContent='Memuat Model 3D Lantai 2...';
-                    const s=document.getElementById('botctrl-3d-loader-status'); if(s) s.textContent='Mengunduh aset GLB (14 MB)...';
+                    const s=document.getElementById('botctrl-3d-loader-status'); if(s) s.textContent='Memeriksa penyimpanan lokal...';
+                    if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                        window.RobopathGLBCache.isCached(floor2ModelUrl).then(isCached => {
+                            if (isCached && s) s.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                            else if (s) s.textContent = 'Mengunduh aset GLB (14 MB)...';
+                        }).catch(() => {});
+                    }
                 }
                 setTimeout(() => {
                     if (!threeBotCtrl) {
@@ -3990,9 +4015,16 @@
         fetchFleetTelemetry();
         setInterval(fetchFleetTelemetry, 2500);
     });
-    window.addEventListener('resize', () => {
-        renderEditorMap();
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            const activeV = (Number(currentFloor) === 1) ? threeBotCtrlF1 : threeBotCtrl;
+            if (activeV && typeof activeV.resize === 'function') {
+                activeV.resize();
+            }
+        }
     });
+
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             const addModal = document.getElementById('modal-add-node-3d');

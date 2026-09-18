@@ -51,8 +51,8 @@
         background: transparent;
     }
     
-    /* Full View 3D Mode Overlay (Matching Bot Control Full Map: Fixed Inset-0, Sleek Floating Bar, Free-hand Orbit) */
-    .dashboard-fullview-overlay {
+    /* Full View 3D Mode Card Expansion (Matching Bot Control Full Map: Fixed Inset-0, Sleek Floating Bar, 0 duplicate scenes) */
+    .dashboard-fullview-card {
         position: fixed !important;
         inset: 0 !important;
         width: 100vw !important;
@@ -61,24 +61,18 @@
         max-height: 100vh !important;
         z-index: 9999 !important;
         margin: 0 !important;
+        border-radius: 0 !important;
         background-color: #0b1120 !important;
         padding: 0.75rem !important;
-        display: flex;
+        display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
     }
-    .dashboard-fullview-overlay.hidden,
-    #fullview-mode.hidden {
-        display: none !important;
-    }
-    .dashboard-fullview-canvas-box {
+    .dashboard-fullview-canvas {
         flex: 1 1 0% !important;
         height: 100% !important;
-        position: relative !important;
+        aspect-ratio: auto !important;
         border-radius: 0.75rem !important;
-        overflow: hidden !important;
-        background-color: #0f172a !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
     body.body-in-fullview > aside,
     body.body-in-fullview aside,
@@ -209,9 +203,9 @@
 
         <!-- Left Column: Interactive Floor Map View (2/3 width) -->
         <div class="lg:col-span-2 space-y-4">
-            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col justify-between">
+            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col justify-between" id="std-map-card">
                 <!-- Header with Floor Switch Tabs & Full View Button -->
-                <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-3 border-b border-gray-100">
+                <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-3 border-b border-gray-100" id="std-header-bar">
                     <div>
                         <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
                             <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> Live Floor Tracking
@@ -273,7 +267,7 @@
                 </div>
 
                 <!-- Active Floor Title Badge -->
-                <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center justify-between mb-2" id="std-floor-title-bar">
                     <span class="text-xs font-bold text-[#3b4cb8] flex items-center gap-1.5" id="std-floor-title">
                         <i class="fa-solid fa-building-user"></i> Lantai 1 (Ground Floor - Lobby, Office &amp; Receptionist)
                     </span>
@@ -282,8 +276,61 @@
                     </span>
                 </div>
 
+                <!-- Top Floating Navigation Bar in Full View (Matching Bot Control Sleek Single Row) -->
+                <div id="fullview-top-bar" class="hidden flex items-center justify-between gap-3 pb-2.5 mb-2 border-b border-slate-700/60 text-xs shrink-0 select-none">
+                    <!-- Left: Floor Switcher Tabs & View Badge -->
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
+                            <button type="button" onclick="switchDashboardFloor(1)" id="fullview-tab-f1" class="px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow">
+                                <i class="fa-solid fa-layer-group mr-1"></i> Lantai 1
+                            </button>
+                            <button type="button" onclick="switchDashboardFloor(2)" id="fullview-tab-f2" class="px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10">
+                                <i class="fa-solid fa-layer-group mr-1"></i> Lantai 2
+                            </button>
+                        </div>
+                        <span class="text-[11px] bg-slate-900/90 text-sky-400 font-bold px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5 whitespace-nowrap">
+                            <i class="fa-solid fa-eye text-sky-400"></i> Free Hand View Mode
+                        </span>
+                    </div>
+
+                    <!-- Center: Quick View Tools -->
+                    <div class="hidden md:flex items-center gap-2">
+                        <button type="button" onclick="toggle3DRoomLabels()" id="fullview-btn-labels" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Tampilkan / Sembunyikan Label Ruangan">
+                            <i class="fa-solid fa-tag text-emerald-400" id="fullview-icon-labels"></i> <span id="fullview-text-labels">Label: ON</span>
+                        </button>
+                        <button type="button" onclick="toggle3DControlPanel('label-size')" id="fullview-btn-label-size" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Ukuran Label & Model 3D">
+                            <i class="fa-solid fa-text-height text-indigo-400"></i> <span>Ukuran Label</span>
+                        </button>
+                        <button type="button" onclick="toggle3DControlPanel('camera')" id="fullview-btn-camera" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Sudut & Zoom Kamera">
+                            <i class="fa-solid fa-video text-sky-400"></i> <span>Kamera</span>
+                        </button>
+                        <button type="button" onclick="toggle3DControlPanel('light')" id="fullview-btn-light" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Pencahayaan, Shader & Bayangan Ruangan">
+                            <i class="fa-solid fa-sun text-amber-400"></i> <span>Cahaya & Shadow</span>
+                        </button>
+                        <button type="button" onclick="toggleFollowMode()" id="fullview-btn-follow" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Kamera Mengikuti Robot Aktif">
+                            <i class="fa-solid fa-crosshairs text-sky-400" id="fullview-icon-follow"></i> <span id="fullview-text-follow">Follow: OFF</span>
+                        </button>
+                        <button type="button" onclick="reset3DCamera()" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Pusatkan Kembali Kamera">
+                            <i class="fa-solid fa-arrows-to-dot text-amber-400"></i> <span>Center</span>
+                        </button>
+                    </div>
+
+                    <!-- Right: Status Legend & Exit Button -->
+                    <div class="flex items-center gap-3 shrink-0">
+                        <div class="hidden lg:flex items-center gap-3 text-[11px] font-semibold text-gray-300 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-white/10">
+                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Idle</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500"></span><span>Delivering</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-500"></span><span>Charging</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Maintenance</span></div>
+                        </div>
+                        <button type="button" onclick="toggleFullView(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition active:scale-95" title="Keluar Full View (Esc)">
+                            <i class="fa-solid fa-compress"></i> <span>Keluar</span>
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Map Canvas Container (Proporsional 16:9) — kedua lantai murni 3D -->
-                <div class="floor-map-card overflow-hidden shadow-inner border border-gray-200" id="std-map-container" style="background-color: #0f172a;">
+                <div class="floor-map-card overflow-hidden shadow-inner border border-gray-200 relative" id="std-map-container" style="background-color: #0f172a;">
                     <!-- 3D WebGL Canvas Layer for Floor 2 -->
                     <div id="std-3d-canvas-container" class="absolute inset-0 z-0 hidden pointer-events-auto"></div>
                     <!-- 3D WebGL Canvas Layer for Floor 1 -->
@@ -417,92 +464,6 @@
     </div>
 </div>
 
-<!-- Container 2: Full View 3D Mode (Matching Bot Control Full Map layout: View-only, Free-hand Orbit/Pan) -->
-<div id="fullview-mode" class="hidden dashboard-fullview-overlay select-none">
-    <!-- Top Floating Navigation Bar (Single Sleek Contextual Row matching Bot Control) -->
-    <div class="flex items-center justify-between gap-3 pb-2.5 mb-2 border-b border-slate-700/60 text-xs shrink-0">
-        <!-- Left: Floor Switcher Tabs & View Badge -->
-        <div class="flex items-center gap-2 shrink-0">
-            <!-- Floor Switcher Tabs -->
-            <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
-                <button type="button" onclick="switchFullViewFloor(1)" id="fullview-tab-f1" class="px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow">
-                    <i class="fa-solid fa-layer-group mr-1"></i> Lantai 1
-                </button>
-                <button type="button" onclick="switchFullViewFloor(2)" id="fullview-tab-f2" class="px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10">
-                    <i class="fa-solid fa-layer-group mr-1"></i> Lantai 2
-                </button>
-            </div>
-
-            <!-- View Only Indicator -->
-            <span class="text-[11px] bg-slate-900/90 text-sky-400 font-bold px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5 whitespace-nowrap">
-                <i class="fa-solid fa-eye text-sky-400"></i> Free Hand View Mode
-            </span>
-        </div>
-
-        <!-- Center: Quick View Tools (Room Labels, Label Size, Camera, Lighting & Shadow, Follow Robot, Focus) -->
-        <div class="hidden md:flex items-center gap-2">
-            <!-- Toggle Room Labels -->
-            <button type="button" onclick="toggle3DRoomLabels()" id="fullview-btn-labels" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Tampilkan / Sembunyikan Label Ruangan">
-                <i class="fa-solid fa-tag text-emerald-400" id="fullview-icon-labels"></i> <span id="fullview-text-labels">Label: ON</span>
-            </button>
-
-            <!-- Room Label Size Panel Button -->
-            <button type="button" onclick="toggle3DControlPanel('label-size')" id="fullview-btn-label-size" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Ukuran Label & Model 3D">
-                <i class="fa-solid fa-text-height text-indigo-400"></i> <span>Ukuran Label</span>
-            </button>
-
-            <!-- Camera Panel Button -->
-            <button type="button" onclick="toggle3DControlPanel('camera')" id="fullview-btn-camera" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Sudut & Zoom Kamera">
-                <i class="fa-solid fa-video text-sky-400"></i> <span>Kamera</span>
-            </button>
-
-            <!-- Room Lighting, Shader & Shadow Panel Button -->
-            <button type="button" onclick="toggle3DControlPanel('light')" id="fullview-btn-light" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Pencahayaan, Shader & Bayangan Ruangan">
-                <i class="fa-solid fa-sun text-amber-400"></i> <span>Cahaya & Shadow</span>
-            </button>
-
-            <!-- Follow Active Robot -->
-            <button type="button" onclick="toggleFollowMode()" id="fullview-btn-follow" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Kamera Mengikuti Robot Aktif">
-                <i class="fa-solid fa-crosshairs text-sky-400" id="fullview-icon-follow"></i> <span id="fullview-text-follow">Follow: OFF</span>
-            </button>
-
-            <!-- Reset Camera / Center View -->
-            <button type="button" onclick="reset3DCamera()" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Pusatkan Kembali Kamera">
-                <i class="fa-solid fa-arrows-to-dot text-amber-400"></i> <span>Center</span>
-            </button>
-        </div>
-
-        <!-- Right: Status Legend & Exit Button -->
-        <div class="flex items-center gap-3 shrink-0">
-            <!-- Compact Legend -->
-            <div class="hidden lg:flex items-center gap-3 text-[11px] font-semibold text-gray-300 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-white/10">
-                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Idle</span></div>
-                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500"></span><span>Delivering</span></div>
-                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-500"></span><span>Charging</span></div>
-                <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Maintenance</span></div>
-            </div>
-
-            <!-- Exit Full View Button -->
-            <button type="button" onclick="toggleFullView(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition active:scale-95" title="Keluar Full View (Esc)">
-                <i class="fa-solid fa-compress"></i> <span>Keluar</span>
-            </button>
-        </div>
-    </div>
-
-    <!-- Fullscreen 3D Canvas Viewport Container -->
-    <div class="dashboard-fullview-canvas-box" id="fullview-canvas-wrapper">
-        <!-- 3D Canvas Layer for Floor 2 -->
-        <div id="fullview-3d-canvas-f2" class="absolute inset-0 z-0 pointer-events-auto hidden"></div>
-
-        <!-- 3D Canvas Layer for Floor 1 -->
-        <div id="fullview-3d-canvas-f1" class="absolute inset-0 z-0 pointer-events-auto"></div>
-
-        <!-- Floating Hint Bottom Right -->
-        <div class="absolute bottom-3 right-3 z-20 bg-slate-950/80 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-[11px] font-semibold border border-white/10 shadow flex items-center gap-2 pointer-events-none">
-            <i class="fa-solid fa-hand text-sky-400"></i> Free Hand: Klik kiri orbit &bull; Klik kanan / Shift+Drag pan &bull; Scroll zoom
-        </div>
-    </div>
-</div>
 
 <!-- Camera, Light, Label Size & Robot Control Modal Panels (Accessible in both Standard View & Full View) -->
 <!-- 0. Label Size & Model Scale Panel -->
@@ -870,15 +831,13 @@
     const floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
     const floor1ModelUrl = "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
     const robotModelUrl = "{{ asset('models/robot.glb') }}";
-    const MODEL_CACHE_NAME = 'robopath-glb-cache-v1';
+    const MODEL_CACHE_NAME = 'robopath-models-v1';
     let threeStd = null;
-    let threeFull = null;
     let threeStdF1 = null;
-    let threeFullF1 = null;
     let modelLoadedByFloor = { 1: false, 2: false };
-    // Viewer 3D std yang sedang tampil sesuai lantai aktif
+    // Viewer 3D yang sedang tampil sesuai lantai aktif
     function activeStdViewer(){ return Number(currentDashboardFloor) === 1 ? threeStdF1 : threeStd; }
-    function allViewers(){ return [threeStd, threeStdF1, threeFull, threeFullF1].filter(v => !!v); }
+    function allViewers(){ return [threeStd, threeStdF1].filter(v => !!v); }
     // Koordinat parkir avatar (% denah) per lantai — dekat Stairs masing-masing
     function parkCoordsForFloor(f){ return Number(f) === 1 ? { x: 72.1, y: 85.71 } : { x: 72.3, y: 66.3 }; }
     function getBaseLocationId() {
@@ -900,7 +859,7 @@
     }
     // Cari viewer pemilik holder (utk kontrol manual D-pad)
     function viewerOfHolder(holder){
-        for (const v of [threeStd, threeStdF1, threeFull, threeFullF1]) {
+        for (const v of [threeStd, threeStdF1]) {
             if (v && v.robotMeshes) { for (const h of v.robotMeshes.values()) { if (h === holder) return v; } }
         }
         return activeStdViewer();
@@ -1247,7 +1206,7 @@
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(width, height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = parseFloat(current3DSettings.lighting.exposure ?? 1.0);
@@ -1421,8 +1380,19 @@
 
         if (loaderEl && !modelLoadedByFloor[floorNum]) {
             loaderEl.classList.remove('hidden');
-            if (loaderTitle) loaderTitle.textContent = `Memuat Model 3D Lantai ${floorNum}...`;
-            if (loaderStatus) loaderStatus.textContent = `Mengunduh aset GLB (${floorNum === 1 ? '8' : '14'} MB)...`;
+            if (loaderTitle) loaderTitle.textContent = `Menyiapkan Model 3D Lantai ${floorNum}...`;
+            if (loaderStatus) loaderStatus.textContent = `Memeriksa penyimpanan lokal...`;
+            if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                window.RobopathGLBCache.isCached(modelUrl).then(isCached => {
+                    if (isCached && loaderStatus) {
+                        loaderStatus.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                        if (loaderBar) loaderBar.style.width = '85%';
+                        if (loaderPct) loaderPct.textContent = '85%';
+                    } else if (loaderStatus) {
+                        loaderStatus.textContent = `Mengunduh aset GLB (${floorNum === 1 ? '8' : '14'} MB)...`;
+                    }
+                }).catch(() => {});
+            }
         }
 
         // Setup GLTF Loader with DRACO
@@ -1570,18 +1540,12 @@
                 } catch (parseErr) {
                     console.error('[Robopath 3D] Error setting up model in scene:', parseErr);
                 } finally {
-                    // Hide loader with smooth fade — hanya jika lantai aktif masih lantai ini
+                    // Hide loader with smooth fade unconditionally
                     if (loaderEl) {
                         if (loaderBar) loaderBar.style.width = '100%';
                         if (loaderPct) loaderPct.textContent = '100%';
                         if (loaderStatus) loaderStatus.textContent = 'Model siap!';
-                        const doHide = () => { if (Number(currentDashboardFloor) === floorNum) loaderEl.classList.add('hidden'); };
-                        setTimeout(doHide, 150);
-                        // jika sekarang tidak aktif, simpan hide untuk saat lantai diaktifkan
-                        if (Number(currentDashboardFloor) !== floorNum) {
-                            const tag = `hideLoader${floorNum}`;
-                            loaderEl.dataset[tag] = '1';
-                        }
+                        setTimeout(() => { loaderEl.classList.add('hidden'); }, 120);
                     }
                     if (typeof onLoadedCallback === 'function') onLoadedCallback();
                 }
@@ -1649,6 +1613,10 @@
         let animationFrameId = null;
         function animate() {
             animationFrameId = requestAnimationFrame(animate);
+            // Optimization: Stop rendering when tab or container is hidden (0% GPU load)
+            if (document.hidden) return;
+            if (!container || container.offsetParent === null) return;
+
             // Fase 2.1: lerp per-frame posisi robot 3D menuju target sim step -> gerak halus, bukan teleport
             robotMeshes.forEach(holder => {
                 const tgt = holder.userData.targetWp;
@@ -1951,9 +1919,9 @@
     // Ambil holder robot 3D yang sedang difokuskan (viewer lantai aktif dulu, lalu viewer lain)
     function getFocusedRobotHolder(){
         if(focusedRobotId==null) return null;
-        const order=[activeStdViewer(), Number(currentDashboardFloor)===1?threeStd:threeStdF1, threeFull, threeFullF1];
-        for(const v of order){
-            if(v && v.robotMeshes && v.robotMeshes.has(Number(focusedRobotId))) return v.robotMeshes.get(Number(focusedRobotId));
+        const order = [activeStdViewer(), Number(currentDashboardFloor) === 1 ? threeStd : threeStdF1];
+        for (const v of order) {
+            if (v && v.robotMeshes && v.robotMeshes.has(Number(focusedRobotId))) return v.robotMeshes.get(Number(focusedRobotId));
         }
         return null;
     }
@@ -2236,9 +2204,7 @@
                 return;
             }
         }
-        const activeViewerInst = isFullViewMode 
-            ? (robotFloor === 1 ? threeFullF1 : threeFull)
-            : activeStdViewer();
+        const activeViewerInst = activeStdViewer();
         if (!activeViewerInst || !activeViewerInst.robotMeshes) {
             // viewer belum ready, retry
             setTimeout(() => focusRobotOnMap(rid, isFollowClick), 300);
@@ -2284,7 +2250,7 @@
         if (valEl) valEl.textContent = num.toFixed(1) + 'x';
         const inputEl = document.getElementById('input-label-scale');
         if (inputEl && inputEl.value !== String(val)) inputEl.value = val;
-        [threeStd, threeFull, threeStdF1, threeFullF1].forEach(viewer => {
+        [threeStd, threeStdF1].forEach(viewer => {
             if (viewer && viewer.labelsGroup) {
                 viewer.labelsGroup.children.forEach(sprite => {
                     if (sprite && sprite.isSprite) sprite.scale.set(3.6 * num, 0.9 * num, 1);
@@ -2320,7 +2286,7 @@
         const num = parseFloat(val); current3DSettings.model_scale = num;
         const v = document.getElementById('val-model-scale'); if(v) v.textContent = num.toFixed(1)+'x';
         const inp = document.getElementById('input-model-scale'); if(inp && inp.value!==String(val)) inp.value=val;
-        [threeStd, threeFull, threeStdF1, threeFullF1].forEach(viewer=>{
+        [threeStd, threeStdF1].forEach(viewer=>{
             if(viewer && viewer._model){ viewer._model.scale.set(num,num,num); }
             // also lift labels slightly with scale
             if(viewer && viewer.labelsGroup){
@@ -2386,9 +2352,7 @@
     }
 
     function reset3DCamera() {
-        const v = isFullViewMode 
-            ? (Number(currentFullViewFloor) === 1 ? threeFullF1 : threeFull)
-            : activeStdViewer();
+        const v = activeStdViewer();
         if (!v) return;
         const defaultPos = v.getDefaultCamPos();
         const size = v.getModelSize();
@@ -2532,6 +2496,8 @@
         
         const tabF1 = document.getElementById('std-tab-f1');
         const tabF2 = document.getElementById('std-tab-f2');
+        const fvTabF1 = document.getElementById('fullview-tab-f1');
+        const fvTabF2 = document.getElementById('fullview-tab-f2');
         const container = document.getElementById('std-map-container');
         const title = document.getElementById('std-floor-title');
         const badge = document.getElementById('std-floor-badge');
@@ -2553,14 +2519,15 @@
         if (toolbar3D) toolbar3D.classList.remove('hidden');
 
         if (floorNum === 1) {
-            tabF1.className = "px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition";
-            tabF2.className = "px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-            title.innerHTML = '<i class="fa-solid fa-cube text-emerald-400"></i> Lantai 1 (Ground Floor - Lobby, Office & Receptionist) <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 ml-1">3D</span>';
-            badge.textContent = 'Showing Floor 1 (3D)';
+            if (tabF1) tabF1.className = "px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition";
+            if (tabF2) tabF2.className = "px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
+            if (fvTabF1) fvTabF1.className = "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow";
+            if (fvTabF2) fvTabF2.className = "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10";
+            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-emerald-400"></i> Lantai 1 (Ground Floor - Lobby, Office & Receptionist) <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 ml-1">3D</span>';
+            if (badge) badge.textContent = 'Showing Floor 1 (3D)';
             if (canvasContainer3D) canvasContainer3D.classList.add('hidden');
             if (canvasContainer3DF1) {
                 canvasContainer3DF1.classList.remove('hidden');
-                // FIX loader blank + stuck retry: tampilkan loader sinkron + handle hide tertunda
                 try {
                     const _ld = document.getElementById('std-3d-loader');
                     const _ldT = document.getElementById('std-3d-loader-title');
@@ -2569,12 +2536,11 @@
                     const _ldP = document.getElementById('std-3d-loader-pct');
                     if (_ld) {
                         if (modelLoadedByFloor[1]) {
-                            if (_ld.dataset.hideLoader1) delete _ld.dataset.hideLoader1;
                             _ld.classList.add('hidden');
                         } else {
                             _ld.classList.remove('hidden');
                             if (_ldT) _ldT.textContent = 'Memuat Model 3D Lantai 1...';
-                            if (_ldS) _ldS.textContent = 'Mengunduh aset GLB (8 MB)...';
+                            if (_ldS) _ldS.textContent = 'Memeriksa penyimpanan lokal...';
                             if (_ldB) _ldB.style.width = '5%';
                             if (_ldP) _ldP.textContent = '5%';
                         }
@@ -2594,12 +2560,12 @@
                 }, 50);
             }
         } else {
-            tabF2.className = "px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition";
-            tabF1.className = "px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-            container.style.backgroundImage = 'none';
-            container.style.backgroundColor = '#0f172a';
-            title.innerHTML = '<i class="fa-solid fa-cube text-sky-400"></i> Lantai 2 (Upper Floor - Direksi, Lounge & Meeting Rooms) <span class="text-[10px] bg-sky-500/20 text-sky-400 px-2 py-0.5 rounded-full border border-sky-500/30 ml-1">3D</span>';
-            badge.textContent = 'Showing Floor 2 (3D)';
+            if (tabF2) tabF2.className = "px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition";
+            if (tabF1) tabF1.className = "px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
+            if (fvTabF2) fvTabF2.className = "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow";
+            if (fvTabF1) fvTabF1.className = "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10";
+            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-sky-400"></i> Lantai 2 (Upper Floor - Direksi, Lounge & Meeting Rooms) <span class="text-[10px] bg-sky-500/20 text-sky-400 px-2 py-0.5 rounded-full border border-sky-500/30 ml-1">3D</span>';
+            if (badge) badge.textContent = 'Showing Floor 2 (3D)';
             if (canvasContainer3DF1) canvasContainer3DF1.classList.add('hidden');
             if (canvasContainer3D) {
                 canvasContainer3D.classList.remove('hidden');
@@ -2611,12 +2577,11 @@
                     const _ldP2 = document.getElementById('std-3d-loader-pct');
                     if (_ld2) {
                         if (modelLoadedByFloor[2]) {
-                            if (_ld2.dataset.hideLoader2) delete _ld2.dataset.hideLoader2;
                             _ld2.classList.add('hidden');
                         } else {
                             _ld2.classList.remove('hidden');
                             if (_ldT2) _ldT2.textContent = 'Memuat Model 3D Lantai 2...';
-                            if (_ldS2) _ldS2.textContent = 'Mengunduh aset GLB (14 MB)...';
+                            if (_ldS2) _ldS2.textContent = 'Memeriksa penyimpanan lokal...';
                             if (_ldB2) _ldB2.style.width = '5%';
                             if (_ldP2) _ldP2.textContent = '5%';
                         }
@@ -2643,53 +2608,19 @@
     }
 
     function switchFullViewFloor(floorNum) {
-        currentFullViewFloor = floorNum;
-        
-        const tabF1 = document.getElementById('fullview-tab-f1');
-        const tabF2 = document.getElementById('fullview-tab-f2');
-        const canvasF1 = document.getElementById('fullview-3d-canvas-f1');
-        const canvasF2 = document.getElementById('fullview-3d-canvas-f2');
-
-        if (floorNum === 1) {
-            if (tabF1) tabF1.className = "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow";
-            if (tabF2) tabF2.className = "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10";
-            if (canvasF2) canvasF2.classList.add('hidden');
-            if (canvasF1) {
-                canvasF1.classList.remove('hidden');
-                setTimeout(() => {
-                    if (!threeFullF1) {
-                        threeFullF1 = initThreeViewer('fullview-3d-canvas-f1', 1);
-                    } else {
-                        threeFullF1.resize();
-                    }
-                }, 50);
-            }
-        } else {
-            if (tabF2) tabF2.className = "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow";
-            if (tabF1) tabF1.className = "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10";
-            if (canvasF1) canvasF1.classList.add('hidden');
-            if (canvasF2) {
-                canvasF2.classList.remove('hidden');
-                setTimeout(() => {
-                    if (!threeFull) {
-                        threeFull = initThreeViewer('fullview-3d-canvas-f2', 2);
-                    } else {
-                        threeFull.resize();
-                    }
-                }, 50);
-            }
-        }
-
-        setTimeout(runSimulationStep, 60);
+        switchDashboardFloor(floorNum);
     }
 
     function toggleFullView(showFull) {
         if (showFull === undefined) isFullViewMode = !isFullViewMode;
         else isFullViewMode = !!showFull;
 
-        const stdView = document.getElementById('standard-view');
-        const fullView = document.getElementById('fullview-mode');
-        const mainScroll = document.querySelector('main > div');
+        const mapCard = document.getElementById('std-map-card');
+        const mapContainer = document.getElementById('std-map-container');
+        const headerBar = document.getElementById('std-header-bar');
+        const floorTitleBar = document.getElementById('std-floor-title-bar');
+        const toolbar3D = document.getElementById('std-3d-toolbar');
+        const fullviewTopBar = document.getElementById('fullview-top-bar');
         const asideEl = document.getElementById('main-sidebar') || document.querySelector('body > aside') || document.querySelector('aside');
         const mainEl = document.getElementById('main-content') || document.querySelector('body > main') || document.querySelector('main');
 
@@ -2711,22 +2642,36 @@
         }
         document.body.classList.toggle('body-in-fullview', isFullViewMode);
 
+        if (mapCard) {
+            mapCard.classList.toggle('dashboard-fullview-card', isFullViewMode);
+        }
+        if (mapContainer) {
+            mapContainer.classList.toggle('dashboard-fullview-canvas', isFullViewMode);
+        }
+        if (headerBar) {
+            headerBar.classList.toggle('hidden', isFullViewMode);
+        }
+        if (floorTitleBar) {
+            floorTitleBar.classList.toggle('hidden', isFullViewMode);
+        }
+        if (toolbar3D) {
+            toolbar3D.classList.toggle('hidden', isFullViewMode);
+        }
+        if (fullviewTopBar) {
+            fullviewTopBar.classList.toggle('hidden', !isFullViewMode);
+        }
+
+        // Close dropdown panels if open
+        const camPanel = document.getElementById('panel-3d-camera');
+        const lightPanel = document.getElementById('panel-3d-light');
+        const labelPanel = document.getElementById('panel-3d-label-size');
+        const robotPanel = document.getElementById('panel-3d-robot-control');
+        if (camPanel) camPanel.classList.add('hidden');
+        if (lightPanel) lightPanel.classList.add('hidden');
+        if (labelPanel) labelPanel.classList.add('hidden');
+        if (robotPanel) robotPanel.classList.add('hidden');
+
         if (isFullViewMode) {
-            if (stdView) {
-                stdView.classList.add('hidden');
-                stdView.style.setProperty('display', 'none', 'important');
-            }
-            if (fullView) {
-                fullView.classList.remove('hidden');
-                fullView.style.setProperty('display', 'flex', 'important');
-            }
-            if (mainScroll) mainScroll.scrollTop = 0;
-            window.scrollTo(0, 0);
-
-            // Sync floor view
-            const targetFloor = currentDashboardFloor ? Number(currentDashboardFloor) : 1;
-            switchFullViewFloor(targetFloor);
-
             // Sync indicators in full view top bar
             if (typeof updateFollowButton === 'function') updateFollowButton();
             const f_icon = document.getElementById('fullview-icon-labels');
@@ -2739,23 +2684,14 @@
                     ? 'bg-slate-900/90 hover:bg-slate-800 border border-emerald-500/30 text-emerald-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap'
                     : 'bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap';
             }
-        } else {
-            if (fullView) {
-                fullView.classList.add('hidden');
-                fullView.style.setProperty('display', 'none', 'important');
-            }
-            if (stdView) {
-                stdView.classList.remove('hidden');
-                stdView.style.removeProperty('display');
-            }
-            if (mainScroll) mainScroll.scrollTop = 0;
-            window.scrollTo(0, 0);
-
-            setTimeout(() => {
-                const stdV = activeStdViewer();
-                if (stdV) stdV.resize();
-            }, 60);
         }
+
+        setTimeout(() => {
+            const activeV = activeStdViewer();
+            if (activeV && typeof activeV.resize === 'function') {
+                activeV.resize();
+            }
+        }, 50);
 
         setTimeout(runSimulationStep, 80);
     }
@@ -3430,9 +3366,9 @@
                     const gapS = isPending ? 0.15 : 0.12;
                     const op = isPending ? 0.65 : 0.95;
                     if (floorNum === 2) {
-                        drawPath3D([threeStd, threeFull], floorPts, robotColor, op, dashS, gapS, 0.012);
+                        drawPath3D([threeStd], floorPts, robotColor, op, dashS, gapS, 0.012);
                     } else {
-                        drawPath3D([threeStdF1, threeFullF1], floorPts, robotColor, op, dashS, gapS, 0.012);
+                        drawPath3D([threeStdF1], floorPts, robotColor, op, dashS, gapS, 0.012);
                     }
                 }
             });
@@ -3488,9 +3424,9 @@
 
                     if (floorPts.length >= 2) {
                         if (floorNum === 2) {
-                            drawPath3D([threeStd, threeFull], floorPts, robotColor, 0.75, 0.16, 0.14, 0.012);
+                            drawPath3D([threeStd], floorPts, robotColor, 0.75, 0.16, 0.14, 0.012);
                         } else {
-                            drawPath3D([threeStdF1, threeFullF1], floorPts, robotColor, 0.75, 0.16, 0.14, 0.012);
+                            drawPath3D([threeStdF1], floorPts, robotColor, 0.75, 0.16, 0.14, 0.012);
                         }
                     }
                 });
@@ -3501,6 +3437,7 @@
     }
 
     function runSimulationStep() {
+        if (document.hidden) return;
         const now = new Date(new Date().getTime() + serverClientOffset);
 
         // (2D overlay/SVG dihapus — kedua lantai murni 3D; avatar & path digambar di scene)
@@ -3878,14 +3815,10 @@
             const destName = destNodeId ? (locations[destNodeId]?.name || null) : null;
             if (Number(floorNum) === 2) {
                 updateRobot3DAvatar(threeStd, robot, coords, destName);
-                updateRobot3DAvatar(threeFull, robot, coords, destName);
                 hideRobot3DAvatar(threeStdF1, robot);
-                hideRobot3DAvatar(threeFullF1, robot);
             } else {
                 updateRobot3DAvatar(threeStdF1, robot, coords, destName);
-                updateRobot3DAvatar(threeFullF1, robot, coords, destName);
                 hideRobot3DAvatar(threeStd, robot);
-                hideRobot3DAvatar(threeFull, robot);
             }
 
             // Update Robot Cards in standard view
@@ -4353,6 +4286,16 @@
         };
         if ('requestIdleCallback' in window) requestIdleCallback(preloadOther, { timeout: 8000 });
         else setTimeout(preloadOther, 4000);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            const v = activeStdViewer();
+            if (v && typeof v.resize === 'function') {
+                v.resize();
+            }
+            runSimulationStep();
+        }
     });
 
     window.addEventListener('keydown', (e) => {

@@ -659,7 +659,7 @@
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(width, height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = parseFloat(current3DSettings.lighting.exposure ?? 1.0);
@@ -823,9 +823,20 @@
         if(loaderEl && !modelLoadedByFloor[floorNum]){
             loaderEl.classList.remove('hidden');
             if(loaderTitle) loaderTitle.textContent=`Memuat Model 3D Lantai ${floorNum}...`;
-            if(loaderStatus) loaderStatus.textContent=`Mengunduh aset GLB (${floorNum===1?'8':'14'} MB)...`;
+            if(loaderStatus) loaderStatus.textContent=`Memeriksa penyimpanan lokal...`;
             if(loaderBar) loaderBar.style.width='5%';
             if(loaderPct) loaderPct.textContent='5%';
+            if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                window.RobopathGLBCache.isCached(modelUrl).then(isCached => {
+                    if (isCached && loaderStatus) {
+                        loaderStatus.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                        if (loaderBar) loaderBar.style.width = '85%';
+                        if (loaderPct) loaderPct.textContent = '85%';
+                    } else if (loaderStatus) {
+                        loaderStatus.textContent = `Mengunduh aset GLB (${floorNum === 1 ? '8' : '14'} MB)...`;
+                    }
+                }).catch(() => {});
+            }
         }
 
         const gltfLoader = new THREE.GLTFLoader();
@@ -994,6 +1005,8 @@
         let animationFrameId = null;
         function animate() {
             animationFrameId = requestAnimationFrame(animate);
+            if (document.hidden) return;
+            if (!container || container.offsetParent === null) return;
             robotMeshes.forEach(holder=>{ 
                 const tgt=holder.userData.targetWp; 
                 if(tgt) {
@@ -1042,7 +1055,17 @@
             if (canvas3D) canvas3D.classList.add('hidden');
             if (canvas3DF1) {
                 canvas3DF1.classList.remove('hidden');
-                if (loaderEl && !modelLoadedByFloor[1]) { loaderEl.classList.remove('hidden'); const t=document.getElementById('deliv-3d-loader-title'); if(t) t.textContent='Memuat Model 3D Lantai 1...'; const s=document.getElementById('deliv-3d-loader-status'); if(s) s.textContent='Mengunduh aset GLB (8 MB)...'; }
+                if (loaderEl && !modelLoadedByFloor[1]) {
+                    loaderEl.classList.remove('hidden');
+                    const t = document.getElementById('deliv-3d-loader-title'); if (t) t.textContent = 'Memuat Model 3D Lantai 1...';
+                    const s = document.getElementById('deliv-3d-loader-status'); if (s) s.textContent = 'Memeriksa penyimpanan lokal...';
+                    if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                        window.RobopathGLBCache.isCached(floor1ModelUrl).then(isCached => {
+                            if (isCached && s) s.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                            else if (s) s.textContent = 'Mengunduh aset GLB (8 MB)...';
+                        }).catch(() => {});
+                    }
+                }
                 else if (loaderEl && modelLoadedByFloor[1]) { loaderEl.classList.add('hidden'); }
                 setTimeout(() => {
                     if (!threeDelivF1) {
@@ -1062,7 +1085,17 @@
             if (canvas3DF1) canvas3DF1.classList.add('hidden');
             if (canvas3D) {
                 canvas3D.classList.remove('hidden');
-                if (loaderEl && !modelLoadedByFloor[2]) { loaderEl.classList.remove('hidden'); const t=document.getElementById('deliv-3d-loader-title'); if(t) t.textContent='Memuat Model 3D Lantai 2...'; const s=document.getElementById('deliv-3d-loader-status'); if(s) s.textContent='Mengunduh aset GLB (14 MB)...'; }
+                if (loaderEl && !modelLoadedByFloor[2]) {
+                    loaderEl.classList.remove('hidden');
+                    const t = document.getElementById('deliv-3d-loader-title'); if (t) t.textContent = 'Memuat Model 3D Lantai 2...';
+                    const s = document.getElementById('deliv-3d-loader-status'); if (s) s.textContent = 'Memeriksa penyimpanan lokal...';
+                    if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                        window.RobopathGLBCache.isCached(floor2ModelUrl).then(isCached => {
+                            if (isCached && s) s.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                            else if (s) s.textContent = 'Mengunduh aset GLB (14 MB)...';
+                        }).catch(() => {});
+                    }
+                }
                 else if (loaderEl && modelLoadedByFloor[2]) { loaderEl.classList.add('hidden'); }
                 setTimeout(() => {
                     if (!threeDeliv) {
@@ -2300,6 +2333,16 @@
 
     window.addEventListener('resize', () => {
         drawRobotPaths();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            const activeV = (Number(liveCurrentFloor) === 1) ? threeDelivF1 : threeDeliv;
+            if (activeV && typeof activeV.resize === 'function') {
+                activeV.resize();
+            }
+            drawRobotPaths();
+        }
     });
 
     document.addEventListener('DOMContentLoaded', () => {

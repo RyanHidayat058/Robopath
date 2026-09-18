@@ -24,12 +24,22 @@
     <script src="{{ asset('js/OrbitControls.js') }}"></script>
     <script src="{{ asset('js/GLTFLoader.js') }}"></script>
     <script src="{{ asset('js/DRACOLoader.js') }}"></script>
+    @endif
+
+    <!-- Global Persistent 3D Asset Cache & Service Worker Registration (Active on both 2D & 3D) -->
     <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register("{{ asset('sw.js') }}").catch(err => {
+                console.warn('[Robopath SW] Register bypass:', err);
+            });
+        });
+    }
     // Unified Persistent GLB Cache System (Memory + CacheStorage + IndexedDB with In-Flight Deduplication)
     (function() {
         const DB_NAME = 'robopath-glb-db-v2';
         const STORE_NAME = 'glb_models';
-        const CACHE_NAME = 'robopath-glb-cache-v1';
+        const CACHE_NAME = 'robopath-models-v1';
         const memoryCache = window.__ROBOPATH_GLB_MEM__ || new Map();
         window.__ROBOPATH_GLB_MEM__ = memoryCache;
 
@@ -264,7 +274,6 @@
         }
     })();
     </script>
-    @endif
 
     <script>
         tailwind.config = {
@@ -542,7 +551,7 @@
 
         // --- Persistent 3D Model Caching via Browser Cache Storage API ---
         window.Robopath3DCache = {
-            CACHE_NAME: 'robopath-3d-cache-v1',
+            CACHE_NAME: 'robopath-models-v1',
 
             async getCache() {
                 if ('caches' in window) {
