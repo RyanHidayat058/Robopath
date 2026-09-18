@@ -980,8 +980,8 @@
         pinTex.minFilter = THREE.LinearFilter;
         const pinMat = new THREE.SpriteMaterial({ map: pinTex, transparent: true, depthTest: false, depthWrite: false });
         const markerSprite = new THREE.Sprite(pinMat);
-        markerSprite.scale.set(0.11, 0.11, 1);
-        markerSprite.position.set(0, 0.17, 0);
+        markerSprite.scale.set(0.075, 0.075, 1);
+        markerSprite.position.set(0, 0.13, 0);
         markerSprite.renderOrder = 1002;
         return markerSprite;
     }
@@ -1014,8 +1014,8 @@
         tex.minFilter = THREE.LinearFilter;
         const sMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
         const nameSprite = new THREE.Sprite(sMat);
-        nameSprite.scale.set(0.22, 0.048, 1);
-        nameSprite.position.set(0, 0.115, 0);
+        nameSprite.scale.set(0.155, 0.034, 1);
+        nameSprite.position.set(0, 0.09, 0);
         nameSprite.renderOrder = 1001;
         nameSprite.userData = { canvas: c, texture: tex };
         return nameSprite;
@@ -1360,24 +1360,15 @@
             boxMesh.position.y=0.25; boxMesh.castShadow=true; boxMesh.receiveShadow=true;
             modelHolder.add(boxMesh); holder.userData.boxMesh=boxMesh;
 
-            // Beacon Ring di lantai (diameter rapi ~0.24m)
-            const ringGeo=new THREE.RingGeometry(0.07, 0.12, 32);
-            ringGeo.rotateX(-Math.PI / 2);
-            const ringMat=new THREE.MeshBasicMaterial({color: new THREE.Color(getRobotColor(id)), side: THREE.DoubleSide, transparent:true, opacity:0.85});
-            const ringMesh=new THREE.Mesh(ringGeo, ringMat);
-            ringMesh.position.y=0.002;
-            holder.add(ringMesh);
-            holder.userData.ringMesh=ringMesh;
-
             // 2D Style Robot Marker Card Sprite (sleek white card with vector robot icon & robot border)
             const markerSprite = create2DRobotMarkerSprite(id, robot.name, getRobotColor(id));
-            markerSprite.position.set(0, 0.17, 0);
+            markerSprite.position.set(0, 0.13, 0);
             holder.add(markerSprite);
             holder.userData.markerSprite = markerSprite;
 
             // Compact Badge Nama Robot (World space: proporsional, tajam & rapi)
             const nameSprite = create2DRobotNameSprite(robot.name, getRobotColor(id));
-            nameSprite.position.set(0, 0.115, 0);
+            nameSprite.position.set(0, 0.09, 0);
             holder.add(nameSprite); 
             holder.userData.nameSprite=nameSprite;
 
@@ -1385,8 +1376,8 @@
             const c3=document.createElement('canvas'); c3.width=384; c3.height=56;
             const stMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c3), transparent:true, depthTest:false, depthWrite:false});
             const stSpr=new THREE.Sprite(stMat); 
-            stSpr.scale.set(0.24, 0.038, 1); 
-            stSpr.position.set(0, 0.075, 0); 
+            stSpr.scale.set(0.165, 0.026, 1); 
+            stSpr.position.set(0, 0.06, 0); 
             stSpr.renderOrder=1000; 
             stSpr.visible=false;
             stSpr.userData={canvas:c3, texture:stMat.map}; 
@@ -3337,45 +3328,14 @@
         return mission;
     }
 
-    // Helper: Buat ribbon mesh 3D untuk rute yang tebal, jelas, dan tampak solid/glow di atas lantai
-    function createRibbonGeometry(pts3, width = 0.075) {
-        const half = width / 2;
-        const positions = [];
-        const indices = [];
-
-        for (let i = 0; i < pts3.length; i++) {
-            const curr = pts3[i];
-            let dir = new THREE.Vector3();
-            if (i < pts3.length - 1) {
-                dir.subVectors(pts3[i + 1], curr).normalize();
-            } else if (i > 0) {
-                dir.subVectors(curr, pts3[i - 1]).normalize();
-            } else {
-                dir.set(1, 0, 0);
-            }
-            const perp = new THREE.Vector3(-dir.z, 0, dir.x).normalize().multiplyScalar(half);
-            positions.push(curr.x - perp.x, curr.y, curr.z - perp.z);
-            positions.push(curr.x + perp.x, curr.y, curr.z + perp.z);
-
-            if (i < pts3.length - 1) {
-                const base = i * 2;
-                indices.push(base, base + 1, base + 2);
-                indices.push(base + 1, base + 3, base + 2);
-            }
-        }
-        const geom = new THREE.BufferGeometry();
-        geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        geom.setIndex(indices);
-        return geom;
-    }
-
-    // Gambar garis path delivery di scene 3D (semua viewer yg ada — std + full, L1 + L2)
+    // Gambar garis path delivery di scene 3D (garis putus-putus khas 2D di kaki robot, depthTest: false agar tidak tenggelam)
     function drawPath3D(viewers, remainingPts, robotColor, opacity, dashSize, gapSize, yOff){
         viewers.forEach(v => {
             if (!v || !v.activePathGroup) return;
             const sz = v.getModelSize ? v.getModelSize() : null;
             if (!sz || sz.x < 0.1) return;
-            const extraY = (yOff !== undefined && yOff !== null) ? yOff : 0.09;
+            // Tepat di kaki robot / permukaan lantai (tidak melayang di atas robot)
+            const extraY = (yOff !== undefined && yOff !== null) ? yOff : 0.012;
             const pts3 = remainingPts.map(pt => {
                 const locObj = typeof pt === 'string' ? locations[pt] : pt;
                 const vv = worldPosForLoc(locObj, sz);
@@ -3384,55 +3344,21 @@
             });
             if (pts3.length < 2) return;
 
-            // 1. Pita tebal / Ribbon base strip (jelas terlihat, depthTest: false agar tidak pernah tenggelam di bawah geometri lantai)
-            const ribbonWidth = 0.075;
-            const ribbonGeo = createRibbonGeometry(pts3, ribbonWidth);
-            const ribbonMat = new THREE.MeshBasicMaterial({
+            // Garis putus-putus khas 2D (presisi, bersih, di kaki robot)
+            const geo = new THREE.BufferGeometry().setFromPoints(pts3);
+            const dSize = (dashSize !== undefined && dashSize > 0) ? dashSize : 0.18;
+            const gSize = (gapSize !== undefined && gapSize > 0) ? gapSize : 0.12;
+            const mat = new THREE.LineDashedMaterial({
                 color: new THREE.Color(robotColor),
                 transparent: true,
-                opacity: Math.min(1.0, opacity * 0.72),
-                depthTest: false,
-                depthWrite: false,
-                side: THREE.DoubleSide
-            });
-            const ribbonMesh = new THREE.Mesh(ribbonGeo, ribbonMat);
-            ribbonMesh.renderOrder = 9998;
-            v.activePathGroup.add(ribbonMesh);
-
-            // 2. Lingkaran sambungan pada setiap titik belokan (agar sudut rapi dan bulat mulus)
-            const circleGeo = new THREE.CircleGeometry(ribbonWidth / 2, 12);
-            circleGeo.rotateX(-Math.PI / 2);
-            pts3.forEach((pt) => {
-                const discMat = new THREE.MeshBasicMaterial({
-                    color: new THREE.Color(robotColor),
-                    transparent: true,
-                    opacity: Math.min(1.0, opacity * 0.85),
-                    depthTest: false,
-                    depthWrite: false,
-                    side: THREE.DoubleSide
-                });
-                const disc = new THREE.Mesh(circleGeo, discMat);
-                disc.position.copy(pt);
-                disc.position.y += 0.001;
-                disc.renderOrder = 9998;
-                v.activePathGroup.add(disc);
-            });
-
-            // 3. Garis tengah presisi (solid atau dashed) dengan kontras tinggi di atas pita
-            const geo = new THREE.BufferGeometry().setFromPoints(pts3);
-            const isDashed = dashSize > 0;
-            const mat = new THREE.LineDashedMaterial({
-                color: isDashed ? new THREE.Color(0xffffff) : new THREE.Color(robotColor),
-                transparent: true,
-                opacity: isDashed ? Math.min(1.0, opacity + 0.25) : 1.0,
-                dashSize: dashSize,
-                gapSize: gapSize,
+                opacity: opacity !== undefined ? opacity : 0.95,
+                dashSize: dSize,
+                gapSize: gSize,
                 depthTest: false,
                 depthWrite: false
             });
             const line = new THREE.Line(geo, mat);
             line.computeLineDistances();
-            line.position.y += 0.002;
             line.renderOrder = 9999;
             v.activePathGroup.add(line);
         });
@@ -3444,7 +3370,7 @@
         
         const now = new Date(new Date().getTime() + serverClientOffset);
 
-        // 1. Draw paths for active deliveries (Unified continuous path per floor)
+        // 1. Draw paths for active deliveries (Unified continuous dashed path per floor)
         activeDeliveries.forEach(delivery => {
             const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
             if (!robot || (delivery.status !== 'In Progress' && delivery.status !== 'Pending')) return;
@@ -3500,16 +3426,19 @@
                 });
 
                 if (floorPts.length >= 2) {
+                    const dashS = isPending ? 0.15 : 0.18;
+                    const gapS = isPending ? 0.15 : 0.12;
+                    const op = isPending ? 0.65 : 0.95;
                     if (floorNum === 2) {
-                        drawPath3D([threeStd, threeFull], floorPts, robotColor, isPending ? 0.6 : 0.95, isPending ? 0.6 : 0, isPending ? 0.4 : 0, 0.09);
+                        drawPath3D([threeStd, threeFull], floorPts, robotColor, op, dashS, gapS, 0.012);
                     } else {
-                        drawPath3D([threeStdF1, threeFullF1], floorPts, robotColor, isPending ? 0.6 : 0.95, isPending ? 0.6 : 0, isPending ? 0.4 : 0, 0.09);
+                        drawPath3D([threeStdF1, threeFullF1], floorPts, robotColor, op, dashS, gapS, 0.012);
                     }
                 }
             });
         });
 
-        // 2. Draw return paths for returning idle robots (Unified continuous return path per floor)
+        // 2. Draw return paths for returning idle robots (Unified continuous dashed return path per floor)
         robots.forEach(robot => {
             if ((robot.status === 'Idle' || robot.status === 'Returning' || robot.isReturning) && robot.returnMission && robot.returnMission.stages) {
                 const robotColor = getRobotColor(robot.id);
@@ -3559,9 +3488,9 @@
 
                     if (floorPts.length >= 2) {
                         if (floorNum === 2) {
-                            drawPath3D([threeStd, threeFull], floorPts, robotColor, 0.78, 0.6, 0.4, 0.09);
+                            drawPath3D([threeStd, threeFull], floorPts, robotColor, 0.75, 0.16, 0.14, 0.012);
                         } else {
-                            drawPath3D([threeStdF1, threeFullF1], floorPts, robotColor, 0.78, 0.6, 0.4, 0.09);
+                            drawPath3D([threeStdF1, threeFullF1], floorPts, robotColor, 0.75, 0.16, 0.14, 0.012);
                         }
                     }
                 });

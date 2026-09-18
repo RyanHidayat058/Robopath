@@ -927,7 +927,7 @@
             "preset": "iso"
         },
         "lighting": {
-            "ambient": 0.3,
+            "ambient": 0.7,
             "sun": 3.7,
             "exposure": 0.35,
             "fill": 0.8,

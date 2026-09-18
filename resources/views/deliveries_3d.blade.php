@@ -449,8 +449,8 @@
         pinTex.minFilter = THREE.LinearFilter;
         const pinMat = new THREE.SpriteMaterial({ map: pinTex, transparent: true, depthTest: false, depthWrite: false });
         const markerSprite = new THREE.Sprite(pinMat);
-        markerSprite.scale.set(0.11, 0.11, 1);
-        markerSprite.position.set(0, 0.17, 0);
+        markerSprite.scale.set(0.075, 0.075, 1);
+        markerSprite.position.set(0, 0.13, 0);
         markerSprite.renderOrder = 1002;
         return markerSprite;
     }
@@ -483,8 +483,8 @@
         tex.minFilter = THREE.LinearFilter;
         const sMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
         const nameSprite = new THREE.Sprite(sMat);
-        nameSprite.scale.set(0.22, 0.048, 1);
-        nameSprite.position.set(0, 0.115, 0);
+        nameSprite.scale.set(0.155, 0.034, 1);
+        nameSprite.position.set(0, 0.09, 0);
         nameSprite.renderOrder = 1001;
         nameSprite.userData = { canvas: c, texture: tex };
         return nameSprite;
@@ -764,24 +764,15 @@
             modelHolder.add(box);
             holder.userData.boxMesh=box;
 
-            // Beacon Ring di lantai (diameter rapi ~0.24m)
-            const ringGeo=new THREE.RingGeometry(0.07, 0.12, 32);
-            ringGeo.rotateX(-Math.PI / 2);
-            const ringMat=new THREE.MeshBasicMaterial({color: new THREE.Color(getRobotColor(rid)), side: THREE.DoubleSide, transparent:true, opacity:0.85});
-            const ringMesh=new THREE.Mesh(ringGeo, ringMat);
-            ringMesh.position.y=0.002;
-            holder.add(ringMesh);
-            holder.userData.ringMesh=ringMesh;
-
             // 2D Style Robot Marker Card Sprite (sleek white card with vector robot icon & robot border)
             const markerSprite = create2DRobotMarkerSprite(rid, robot.name, getRobotColor(rid));
-            markerSprite.position.set(0, 0.17, 0);
+            markerSprite.position.set(0, 0.13, 0);
             holder.add(markerSprite);
             holder.userData.markerSprite = markerSprite;
 
             // Compact Badge Nama Robot (World space: proporsional, tajam & rapi)
             const nameSprite = create2DRobotNameSprite(robot.name, getRobotColor(rid));
-            nameSprite.position.set(0, 0.115, 0);
+            nameSprite.position.set(0, 0.09, 0);
             holder.add(nameSprite); 
             holder.userData.nameSprite=nameSprite;
 
@@ -789,8 +780,8 @@
             const c3=document.createElement('canvas'); c3.width=384; c3.height=56;
             const stMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c3), transparent:true, depthTest:false, depthWrite:false});
             const stSpr=new THREE.Sprite(stMat); 
-            stSpr.scale.set(0.24, 0.038, 1); 
-            stSpr.position.set(0, 0.075, 0); 
+            stSpr.scale.set(0.165, 0.026, 1); 
+            stSpr.position.set(0, 0.06, 0); 
             stSpr.renderOrder=1000; 
             stSpr.visible=false;
             stSpr.userData={canvas:c3, texture:stMat.map}; 
@@ -1552,38 +1543,6 @@
         return '#10b981';
     }
 
-    // Helper: Ribbon geometry untuk garis rute tebal dan jelas
-    function createRibbonGeometry(pts3, width = 0.075) {
-        const half = width / 2;
-        const positions = [];
-        const indices = [];
-
-        for (let i = 0; i < pts3.length; i++) {
-            const curr = pts3[i];
-            let dir = new THREE.Vector3();
-            if (i < pts3.length - 1) {
-                dir.subVectors(pts3[i + 1], curr).normalize();
-            } else if (i > 0) {
-                dir.subVectors(curr, pts3[i - 1]).normalize();
-            } else {
-                dir.set(1, 0, 0);
-            }
-            const perp = new THREE.Vector3(-dir.z, 0, dir.x).normalize().multiplyScalar(half);
-            positions.push(curr.x - perp.x, curr.y, curr.z - perp.z);
-            positions.push(curr.x + perp.x, curr.y, curr.z + perp.z);
-
-            if (i < pts3.length - 1) {
-                const base = i * 2;
-                indices.push(base, base + 1, base + 2);
-                indices.push(base + 1, base + 3, base + 2);
-            }
-        }
-        const geom = new THREE.BufferGeometry();
-        geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-        geom.setIndex(indices);
-        return geom;
-    }
-
     function drawRobotPaths() {
         const viewers = allDelivViewers().filter(v=>v&&v.activePathGroup);
         viewers.forEach(v=>v.activePathGroup.clear());
@@ -1600,60 +1559,24 @@
                     if(!loc) continue;
                     if(loc.floor!=null && Number(loc.floor)!==vFloor) continue;
                     const wp=worldPosForLoc(loc, sz);
-                    vecs.push(new THREE.Vector3(wp.x, (wp.y || 0) + 0.09, wp.z));
+                    vecs.push(new THREE.Vector3(wp.x, (wp.y || 0) + 0.012, wp.z));
                 }
                 if(vecs.length<2) return;
 
-                // 1. Ribbon base strip (tebal, jelas, depthTest: false)
-                const ribbonWidth = 0.075;
-                const ribbonGeo = createRibbonGeometry(vecs, ribbonWidth);
-                const ribbonMat = new THREE.MeshBasicMaterial({
-                    color: new THREE.Color(color),
-                    transparent: true,
-                    opacity: dashed ? 0.45 : 0.72,
-                    depthTest: false,
-                    depthWrite: false,
-                    side: THREE.DoubleSide
-                });
-                const ribbonMesh = new THREE.Mesh(ribbonGeo, ribbonMat);
-                ribbonMesh.renderOrder = 9998;
-                v.activePathGroup.add(ribbonMesh);
-
-                // 2. Corner waypoint discs
-                const circleGeo = new THREE.CircleGeometry(ribbonWidth / 2, 12);
-                circleGeo.rotateX(-Math.PI / 2);
-                vecs.forEach((pt) => {
-                    const discMat = new THREE.MeshBasicMaterial({
-                        color: new THREE.Color(color),
-                        transparent: true,
-                        opacity: dashed ? 0.55 : 0.85,
-                        depthTest: false,
-                        depthWrite: false,
-                        side: THREE.DoubleSide
-                    });
-                    const disc = new THREE.Mesh(circleGeo, discMat);
-                    disc.position.copy(pt);
-                    disc.position.y += 0.001;
-                    disc.renderOrder = 9998;
-                    v.activePathGroup.add(disc);
-                });
-
-                // 3. Centerline with depthTest: false
+                // Garis putus-putus khas 2D di kaki robot (depthTest: false agar tidak tenggelam)
                 const geo=new THREE.BufferGeometry().setFromPoints(vecs);
                 const mat=new THREE.LineDashedMaterial({
-                    color: dashed ? new THREE.Color(0xffffff) : new THREE.Color(color),
-                    linewidth: 2,
-                    scale: 1,
-                    dashSize: dashed ? 0.6 : 0,
-                    gapSize: dashed ? 0.4 : 0,
+                    color: new THREE.Color(color),
+                    linewidth: 1,
+                    dashSize: dashed ? 0.15 : 0.18,
+                    gapSize: dashed ? 0.15 : 0.12,
                     transparent: true,
-                    opacity: dashed ? 0.85 : 1.0,
+                    opacity: dashed ? 0.65 : 0.95,
                     depthTest: false,
                     depthWrite: false
                 });
                 const line=new THREE.Line(geo, mat);
                 line.computeLineDistances();
-                line.position.y += 0.002;
                 line.renderOrder = 9999;
                 v.activePathGroup.add(line);
             });
