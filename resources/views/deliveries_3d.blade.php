@@ -88,19 +88,14 @@
                     </select>
                 </div>
 
-                <!-- Starting Location -->
+                <!-- Starting Location (Titik Jemput) -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Starting Location</label>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Titik Jemput (Pick-up Location)</label>
                     <select id="dispatch-start" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
-                        <option value="" disabled>Choose starting location...</option>
+                        <option value="" disabled selected>Pilih titik jemput barang...</option>
                         <optgroup label="Lantai 1 (Ground Floor)">
-                            @if(isset($locations['1_Markas Robot']))
-                            <option value="1_Markas Robot" selected>Base Station (Markas Robot - Lantai 1)</option>
-                            @elseif(isset($locations['1_N7']))
-                            <option value="1_N7" selected>Base Station (N7 - Lantai 1)</option>
-                            @endif
                             @foreach($locations as $id => $coords)
-                            @if(($coords['floor'] ?? 1) == 1 && $id !== '1_Markas Robot' && $id !== '1_N7' && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
+                            @if(($coords['floor'] ?? 1) == 1 && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
                             <option value="{{ $id }}">{{ $coords['name'] }} (Lantai 1)</option>
                             @endif
                             @endforeach
@@ -1189,28 +1184,7 @@
     }
 
     function updateStartLocation() {
-        const select = document.getElementById('dispatch-robot');
-        if (!select || select.selectedIndex < 0) return;
-        const robotId = select.value;
-        const robot = robots.find(r => Number(r.id) === Number(robotId));
-        const startSelect = document.getElementById('dispatch-start');
-        if (!startSelect) return;
-
-        let closestNodeId = null;
-        if (robot) {
-            const rFloor = Number(robot.floor || 1);
-            closestNodeId = resolveLocationNodeId(robot.current_x, robot.current_y, rFloor);
-        }
-        const baseId = getBaseLocationId();
-        if (closestNodeId && startSelect.querySelector(`option[value="${closestNodeId}"]`)) {
-            startSelect.value = closestNodeId;
-        } else if (baseId && startSelect.querySelector(`option[value="${baseId}"]`)) {
-            startSelect.value = baseId;
-        } else if (startSelect.querySelector('option[value="1_Markas Robot"]')) {
-            startSelect.value = '1_Markas Robot';
-        } else if (startSelect.querySelector('option[value="1_N7"]')) {
-            startSelect.value = '1_N7';
-        }
+        // Biarkan pengguna memilih titik jemput barang secara bebas tanpa ditimpa paksa ke posisi robot
     }
 
     function dispatchDelivery(e) {
@@ -2035,25 +2009,31 @@
         if (!isEnabled) return;
         
         const idleRobots = robots.filter(r => r.status === 'Idle' && r.battery_level > 20 && !r.isReturning);
-        idleRobots.forEach(robot => {
+        const baseId = getBaseLocationId();
+        let destinationNodeIds = Object.keys(locations).filter(id => locations[id].is_destination && id !== baseId && !id.includes('Tangga') && !id.includes('_Stairs'));
+        if (destinationNodeIds.length < 2) {
+            destinationNodeIds = Object.keys(locations).filter(id => !id.includes('_N') && !id.includes('Tangga') && !id.includes('_Stairs') && id !== baseId);
+        }
+        if (destinationNodeIds.length < 2) return;
+
+        const items = ['Handuk', 'Makanan', 'Dokumen', 'Kopi', 'Paket', 'Botol Air', 'Sparepart'];
+
+        idleRobots.forEach((robot, idx) => {
             if (robot.isDispatching || robot.isReturning) return;
             robot.isDispatching = true;
             
             setTimeout(() => {
                 if (robot.status !== 'Idle' || robot.isReturning) { robot.isDispatching = false; return; }
-                const items = ['Handuk', 'Makanan', 'Dokumen', 'Kopi', 'Paket', 'Botol Air', 'Sparepart'];
-                const destinationNodeIds = Object.keys(locations).filter(id => locations[id].is_destination);
+                const item = items[(idx + Math.floor(Math.random() * items.length)) % items.length];
+                let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || baseId;
                 
-                if (destinationNodeIds.length < 2) { robot.isDispatching = false; return; }
-                const item = items[Math.floor(Math.random() * items.length)];
-                let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || getBaseLocationId();
-                
-                let dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
-                let attempts = 0;
-                while (dest === currentLoc && attempts < 10) {
-                    dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
-                    attempts++;
-                }
+                // Pick a realistic pickup point (Titik Jemput) that is NOT base station
+                const availablePickups = destinationNodeIds.filter(id => id !== currentLoc);
+                const pickupLoc = availablePickups[Math.floor(Math.random() * availablePickups.length)] || availablePickups[0];
+
+                // Pick a destination (Titik Antar) that is DIFFERENT from pickup and DIFFERENT from current location
+                const availableDests = destinationNodeIds.filter(id => id !== pickupLoc && id !== currentLoc);
+                const dest = availableDests[Math.floor(Math.random() * availableDests.length)] || availableDests[0];
                 
                 fetch('/api/deliveries', {
                     method: 'POST',
@@ -2066,7 +2046,7 @@
                         robot_id: robot.id,
                         item_name: item,
                         origin_location: currentLoc,
-                        start_location: currentLoc,
+                        start_location: pickupLoc,
                         destination_location: dest
                     })
                 })

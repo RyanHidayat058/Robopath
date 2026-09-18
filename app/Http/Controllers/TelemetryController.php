@@ -231,7 +231,13 @@ class TelemetryController extends Controller
             'status' => 'Delivering',
         ]);
 
-        $originLoc = $request->origin_location ?: '1_N7';
+        $originLoc = $request->origin_location;
+        if (! $originLoc) {
+            $rx = (float) ($robot->current_x ?? 76.23);
+            $ry = (float) ($robot->current_y ?? 64.42);
+            $distTo3DBase = hypot($rx - 85.48, $ry - 51.07);
+            $originLoc = ($distTo3DBase < 4.0) ? '1_Markas Robot' : '1_N7';
+        }
 
         // Create new active delivery
         $delivery = Delivery::create([
@@ -888,24 +894,47 @@ class TelemetryController extends Controller
 
         $items = ['Handuk', 'Makanan', 'Dokumen', 'Kopi', 'Paket', 'Botol Air', 'Sparepart'];
 
-        // Base station coordinates (Floor 1 Base Node 1_N7)
-        $baseLoc = ['x' => 76.23, 'y' => 64.42, 'floor' => 1];
-        if (! empty($graph['locations'])) {
-            foreach ($graph['locations'] as $loc) {
-                if ($loc['id'] === '1_N7') {
-                    $baseLoc['x'] = (float) $loc['x'];
-                    $baseLoc['y'] = (float) $loc['y'];
-                    $baseLoc['floor'] = (int) ($loc['floor'] ?? 1);
-                    break;
+        // Base station definitions for both 2D and 3D modes
+        $baseLoc2D = ['id' => '1_N7', 'x' => 76.23, 'y' => 64.42, 'floor' => 1];
+        $baseLoc3D = ['id' => '1_Markas Robot', 'x' => 85.48, 'y' => 51.07, 'floor' => 1];
+
+        // Check if graph_3d.json or graph.json defines explicit coordinates
+        $graph3dPath = base_path('graph_3d.json');
+        if (file_exists($graph3dPath)) {
+            $graph3d = json_decode(file_get_contents($graph3dPath), true);
+            if (! empty($graph3d['locations'])) {
+                foreach ($graph3d['locations'] as $loc) {
+                    if ($loc['id'] === '1_Markas Robot') {
+                        $baseLoc3D['x'] = (float) $loc['x'];
+                        $baseLoc3D['y'] = (float) $loc['y'];
+                        $baseLoc3D['floor'] = (int) ($loc['floor'] ?? 1);
+                        break;
+                    }
                 }
             }
         }
+
+        if (! empty($graph['locations'])) {
+            foreach ($graph['locations'] as $loc) {
+                if ($loc['id'] === '1_N7') {
+                    $baseLoc2D['x'] = (float) $loc['x'];
+                    $baseLoc2D['y'] = (float) $loc['y'];
+                    $baseLoc2D['floor'] = (int) ($loc['floor'] ?? 1);
+                } elseif ($loc['id'] === '1_Markas Robot') {
+                    $baseLoc3D['x'] = (float) $loc['x'];
+                    $baseLoc3D['y'] = (float) $loc['y'];
+                    $baseLoc3D['floor'] = (int) ($loc['floor'] ?? 1);
+                }
+            }
+        }
+
+        $baseIds = ['1_N7', '1_Markas Robot'];
 
         // Primary realistic pickup hubs (e.g. Resepsionis, Kasir, Office, Pintu Masuk, Ruang Meeting)
         $pickupHubs = ['1_Resepsionis', '1_Kasir', '1_Office', '1_Pintu Masuk/Keluar', '1_Ruang Meeting 1', '1_Ruang Meeting 3'];
         $validPickupPool = array_values(array_intersect($destinations, $pickupHubs));
         if (empty($validPickupPool)) {
-            $validPickupPool = array_values(array_diff($destinations, ['1_N7']));
+            $validPickupPool = array_values(array_diff($destinations, $baseIds));
         }
 
         // Collect active delivery destinations to avoid sending multiple robots to the same room
@@ -935,34 +964,42 @@ class TelemetryController extends Controller
                 continue;
             }
 
-            // ONLY robots genuinely idle and physically docked at the base station (Floor 1, distance <= 1.5) can receive a new task
-            $distToBase = ((int) ($robot->floor ?? 1) === (int) $baseLoc['floor'])
-                ? hypot((float) ($robot->current_x ?? $baseLoc['x']) - $baseLoc['x'], (float) ($robot->current_y ?? $baseLoc['y']) - $baseLoc['y'])
-                : 999.0;
+            // Check if robot is docked at either 2D base or 3D base
+            $rFloor = (int) ($robot->floor ?? 1);
+            $rx = (float) ($robot->current_x ?? $baseLoc2D['x']);
+            $ry = (float) ($robot->current_y ?? $baseLoc2D['y']);
 
-            if ($distToBase > 1.5) {
+            $distTo2D = ($rFloor === 1) ? hypot($rx - $baseLoc2D['x'], $ry - $baseLoc2D['y']) : 999.0;
+            $distTo3D = ($rFloor === 1) ? hypot($rx - $baseLoc3D['x'], $ry - $baseLoc3D['y']) : 999.0;
+
+            $isAt2D = ($distTo2D <= 2.5);
+            $isAt3D = ($distTo3D <= 3.5);
+
+            if (! $isAt2D && ! $isAt3D) {
                 continue; // Robot has not arrived back at base station yet
             }
 
-            // Guarantee a unique destination: not currently active, not given to another robot in this batch, not base 1_N7
-            $availableDest = array_values(array_diff($destinations, $busyDestinations, $batchDestinations, ['1_N7']));
+            $chosenOrigin = $isAt3D ? '1_Markas Robot' : '1_N7';
+
+            // Guarantee a unique destination: not currently active, not given to another robot in this batch, not base stations
+            $availableDest = array_values(array_diff($destinations, $busyDestinations, $batchDestinations, $baseIds));
             if (empty($availableDest)) {
-                $availableDest = array_values(array_diff($destinations, $batchDestinations, ['1_N7']));
+                $availableDest = array_values(array_diff($destinations, $batchDestinations, $baseIds));
             }
             if (empty($availableDest)) {
-                $availableDest = array_values(array_diff($destinations, ['1_N7']));
+                $availableDest = array_values(array_diff($destinations, $baseIds));
             }
 
             $destLoc = $availableDest[array_rand($availableDest)];
             $batchDestinations[] = $destLoc;
 
-            // Guarantee a realistic pickup location (start_location) that is DIFFERENT from destLoc and DIFFERENT from base 1_N7
-            $availablePickup = array_values(array_diff($validPickupPool, [$destLoc, '1_N7'], $batchStartLocations));
+            // Guarantee a realistic pickup location (start_location) that is DIFFERENT from destLoc and DIFFERENT from base stations
+            $availablePickup = array_values(array_diff($validPickupPool, [$destLoc], $baseIds, $batchStartLocations));
             if (empty($availablePickup)) {
-                $availablePickup = array_values(array_diff($destinations, [$destLoc, '1_N7'], $batchStartLocations));
+                $availablePickup = array_values(array_diff($destinations, [$destLoc], $baseIds, $batchStartLocations));
             }
             if (empty($availablePickup)) {
-                $availablePickup = array_values(array_diff($destinations, [$destLoc, '1_N7']));
+                $availablePickup = array_values(array_diff($destinations, [$destLoc], $baseIds));
             }
             $startLoc = $availablePickup[array_rand($availablePickup)];
             $batchStartLocations[] = $startLoc;
@@ -975,30 +1012,14 @@ class TelemetryController extends Controller
             $item = $availableItems[array_rand($availableItems)];
             $batchItems[] = $item;
 
-            $pickupLocData = null;
-            if (! empty($graph['locations'])) {
-                foreach ($graph['locations'] as $loc) {
-                    if ($loc['id'] === $startLoc) {
-                        $pickupLocData = $loc;
-                        break;
-                    }
-                }
-            }
-            if (! $pickupLocData) {
-                $pickupLocData = $baseLoc;
-            }
-
             $robot->update([
                 'status' => 'Delivering',
-                'current_x' => $baseLoc['x'],
-                'current_y' => $baseLoc['y'],
-                'floor' => 1,
             ]);
 
             Delivery::create([
                 'robot_id' => $robot->id,
                 'item_name' => $item,
-                'origin_location' => '1_N7',
+                'origin_location' => $chosenOrigin,
                 'start_location' => $startLoc,
                 'destination_location' => $destLoc,
                 'status' => 'In Progress',

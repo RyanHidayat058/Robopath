@@ -4346,7 +4346,7 @@
             });
 
             startSelect.innerHTML = `
-                <option value="" disabled selected>Pilih titik asal...</option>
+                <option value="" disabled selected>Pilih titik jemput barang...</option>
                 <optgroup label="Lantai 1 (Ground Floor)">${f1Opts}</optgroup>
                 <optgroup label="Lantai 2 (Second Floor)">${f2Opts}</optgroup>
             `;
@@ -4363,7 +4363,6 @@
 
     function onFvDispatchRobotChange() {
         const robotSelect = document.getElementById('fv-dispatch-robot');
-        const startSelect = document.getElementById('fv-dispatch-start');
         const posDesc = document.getElementById('fv-robot-pos-desc');
         const batDesc = document.getElementById('fv-robot-bat-desc');
         if (!robotSelect) return;
@@ -4375,22 +4374,10 @@
             const floor = Number(robot.floor || 1);
             const resolvedNode = resolveLocationNodeId(robot.current_x, robot.current_y, floor) || getBaseLocationId();
             const resolvedName = (resolvedNode && locations[resolvedNode]) ? locations[resolvedNode].name : `Lantai ${floor}`;
-            if (posDesc) posDesc.textContent = `Lokasi: ${resolvedName} (Lt ${floor})`;
+            if (posDesc) posDesc.textContent = `Lokasi Robot: ${resolvedName} (Lt ${floor})`;
             if (batDesc) {
                 batDesc.textContent = `Bat: ${robot.battery_level}%`;
                 batDesc.className = robot.battery_level > 50 ? 'font-bold text-emerald-400' : (robot.battery_level > 20 ? 'font-bold text-amber-400' : 'font-bold text-rose-400');
-            }
-
-            // Auto-select starting location to the robot's current nearest location node
-            if (startSelect && resolvedNode) {
-                if (startSelect.querySelector(`option[value="${resolvedNode}"]`)) {
-                    startSelect.value = resolvedNode;
-                } else {
-                    const baseId = getBaseLocationId();
-                    if (baseId && startSelect.querySelector(`option[value="${baseId}"]`)) {
-                        startSelect.value = baseId;
-                    }
-                }
             }
         } else {
             if (posDesc) posDesc.textContent = 'Lokasi: -';
@@ -4569,9 +4556,10 @@
     function dispatchAllRobotsSerentak() {
         if (!isAutopilotEnabled) return;
 
-        let destinationNodeIds = Object.keys(locations).filter(id => locations[id].is_destination);
+        const baseId = getBaseLocationId();
+        let destinationNodeIds = Object.keys(locations).filter(id => locations[id].is_destination && id !== baseId && !id.includes('Tangga') && !id.includes('_Stairs'));
         if (destinationNodeIds.length < 2) {
-            destinationNodeIds = Object.keys(locations).filter(id => !id.includes('_N') && !id.includes('_Stairs'));
+            destinationNodeIds = Object.keys(locations).filter(id => !id.includes('_N') && !id.includes('Tangga') && !id.includes('_Stairs') && id !== baseId);
         }
         if (destinationNodeIds.length < 2) return;
 
@@ -4594,14 +4582,15 @@
             robot.needsReturnToBase = false;
 
             const item = items[(idx + Math.floor(Math.random() * items.length)) % items.length];
-            let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || getBaseLocationId();
+            let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || baseId;
 
-            let dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
-            let attempts = 0;
-            while ((dest === currentLoc || dest === getBaseLocationId()) && attempts < 10) {
-                dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
-                attempts++;
-            }
+            // Pick a realistic pickup point (Titik Jemput) that is NOT base station
+            const availablePickups = destinationNodeIds.filter(id => id !== currentLoc);
+            const pickupLoc = availablePickups[(idx * 2) % availablePickups.length] || availablePickups[0];
+
+            // Pick a destination (Titik Antar) that is DIFFERENT from pickup and DIFFERENT from current location
+            const availableDests = destinationNodeIds.filter(id => id !== pickupLoc && id !== currentLoc);
+            const dest = availableDests[(idx * 2 + 1) % availableDests.length] || availableDests[0];
 
             setTimeout(() => {
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
@@ -4616,7 +4605,7 @@
                         robot_id: robot.id,
                         item_name: item,
                         origin_location: currentLoc,
-                        start_location: currentLoc,
+                        start_location: pickupLoc,
                         destination_location: dest
                     })
                 })
