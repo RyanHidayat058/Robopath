@@ -1608,17 +1608,16 @@
             setTimeout(() => { if (loaderEl) loaderEl.classList.add('hidden'); }, 1500);
         });
 
-        // Raycast klik & geser (drag) avatar 3D
+        // Raycast klik avatar 3D untuk memilih/fokus robot (TIDAK menggeser posisi robot di dashboard)
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
-        const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.02);
-        const dragOffset = new THREE.Vector3();
-        let dragTargetHolder = null;
-        let isPointerDragging = false;
+        let clickedRobotId = null;
         let pointerStartClient = { x: 0, y: 0 };
 
         renderer.domElement.addEventListener('pointerdown', (e) => {
             if (e.button !== 0) return;
+            pointerStartClient = { x: e.clientX, y: e.clientY };
+            clickedRobotId = null;
             const rect = renderer.domElement.getBoundingClientRect();
             mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
             mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1635,74 +1634,26 @@
                     const rid = obj?.userData?.robotId ?? hits[0].object?.parent?.userData?.robotId;
                     if (rid && robotMeshes.has(Number(rid))) holder = robotMeshes.get(Number(rid));
                 }
-                if (holder) {
-                    dragTargetHolder = holder;
-                    isPointerDragging = false;
-                    pointerStartClient = { x: e.clientX, y: e.clientY };
-                    const hitPoint = raycaster.ray.intersectPlane(dragPlane, new THREE.Vector3());
-                    if (hitPoint) {
-                        dragOffset.copy(holder.position).sub(hitPoint);
-                        dragOffset.y = 0;
-                    }
+                if (holder && holder.userData.robotId) {
+                    clickedRobotId = Number(holder.userData.robotId);
                 }
             }
         });
 
-        renderer.domElement.addEventListener('pointermove', (e) => {
-            if (!dragTargetHolder) return;
-            const distSq = Math.hypot(e.clientX - pointerStartClient.x, e.clientY - pointerStartClient.y);
-            if (distSq > 4) {
-                isPointerDragging = true;
-                controls.enabled = false;
-                isEditingRobot3D = true;
-                const rect = renderer.domElement.getBoundingClientRect();
-                mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-                mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-                raycaster.setFromCamera(mouse, camera);
-                const hitPoint = raycaster.ray.intersectPlane(dragPlane, new THREE.Vector3());
-                if (hitPoint) {
-                    const newPos = hitPoint.add(dragOffset);
-                    dragTargetHolder.position.x = newPos.x;
-                    dragTargetHolder.position.z = newPos.z;
-                    if (!dragTargetHolder.userData.targetWp) dragTargetHolder.userData.targetWp = new THREE.Vector3();
-                    dragTargetHolder.userData.targetWp.copy(dragTargetHolder.position);
-
-                    const rid = Number(dragTargetHolder.userData.robotId);
-                    focusedRobotId = rid;
-                    const r = robots.find(x => Number(x.id) === rid);
-                    if (r && modelSize && modelSize.x > 0.1) {
-                        r.customPosition = true;
-                        r.returnMission = null;
-                        r.isReturning = false;
-                        r.needsReturnToBase = false;
-                        const pct = locFromWorld(newPos.x, newPos.z, modelSize);
-                        r.current_x = parseFloat(pct.x.toFixed(2));
-                        r.current_y = parseFloat(pct.y.toFixed(2));
-                    }
-                    updateSelectedRobotUI();
-                    const st = document.getElementById('robot-3d-status');
-                    if (st) st.textContent = `Posisi: X=${dragTargetHolder.position.x.toFixed(2)} Z=${dragTargetHolder.position.z.toFixed(2)}`;
+        renderer.domElement.addEventListener('pointerup', (e) => {
+            if (clickedRobotId != null) {
+                const distSq = Math.hypot(e.clientX - pointerStartClient.x, e.clientY - pointerStartClient.y);
+                // Hanya fokus robot jika klik bersih (bukan gerakan geser/drag kamera)
+                if (distSq < 6) {
+                    focusRobotOnMap(clickedRobotId);
                 }
+                clickedRobotId = null;
             }
         });
 
-        const endDragOrClick = (e) => {
-            if (dragTargetHolder) {
-                controls.enabled = true;
-                const rid = Number(dragTargetHolder.userData.robotId);
-                if (!isPointerDragging) {
-                    focusRobotOnMap(rid);
-                } else {
-                    focusedRobotId = rid;
-                    updateFocusBadge();
-                    updateSelectedRobotUI();
-                }
-                dragTargetHolder = null;
-                isPointerDragging = false;
-            }
-        };
-        renderer.domElement.addEventListener('pointerup', endDragOrClick);
-        renderer.domElement.addEventListener('pointerleave', endDragOrClick);
+        renderer.domElement.addEventListener('pointerleave', () => {
+            clickedRobotId = null;
+        });
 
         let animationFrameId = null;
         function animate() {
@@ -3386,13 +3337,45 @@
         return mission;
     }
 
+    // Helper: Buat ribbon mesh 3D untuk rute yang tebal, jelas, dan tampak solid/glow di atas lantai
+    function createRibbonGeometry(pts3, width = 0.075) {
+        const half = width / 2;
+        const positions = [];
+        const indices = [];
+
+        for (let i = 0; i < pts3.length; i++) {
+            const curr = pts3[i];
+            let dir = new THREE.Vector3();
+            if (i < pts3.length - 1) {
+                dir.subVectors(pts3[i + 1], curr).normalize();
+            } else if (i > 0) {
+                dir.subVectors(curr, pts3[i - 1]).normalize();
+            } else {
+                dir.set(1, 0, 0);
+            }
+            const perp = new THREE.Vector3(-dir.z, 0, dir.x).normalize().multiplyScalar(half);
+            positions.push(curr.x - perp.x, curr.y, curr.z - perp.z);
+            positions.push(curr.x + perp.x, curr.y, curr.z + perp.z);
+
+            if (i < pts3.length - 1) {
+                const base = i * 2;
+                indices.push(base, base + 1, base + 2);
+                indices.push(base + 1, base + 3, base + 2);
+            }
+        }
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geom.setIndex(indices);
+        return geom;
+    }
+
     // Gambar garis path delivery di scene 3D (semua viewer yg ada — std + full, L1 + L2)
     function drawPath3D(viewers, remainingPts, robotColor, opacity, dashSize, gapSize, yOff){
         viewers.forEach(v => {
             if (!v || !v.activePathGroup) return;
             const sz = v.getModelSize ? v.getModelSize() : null;
             if (!sz || sz.x < 0.1) return;
-            const extraY = (yOff !== undefined && yOff !== null) ? yOff : 0.06;
+            const extraY = (yOff !== undefined && yOff !== null) ? yOff : 0.09;
             const pts3 = remainingPts.map(pt => {
                 const locObj = typeof pt === 'string' ? locations[pt] : pt;
                 const vv = worldPosForLoc(locObj, sz);
@@ -3400,21 +3383,57 @@
                 return vv;
             });
             if (pts3.length < 2) return;
-            const geo = new THREE.BufferGeometry().setFromPoints(pts3);
-            const mat = new THREE.LineDashedMaterial({
+
+            // 1. Pita tebal / Ribbon base strip (jelas terlihat, depthTest: false agar tidak pernah tenggelam di bawah geometri lantai)
+            const ribbonWidth = 0.075;
+            const ribbonGeo = createRibbonGeometry(pts3, ribbonWidth);
+            const ribbonMat = new THREE.MeshBasicMaterial({
                 color: new THREE.Color(robotColor),
                 transparent: true,
-                opacity: opacity,
+                opacity: Math.min(1.0, opacity * 0.72),
+                depthTest: false,
+                depthWrite: false,
+                side: THREE.DoubleSide
+            });
+            const ribbonMesh = new THREE.Mesh(ribbonGeo, ribbonMat);
+            ribbonMesh.renderOrder = 9998;
+            v.activePathGroup.add(ribbonMesh);
+
+            // 2. Lingkaran sambungan pada setiap titik belokan (agar sudut rapi dan bulat mulus)
+            const circleGeo = new THREE.CircleGeometry(ribbonWidth / 2, 12);
+            circleGeo.rotateX(-Math.PI / 2);
+            pts3.forEach((pt) => {
+                const discMat = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color(robotColor),
+                    transparent: true,
+                    opacity: Math.min(1.0, opacity * 0.85),
+                    depthTest: false,
+                    depthWrite: false,
+                    side: THREE.DoubleSide
+                });
+                const disc = new THREE.Mesh(circleGeo, discMat);
+                disc.position.copy(pt);
+                disc.position.y += 0.001;
+                disc.renderOrder = 9998;
+                v.activePathGroup.add(disc);
+            });
+
+            // 3. Garis tengah presisi (solid atau dashed) dengan kontras tinggi di atas pita
+            const geo = new THREE.BufferGeometry().setFromPoints(pts3);
+            const isDashed = dashSize > 0;
+            const mat = new THREE.LineDashedMaterial({
+                color: isDashed ? new THREE.Color(0xffffff) : new THREE.Color(robotColor),
+                transparent: true,
+                opacity: isDashed ? Math.min(1.0, opacity + 0.25) : 1.0,
                 dashSize: dashSize,
                 gapSize: gapSize,
-                depthWrite: false,
-                polygonOffset: true,
-                polygonOffsetFactor: -2,
-                polygonOffsetUnits: -2
+                depthTest: false,
+                depthWrite: false
             });
             const line = new THREE.Line(geo, mat);
             line.computeLineDistances();
-            line.renderOrder = 99;
+            line.position.y += 0.002;
+            line.renderOrder = 9999;
             v.activePathGroup.add(line);
         });
     }
@@ -3425,10 +3444,10 @@
         
         const now = new Date(new Date().getTime() + serverClientOffset);
 
-        // 1. Draw paths for active deliveries (with past segment trimming)
+        // 1. Draw paths for active deliveries (Unified continuous path per floor)
         activeDeliveries.forEach(delivery => {
             const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
-            if (!robot || (robot.status !== 'Delivering' && delivery.status !== 'Pending')) return;
+            if (!robot || (delivery.status !== 'In Progress' && delivery.status !== 'Pending')) return;
             
             const mission = getDeliveryMission(delivery, robot);
             if (!mission || !mission.stages) return;
@@ -3436,81 +3455,115 @@
             const robotColor = getRobotColor(robot.id);
             const startedTime = parseServerDate(delivery.started_at);
             const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
+            const isPending = delivery.status === 'Pending';
+            const robotFloor = Number(robot.floor || 1);
 
-            mission.stages.forEach(st => {
-                if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
-                
-                const stageEndMs = st.startMs + st.durationMs;
-                if (elapsedMs >= stageEndMs && delivery.status !== 'Pending') return;
+            [1, 2].forEach(floorNum => {
+                const floorPts = [];
 
-                const isCurrentActive = delivery.status !== 'Pending' && (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
-                const isFutureStage = delivery.status === 'Pending' || (elapsedMs < st.startMs);
+                mission.stages.forEach(st => {
+                    if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
+                    const stageFloor = Number(st.floor || 1);
+                    if (stageFloor !== floorNum) return;
 
-                const remainingPts = [];
-                const stageFloor = Number(st.floor || 1);
-                const robotFloor = Number(robot.floor || 1);
+                    const stageEndMs = st.startMs + st.durationMs;
+                    if (elapsedMs >= stageEndMs && !isPending) return;
 
-                if (isCurrentActive && robotFloor === stageFloor) {
-                    remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: stageFloor, y_elev: locations[st.path[0]]?.y_elev });
-                    const segIdx = robot.currentSegIdx || 0;
-                    for (let i = segIdx + 1; i < st.path.length; i++) if (locations[st.path[i]]) remainingPts.push(locations[st.path[i]]);
-                } else if (isFutureStage || (isCurrentActive && robotFloor !== stageFloor)) {
-                    st.path.forEach(nodeId => { if (locations[nodeId]) remainingPts.push(locations[nodeId]); });
-                } else return;
+                    const isCurrentActive = !isPending && (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
+                    const isFutureStage = isPending || (elapsedMs < st.startMs);
 
-                if (remainingPts.length < 2) return;
+                    if (isCurrentActive && robotFloor === floorNum) {
+                        const curSeg = robot.currentSegIdx || 0;
+                        const currElev = locations[st.path[curSeg]]?.y_elev ?? locations[st.path[0]]?.y_elev;
+                        floorPts.push({ x: robot.current_x, y: robot.current_y, floor: floorNum, y_elev: currElev });
 
-                // Garis aktif 3D per lantai (std + fullview)
-                const isPending = delivery.status === 'Pending';
-                if (stageFloor === 2) {
-                    drawPath3D([threeStd, threeFull], remainingPts, robotColor, isPending ? 0.6 : 0.95, isPending ? 0.6 : 0, isPending ? 0.4 : 0, 0.06);
-                    return;
+                        for (let i = curSeg + 1; i < st.path.length; i++) {
+                            if (locations[st.path[i]]) floorPts.push(locations[st.path[i]]);
+                        }
+                        if (floorPts.length === 1 && st.path.length > 0) {
+                            const lastN = st.path[st.path.length - 1];
+                            if (locations[lastN]) floorPts.push(locations[lastN]);
+                        }
+                    } else if (isFutureStage || (isCurrentActive && robotFloor !== floorNum)) {
+                        st.path.forEach((nodeId) => {
+                            const loc = locations[nodeId];
+                            if (!loc) return;
+                            if (floorPts.length > 0) {
+                                const prev = floorPts[floorPts.length - 1];
+                                const sameX = Math.abs((prev.x || 0) - loc.x) < 0.001;
+                                const sameY = Math.abs((prev.y || 0) - loc.y) < 0.001;
+                                if (sameX && sameY) return;
+                            }
+                            floorPts.push(loc);
+                        });
+                    }
+                });
+
+                if (floorPts.length >= 2) {
+                    if (floorNum === 2) {
+                        drawPath3D([threeStd, threeFull], floorPts, robotColor, isPending ? 0.6 : 0.95, isPending ? 0.6 : 0, isPending ? 0.4 : 0, 0.09);
+                    } else {
+                        drawPath3D([threeStdF1, threeFullF1], floorPts, robotColor, isPending ? 0.6 : 0.95, isPending ? 0.6 : 0, isPending ? 0.4 : 0, 0.09);
+                    }
                 }
-                drawPath3D([threeStdF1, threeFullF1], remainingPts, robotColor, isPending ? 0.6 : 0.95, isPending ? 0.6 : 0, isPending ? 0.4 : 0, 0.06);
             });
         });
 
-        // 2. Draw return paths for returning idle robots (with past segment trimming)
+        // 2. Draw return paths for returning idle robots (Unified continuous return path per floor)
         robots.forEach(robot => {
             if ((robot.status === 'Idle' || robot.status === 'Returning' || robot.isReturning) && robot.returnMission && robot.returnMission.stages) {
                 const robotColor = getRobotColor(robot.id);
                 const elapsedMs = now.getTime() - robot.returnMission.startedAt;
+                const robotFloor = Number(robot.floor || 1);
 
-                robot.returnMission.stages.forEach(st => {
-                    if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
-                    const stageEndMs = st.startMs + st.durationMs;
+                [1, 2].forEach(floorNum => {
+                    const floorPts = [];
 
-                    if (elapsedMs >= stageEndMs) return;
+                    robot.returnMission.stages.forEach(st => {
+                        if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
+                        const stageFloor = Number(st.floor || 1);
+                        if (stageFloor !== floorNum) return;
 
-                    const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
-                    const isFutureStage = (elapsedMs < st.startMs);
+                        const stageEndMs = st.startMs + st.durationMs;
+                        if (elapsedMs >= stageEndMs) return;
 
-                    const remainingPts = [];
-                    const stageFloor = Number(st.floor || 1);
-                    const robotFloor = Number(robot.floor || 1);
+                        const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
+                        const isFutureStage = (elapsedMs < st.startMs);
 
-                    if (isCurrentActive && robotFloor === stageFloor) {
-                        remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: stageFloor, y_elev: locations[st.path[0]]?.y_elev });
-                        const segIdx = robot.returnSegIdx || 0;
-                        for (let i = segIdx + 1; i < st.path.length; i++) {
-                            if (locations[st.path[i]]) remainingPts.push(locations[st.path[i]]);
+                        if (isCurrentActive && robotFloor === floorNum) {
+                            const curSeg = robot.returnSegIdx || 0;
+                            const currElev = locations[st.path[curSeg]]?.y_elev ?? locations[st.path[0]]?.y_elev;
+                            floorPts.push({ x: robot.current_x, y: robot.current_y, floor: floorNum, y_elev: currElev });
+
+                            for (let i = curSeg + 1; i < st.path.length; i++) {
+                                if (locations[st.path[i]]) floorPts.push(locations[st.path[i]]);
+                            }
+                            if (floorPts.length === 1 && st.path.length > 0) {
+                                const lastN = st.path[st.path.length - 1];
+                                if (locations[lastN]) floorPts.push(locations[lastN]);
+                            }
+                        } else if (isFutureStage || (isCurrentActive && robotFloor !== floorNum)) {
+                            st.path.forEach((nodeId) => {
+                                const loc = locations[nodeId];
+                                if (!loc) return;
+                                if (floorPts.length > 0) {
+                                    const prev = floorPts[floorPts.length - 1];
+                                    const sameX = Math.abs((prev.x || 0) - loc.x) < 0.001;
+                                    const sameY = Math.abs((prev.y || 0) - loc.y) < 0.001;
+                                    if (sameX && sameY) return;
+                                }
+                                floorPts.push(loc);
+                            });
                         }
-                    } else if (isFutureStage || (isCurrentActive && robotFloor !== stageFloor)) {
-                        st.path.forEach(nodeId => {
-                            if (locations[nodeId]) remainingPts.push(locations[nodeId]);
-                        });
-                    } else {
-                        return;
-                    }
+                    });
 
-                    if (remainingPts.length < 2) return;
-
-                    // Return path 3D per lantai (std + fullview)
-                    if (stageFloor === 2) {
-                        drawPath3D([threeStd, threeFull], remainingPts, robotColor, 0.78, 0.6, 0.4, 0.06);
-                        return;
+                    if (floorPts.length >= 2) {
+                        if (floorNum === 2) {
+                            drawPath3D([threeStd, threeFull], floorPts, robotColor, 0.78, 0.6, 0.4, 0.09);
+                        } else {
+                            drawPath3D([threeStdF1, threeFullF1], floorPts, robotColor, 0.78, 0.6, 0.4, 0.09);
+                        }
                     }
-                    drawPath3D([threeStdF1, threeFullF1], remainingPts, robotColor, 0.78, 0.6, 0.4, 0.06);
                 });
             }
         });
@@ -3581,10 +3634,11 @@
                 taskText = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Maintenance required</span>';
             }
             
-            if (delivery && delivery.status === 'In Progress' && !hasIssue && robot.status !== 'Charging' && !robot.isLowBatteryReturning && robot.status !== 'Returning') {
+            if (delivery && delivery.status === 'In Progress' && !hasIssue && robot.status !== 'Charging' && !robot.isLowBatteryReturning) {
                 robot.status = 'Delivering';
                 robot.returnMission = null;
                 robot.isReturning = false;
+                robot.needsReturnToBase = false;
                 const mission = getDeliveryMission(delivery, robot);
                 
                 if (mission.stages && mission.stages.length > 0) {
@@ -3742,18 +3796,21 @@
                     }
                     currentLocName = baseLoc.name || 'Base Station';
                 } else if (!isNearBase && distToBase > 2.0 && !robot.customPosition) {
-                    if (!robot.returnMission) {
-                        robot.returnMission = buildReturnMission(robot, now);
+                    const hasActiveOrPendingDelivery = activeDeliveries.some(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending'));
+                    if (!hasActiveOrPendingDelivery && !robot.isDispatching && !robot._activeDelivery) {
                         if (!robot.returnMission) {
-                            // Safe fallback if path not found
-                            floorNum = 1;
-                            coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
-                            robot.current_x = coords.x;
-                            robot.current_y = coords.y;
-                            robot.floor = 1;
-                            robot.status = 'Idle';
-                            robot.isReturning = false;
-                            syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Idle', robot.battery_level);
+                            robot.returnMission = buildReturnMission(robot, now);
+                            if (!robot.returnMission) {
+                                // Safe fallback if path not found
+                                floorNum = 1;
+                                coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
+                                robot.current_x = coords.x;
+                                robot.current_y = coords.y;
+                                robot.floor = 1;
+                                robot.status = 'Idle';
+                                robot.isReturning = false;
+                                syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Idle', robot.battery_level);
+                            }
                         }
                     }
                 }
@@ -4093,7 +4150,13 @@
             robots.forEach(r => {
                 r.returnMission = null;
                 r.isReturning = false;
+                r.needsReturnToBase = false;
+                r.isDispatching = false;
+                if (r.status === 'Returning') r.status = 'Idle';
             });
+            // Langsung dispatch robot serentak tanpa jeda agar robot tidak ragu/kembali ke base
+            lastAutopilotCheck = 0;
+            setTimeout(dispatchAllRobotsSerentak, 120);
         }
         updateAutopilotUI();
 
@@ -4153,9 +4216,8 @@
 
         // Find all idle healthy robots ready for dispatch
         const eligibleRobots = robots.filter(r => 
-            r.status === 'Idle' && 
+            (r.status === 'Idle' || r.status === 'Returning') && 
             r.battery_level > 20 && 
-            !r.isReturning && 
             !r.isDispatching && 
             !r.hasIssue
         );
@@ -4164,12 +4226,16 @@
 
         eligibleRobots.forEach((robot, idx) => {
             robot.isDispatching = true;
+            robot.returnMission = null;
+            robot.isReturning = false;
+            robot.needsReturnToBase = false;
+
             const item = items[(idx + Math.floor(Math.random() * items.length)) % items.length];
             let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || getBaseLocationId();
 
             let dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
             let attempts = 0;
-            while (dest === currentLoc && attempts < 10) {
+            while ((dest === currentLoc || dest === getBaseLocationId()) && attempts < 10) {
                 dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
                 attempts++;
             }
@@ -4216,8 +4282,7 @@
 
         // Check if any robot is Idle and ready to be dispatched
         const readyRobots = robots.filter(r => 
-            r.status === 'Idle' && 
-            !r.isReturning && 
+            (r.status === 'Idle' || r.status === 'Returning') && 
             !r.isDispatching && 
             !r.hasIssue && 
             r.battery_level > 20
@@ -4271,11 +4336,16 @@
                     const isClientAtBase = Number(existing.floor || 1) === 1 && Math.hypot((existing.current_x || bLoc.x) - bLoc.x, (existing.current_y || bLoc.y) - bLoc.y) < 2.0;
                     const hasDeliveryInProgress = activeDeliveries.some(d => Number(d.robot_id) === Number(existing.id) && d.status === 'In Progress');
 
-                    if (existing.status === 'Delivering') {
+                    if (hasDeliveryInProgress) {
+                        existing.status = 'Delivering';
+                        existing.returnMission = null;
+                        existing.isReturning = false;
+                        existing.needsReturnToBase = false;
+                    } else if (existing.status === 'Delivering') {
                         if (newRobot.status === 'Maintenance') {
                             existing.status = 'Maintenance';
                             existing.hasIssue = true;
-                        } else if (!hasDeliveryInProgress) {
+                        } else {
                             existing.status = newRobot.status;
                             if (newRobot.status === 'Idle' && !isClientAtBase) {
                                 existing.returnMission = buildReturnMission(existing, new Date(new Date().getTime() + serverClientOffset));
@@ -4288,9 +4358,7 @@
                             existing.hasIssue = true;
                         }
                     } else if (existing.status === 'Idle') {
-                        if (hasDeliveryInProgress) {
-                            existing.status = 'Delivering';
-                        } else if (newRobot.status === 'Charging') {
+                        if (newRobot.status === 'Charging') {
                             existing.status = 'Charging';
                         } else if (newRobot.status === 'Returning' && !isClientAtBase) {
                             existing.status = 'Returning';

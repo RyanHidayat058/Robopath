@@ -1552,6 +1552,38 @@
         return '#10b981';
     }
 
+    // Helper: Ribbon geometry untuk garis rute tebal dan jelas
+    function createRibbonGeometry(pts3, width = 0.075) {
+        const half = width / 2;
+        const positions = [];
+        const indices = [];
+
+        for (let i = 0; i < pts3.length; i++) {
+            const curr = pts3[i];
+            let dir = new THREE.Vector3();
+            if (i < pts3.length - 1) {
+                dir.subVectors(pts3[i + 1], curr).normalize();
+            } else if (i > 0) {
+                dir.subVectors(curr, pts3[i - 1]).normalize();
+            } else {
+                dir.set(1, 0, 0);
+            }
+            const perp = new THREE.Vector3(-dir.z, 0, dir.x).normalize().multiplyScalar(half);
+            positions.push(curr.x - perp.x, curr.y, curr.z - perp.z);
+            positions.push(curr.x + perp.x, curr.y, curr.z + perp.z);
+
+            if (i < pts3.length - 1) {
+                const base = i * 2;
+                indices.push(base, base + 1, base + 2);
+                indices.push(base + 1, base + 3, base + 2);
+            }
+        }
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geom.setIndex(indices);
+        return geom;
+    }
+
     function drawRobotPaths() {
         const viewers = allDelivViewers().filter(v=>v&&v.activePathGroup);
         viewers.forEach(v=>v.activePathGroup.clear());
@@ -1568,26 +1600,61 @@
                     if(!loc) continue;
                     if(loc.floor!=null && Number(loc.floor)!==vFloor) continue;
                     const wp=worldPosForLoc(loc, sz);
-                    vecs.push(new THREE.Vector3(wp.x, (wp.y || 0) + 0.06, wp.z));
+                    vecs.push(new THREE.Vector3(wp.x, (wp.y || 0) + 0.09, wp.z));
                 }
                 if(vecs.length<2) return;
+
+                // 1. Ribbon base strip (tebal, jelas, depthTest: false)
+                const ribbonWidth = 0.075;
+                const ribbonGeo = createRibbonGeometry(vecs, ribbonWidth);
+                const ribbonMat = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color(color),
+                    transparent: true,
+                    opacity: dashed ? 0.45 : 0.72,
+                    depthTest: false,
+                    depthWrite: false,
+                    side: THREE.DoubleSide
+                });
+                const ribbonMesh = new THREE.Mesh(ribbonGeo, ribbonMat);
+                ribbonMesh.renderOrder = 9998;
+                v.activePathGroup.add(ribbonMesh);
+
+                // 2. Corner waypoint discs
+                const circleGeo = new THREE.CircleGeometry(ribbonWidth / 2, 12);
+                circleGeo.rotateX(-Math.PI / 2);
+                vecs.forEach((pt) => {
+                    const discMat = new THREE.MeshBasicMaterial({
+                        color: new THREE.Color(color),
+                        transparent: true,
+                        opacity: dashed ? 0.55 : 0.85,
+                        depthTest: false,
+                        depthWrite: false,
+                        side: THREE.DoubleSide
+                    });
+                    const disc = new THREE.Mesh(circleGeo, discMat);
+                    disc.position.copy(pt);
+                    disc.position.y += 0.001;
+                    disc.renderOrder = 9998;
+                    v.activePathGroup.add(disc);
+                });
+
+                // 3. Centerline with depthTest: false
                 const geo=new THREE.BufferGeometry().setFromPoints(vecs);
                 const mat=new THREE.LineDashedMaterial({
-                    color: color,
+                    color: dashed ? new THREE.Color(0xffffff) : new THREE.Color(color),
                     linewidth: 2,
                     scale: 1,
                     dashSize: dashed ? 0.6 : 0,
                     gapSize: dashed ? 0.4 : 0,
                     transparent: true,
-                    opacity: dashed ? 0.65 : 0.95,
-                    depthWrite: false,
-                    polygonOffset: true,
-                    polygonOffsetFactor: -2,
-                    polygonOffsetUnits: -2
+                    opacity: dashed ? 0.85 : 1.0,
+                    depthTest: false,
+                    depthWrite: false
                 });
                 const line=new THREE.Line(geo, mat);
                 line.computeLineDistances();
-                line.renderOrder = 99;
+                line.position.y += 0.002;
+                line.renderOrder = 9999;
                 v.activePathGroup.add(line);
             });
         }
