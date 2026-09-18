@@ -63,9 +63,13 @@
         margin: 0 !important;
         background-color: #0b1120 !important;
         padding: 0.75rem !important;
-        display: flex !important;
+        display: flex;
         flex-direction: column !important;
         overflow: hidden !important;
+    }
+    .dashboard-fullview-overlay.hidden,
+    #fullview-mode.hidden {
+        display: none !important;
     }
     .dashboard-fullview-canvas-box {
         flex: 1 1 0% !important;
@@ -2743,6 +2747,7 @@
 
         const stdView = document.getElementById('standard-view');
         const fullView = document.getElementById('fullview-mode');
+        const mainScroll = document.querySelector('main > div');
         const asideEl = document.getElementById('main-sidebar') || document.querySelector('body > aside') || document.querySelector('aside');
         const mainEl = document.getElementById('main-content') || document.querySelector('body > main') || document.querySelector('main');
 
@@ -2765,8 +2770,14 @@
         document.body.classList.toggle('body-in-fullview', isFullViewMode);
 
         if (isFullViewMode) {
-            if (stdView) stdView.classList.add('hidden');
-            if (fullView) fullView.classList.remove('hidden');
+            if (stdView) {
+                stdView.classList.add('hidden');
+                stdView.style.setProperty('display', 'none', 'important');
+            }
+            if (fullView) {
+                fullView.classList.remove('hidden');
+                fullView.style.setProperty('display', 'flex', 'important');
+            }
             if (mainScroll) mainScroll.scrollTop = 0;
             window.scrollTo(0, 0);
 
@@ -2787,8 +2798,14 @@
                     : 'bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap';
             }
         } else {
-            if (fullView) fullView.classList.add('hidden');
-            if (stdView) stdView.classList.remove('hidden');
+            if (fullView) {
+                fullView.classList.add('hidden');
+                fullView.style.setProperty('display', 'none', 'important');
+            }
+            if (stdView) {
+                stdView.classList.remove('hidden');
+                stdView.style.removeProperty('display');
+            }
             if (mainScroll) mainScroll.scrollTop = 0;
             window.scrollTo(0, 0);
 
@@ -4319,6 +4336,8 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         updateAutopilotUI();
+        // Ensure Full View starts closed
+        toggleFullView(false);
         // Sync shadow button state on load
         if (current3DSettings.lighting.shadow === false) {
             toggle3DShadow(false);
