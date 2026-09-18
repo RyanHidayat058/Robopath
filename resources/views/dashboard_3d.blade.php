@@ -76,11 +76,32 @@
         background-color: #0f172a !important;
         border: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
-    body.body-in-fullview > aside {
+    body.body-in-fullview > aside,
+    body.body-in-fullview aside,
+    body.body-in-fullview #main-sidebar,
+    #main-sidebar.fullview-hidden {
         display: none !important;
+        visibility: hidden !important;
+        width: 0px !important;
+        min-width: 0px !important;
+        max-width: 0px !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
-    body.body-in-fullview > main {
-        z-index: 9999 !important;
+    body.body-in-fullview > main,
+    body.body-in-fullview main,
+    body.body-in-fullview #main-content {
+        z-index: 99999 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .control-modal-panel-3d {
+        z-index: 10005 !important;
     }
 </style>
 @endsection
@@ -306,241 +327,13 @@
                             <i class="fa-solid fa-video text-sky-400"></i> Kamera
                         </button>
                         <!-- Lighting Control Button -->
-                        <button onclick="toggle3DControlPanel('light')" class="bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition">
-                            <i class="fa-solid fa-sun text-amber-400"></i> Pencahayaan
+                        <button onclick="toggle3DControlPanel('light')" class="bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition" title="Pengaturan Pencahayaan, Shader & Bayangan Ruangan">
+                            <i class="fa-solid fa-sun text-amber-400"></i> Cahaya & Shadow
                         </button>
                         <!-- Robot Position Control Button -->
                         <button onclick="toggle3DControlPanel('robot')" class="bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition" title="Gerak & rotasi robot 3D (pilih robot dulu)">
                             <i class="fa-solid fa-robot text-emerald-400"></i> Posisi Robot
                         </button>
-                    </div>
-
-                    <!-- Camera, Light & Label Size Adjustment Modal Panels -->
-                    <!-- 0. Label Size & Model Scale Panel -->
-                    <div id="panel-3d-label-size" class="hidden fixed top-16 right-4 z-50 w-72 max-h-[calc(100vh-100px)] overflow-y-auto bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl border border-white/15 shadow-2xl space-y-3 text-xs">
-                        <div class="flex items-center justify-between pb-2 border-b border-white/10">
-                            <span class="font-bold flex items-center gap-1.5 text-indigo-400">
-                                <i class="fa-solid fa-text-height"></i> Ukuran Label & Model
-                            </span>
-                            <button onclick="toggle3DControlPanel('label-size')" class="text-gray-400 hover:text-white">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        <div class="space-y-2">
-                            <div class="flex justify-between text-[11px]">
-                                <span class="text-gray-300">Skala Label Teks (Kecil - Besar)</span>
-                                <span id="val-label-scale" class="font-mono text-indigo-400 font-bold">{{ number_format($labelScale ?? 1.0, 1) }}x</span>
-                            </div>
-                            <input id="input-label-scale" type="range" min="0.3" max="2.5" step="0.1" value="{{ $labelScale ?? 1.0 }}" oninput="update3DLabelScale(this.value)" class="w-full accent-indigo-400">
-                            <div class="flex justify-between text-[10px] text-gray-400 px-0.5">
-                                <span>Kecil (0.3x)</span>
-                                <span>Normal (1.0x)</span>
-                                <span>Besar (2.5x)</span>
-                            </div>
-                        </div>
-                        <div class="space-y-2 pt-2 border-t border-white/10">
-                            <div class="flex justify-between text-[11px]">
-                                <span class="text-gray-300">Skala Objek Gedung 3D</span>
-                                <span id="val-model-scale" class="font-mono text-indigo-400 font-bold">{{ number_format($settings3D['model_scale'] ?? 1.0, 1) }}x</span>
-                            </div>
-                            <input id="input-model-scale" type="range" min="0.5" max="3.0" step="0.1" value="{{ $settings3D['model_scale'] ?? 1.0 }}" oninput="update3DModelScale(this.value)" class="w-full accent-indigo-400">
-                            <div class="flex justify-between text-[10px] text-gray-400 px-0.5">
-                                <span>0.5x</span>
-                                <span>1.0x (Normal)</span>
-                                <span>3.0x (Besar)</span>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-3 gap-1.5 pt-1">
-                            <button onclick="setLabelScaleQuick(0.6)" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center border border-white/5">Kecil</button>
-                            <button onclick="setLabelScaleQuick(1.0)" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center border border-white/5">Normal</button>
-                            <button onclick="setLabelScaleQuick(1.6)" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center border border-white/5">Besar</button>
-                        </div>
-                        <p id="label-scale-status" class="text-[10px] text-emerald-400 font-mono text-center pt-1"></p>
-                    </div>
-                    <!-- 1. Camera Panel -->
-                    <div id="panel-3d-camera" class="hidden fixed top-16 right-4 z-50 w-72 max-h-[calc(100vh-100px)] overflow-y-auto bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl border border-white/15 shadow-2xl space-y-3 text-xs">
-                        <div class="flex items-center justify-between pb-2 border-b border-white/10">
-                            <span class="font-bold flex items-center gap-1.5 text-sky-400">
-                                <i class="fa-solid fa-video"></i> Pengaturan Kamera
-                            </span>
-                            <button onclick="toggle3DControlPanel('camera')" class="text-gray-400 hover:text-white">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1">Preset Sudut Pandang</label>
-                            <div class="grid grid-cols-3 gap-1.5">
-                                <button onclick="setCameraPreset('iso')" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center border border-white/5">Iso</button>
-                                <button onclick="setCameraPreset('top')" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center border border-white/5">Top (Atas)</button>
-                                <button onclick="setCameraPreset('front')" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center border border-white/5">Front</button>
-                            </div>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-[11px] mb-1">
-                                <span class="text-gray-300">Jarak Zoom (0 - 10)</span>
-                                <span id="val-cam-dist" class="font-mono text-sky-400">{{ number_format($settings3D['camera']['dist'] ?? 5.0, 1) }}</span>
-                            </div>
-                            <input id="input-cam-dist" type="range" min="0" max="10" step="0.1" value="{{ $settings3D['camera']['dist'] ?? 5.0 }}" oninput="updateCameraDistance(this.value)" class="w-full accent-sky-400">
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-[11px] mb-1">
-                                <span class="text-gray-300">Field of View (FOV: 0 - 10)</span>
-                                <span id="val-cam-fov" class="font-mono text-sky-400">{{ number_format($settings3D['camera']['fov'] ?? 5.0, 1) }}</span>
-                            </div>
-                            <input id="input-cam-fov" type="range" min="0" max="10" step="0.1" value="{{ $settings3D['camera']['fov'] ?? 5.0 }}" oninput="updateCameraFov(this.value)" class="w-full accent-sky-400">
-                        </div>
-                        <button onclick="reset3DCamera()" class="w-full bg-slate-800 hover:bg-slate-700 py-1.5 rounded-lg text-[11px] font-bold border border-white/10 text-gray-300">
-                            <i class="fa-solid fa-rotate-left mr-1"></i> Reset Kamera Bawaan
-                        </button>
-                        <p id="camera-settings-status" class="text-[10px] text-sky-400 font-mono text-center pt-0.5"></p>
-                    </div>
-
-                    <!-- 2. Light Panel -->
-                    <div id="panel-3d-light" class="hidden fixed top-16 right-4 z-50 w-72 max-h-[calc(100vh-100px)] overflow-y-auto bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl border border-white/15 shadow-2xl space-y-3 text-xs">
-                        <div class="flex items-center justify-between pb-2 border-b border-white/10">
-                            <span class="font-bold flex items-center gap-1.5 text-amber-400">
-                                <i class="fa-solid fa-sun"></i> Pengaturan Cahaya
-                            </span>
-                            <button onclick="toggle3DControlPanel('light')" class="text-gray-400 hover:text-white">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-[11px] mb-1">
-                                <span class="text-gray-300">Ambient Light (Kecerahan Ruang)</span>
-                                <span id="val-light-ambient" class="font-mono text-amber-400">{{ number_format($settings3D['lighting']['ambient'] ?? 1.4, 1) }}</span>
-                            </div>
-                            <input id="input-light-ambient" type="range" min="0.2" max="3.0" step="0.1" value="{{ $settings3D['lighting']['ambient'] ?? 1.4 }}" oninput="update3DLight('ambient', this.value)" class="w-full accent-amber-400">
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-[11px] mb-1">
-                                <span class="text-gray-300">Sun Light (Cahaya Utama / Shadow)</span>
-                                <span id="val-light-sun" class="font-mono text-amber-400">{{ number_format($settings3D['lighting']['sun'] ?? 1.8, 1) }}</span>
-                            </div>
-                            <input id="input-light-sun" type="range" min="0.2" max="4.0" step="0.1" value="{{ $settings3D['lighting']['sun'] ?? 1.8 }}" oninput="update3DLight('sun', this.value)" class="w-full accent-amber-400">
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-[11px] mb-1">
-                                <span class="text-gray-300">Exposure (Paparan Lensa)</span>
-                                <span id="val-light-exp" class="font-mono text-amber-400">{{ number_format($settings3D['lighting']['exposure'] ?? 1.0, 2) }}</span>
-                            </div>
-                            <input id="input-light-exp" type="range" min="0.3" max="2.5" step="0.05" value="{{ $settings3D['lighting']['exposure'] ?? 1.0 }}" oninput="update3DLight('exposure', this.value)" class="w-full accent-amber-400">
-                        </div>
-                        <div>
-                            <div class="flex justify-between text-[11px] mb-1">
-                                <span class="text-gray-300">Fill Sky Light (Aksen Biru)</span>
-                                <span id="val-light-fill" class="font-mono text-amber-400">{{ number_format($settings3D['lighting']['fill'] ?? 0.8, 1) }}</span>
-                            </div>
-                            <input id="input-light-fill" type="range" min="0" max="2.0" step="0.1" value="{{ $settings3D['lighting']['fill'] ?? 0.8 }}" oninput="update3DLight('fill', this.value)" class="w-full accent-amber-400">
-                        </div>
-                        <p id="light-settings-status" class="text-[10px] text-amber-400 font-mono text-center pt-0.5"></p>
-                    </div>
-
-                    <!-- Robot Position Control Panel (D-pad + Rotasi + World XZ) -->
-                    <div id="panel-3d-robot-control" class="hidden fixed top-16 right-4 z-50 w-72 max-h-[calc(100vh-100px)] overflow-y-auto bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl border border-white/15 shadow-2xl space-y-3 text-xs">
-                        <div class="flex items-center justify-between pb-2 border-b border-white/10">
-                            <span class="font-bold flex items-center gap-1.5 text-emerald-400">
-                                <i class="fa-solid fa-robot"></i> Kontrol Posisi Robot
-                            </span>
-                            <button onclick="toggle3DControlPanel('robot')" class="text-gray-400 hover:text-white">
-                                <i class="fa-solid fa-xmark"></i>
-                            </button>
-                        </div>
-                        <!-- Selected Robot Selector & Info -->
-                        <div class="space-y-1.5">
-                            <label class="block font-bold text-gray-400 uppercase tracking-wider text-[10px]">Pilih Robot</label>
-                            <select id="select-3d-robot" onchange="select3DRobotFromDropdown(this.value)" class="w-full bg-slate-800 border border-white/15 rounded-xl px-2.5 py-2 font-bold text-white focus:border-emerald-400 focus:outline-none transition text-xs">
-                                <option value="">-- Pilih Robot --</option>
-                                @foreach($robots as $robot)
-                                    <option value="{{ $robot->id }}">{{ $robot->name }} (Lantai {{ $robot->floor ?? 1 }})</option>
-                                @endforeach
-                            </select>
-                            <div id="selected-robot-3d-info" class="bg-slate-800/80 border border-white/10 rounded-xl px-3 py-1.5 font-mono text-[11px] text-gray-300 truncate">Pilih robot dari dropdown atau klik avatar</div>
-                        </div>
-                        <!-- D-Pad 4 Arah (X/Z World) -->
-                        <div>
-                            <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1.5 text-[10px]">Gerak Datar (X/Z World)</label>
-                            <div class="grid grid-cols-3 gap-1.5 max-w-[180px] mx-auto">
-                                <div></div>
-                                <button onclick="move3DRobot(0, -0.3)" class="bg-slate-700 hover:bg-slate-600 border border-white/10 text-white font-bold py-2 rounded-lg transition flex items-center justify-center" title="Depan (-Z)">
-                                    <i class="fa-solid fa-arrow-up"></i>
-                                </button>
-                                <div></div>
-                                <button onclick="move3DRobot(-0.3, 0)" class="bg-slate-700 hover:bg-slate-600 border border-white/10 text-white font-bold py-2 rounded-lg transition flex items-center justify-center" title="Kiri (-X)">
-                                    <i class="fa-solid fa-arrow-left"></i>
-                                </button>
-                                <button onclick="move3DRobot(0, 0.3)" class="bg-slate-700 hover:bg-slate-600 border border-white/10 text-white font-bold py-2 rounded-lg transition flex items-center justify-center" title="Belakang (+Z)">
-                                    <i class="fa-solid fa-arrow-down"></i>
-                                </button>
-                                <button onclick="move3DRobot(0.3, 0)" class="bg-slate-700 hover:bg-slate-600 border border-white/10 text-white font-bold py-2 rounded-lg transition flex items-center justify-center" title="Kanan (+X)">
-                                    <i class="fa-solid fa-arrow-right"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <!-- D-Pad Vertikal (Y World) -->
-                        <div>
-                            <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1.5 text-[10px]">Gerak Vertikal (Y World)</label>
-                            <div class="flex items-center justify-center gap-2 max-w-[180px] mx-auto">
-                                <button onclick="move3DRobotY(0.3)" class="bg-sky-900/60 hover:bg-sky-800 border border-sky-400/30 text-sky-300 font-bold py-2 px-4 rounded-lg transition flex items-center justify-center" title="Naik (+Y)">
-                                    <i class="fa-solid fa-arrow-up mr-1"></i> <span class="text-[10px]">Naik</span>
-                                </button>
-                                <button onclick="move3DRobotY(-0.3)" class="bg-sky-900/60 hover:bg-sky-800 border border-sky-400/30 text-sky-300 font-bold py-2 px-4 rounded-lg transition flex items-center justify-center" title="Turun (-Y)">
-                                    <i class="fa-solid fa-arrow-down mr-1"></i> <span class="text-[10px]">Turun</span>
-                                </button>
-                            </div>
-                        </div>
-                        <!-- Rotasi Y -->
-                        <div>
-                            <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1.5 text-[10px]">Rotasi Y</label>
-                            <div class="flex items-center gap-2 mb-2">
-                                <button onclick="rotate3DRobot(-15)" class="bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-400/30 text-indigo-300 font-bold py-2 px-3 rounded-lg transition" title="Putar CCW -15°">
-                                    <i class="fa-solid fa-rotate-left"></i>
-                                </button>
-                                <button onclick="rotate3DRobot(15)" class="bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-400/30 text-indigo-300 font-bold py-2 px-3 rounded-lg transition" title="Putar CW +15°">
-                                    <i class="fa-solid fa-rotate-right"></i>
-                                </button>
-                                <span id="val-robot-3d-rotation" class="text-[11px] font-mono font-bold text-indigo-300 ml-1">0°</span>
-                            </div>
-                            <input type="range" min="0" max="360" step="1" value="0" id="slider-robot-3d-rotation" oninput="set3DRobotRotation(this.value)" class="w-full accent-emerald-400">
-                        </div>
-                        <!-- World Coords Input -->
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1 text-[10px]">World X</label>
-                                <input type="number" step="0.1" id="input-robot-3d-x" oninput="set3DRobotWorldX(this.value)" class="w-full bg-slate-800 border border-white/10 rounded-xl px-2 py-2 font-mono font-bold text-white focus:border-emerald-400 focus:outline-none transition">
-                            </div>
-                            <div>
-                                <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1 text-[10px]">World Z</label>
-                                <input type="number" step="0.1" id="input-robot-3d-z" oninput="set3DRobotWorldZ(this.value)" class="w-full bg-slate-800 border border-white/10 rounded-xl px-2 py-2 font-mono font-bold text-white focus:border-emerald-400 focus:outline-none transition">
-                            </div>
-                            <div>
-                                <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1 text-[10px]">World Y</label>
-                                <input type="number" step="0.1" id="input-robot-3d-y" oninput="set3DRobotWorldY(this.value)" class="w-full bg-slate-800 border border-white/10 rounded-xl px-2 py-2 font-mono font-bold text-white focus:border-sky-400 focus:outline-none transition">
-                            </div>
-                        </div>
-                        <!-- Robot Object Scale (Custom Size) -->
-                        <div>
-                            <div class="flex justify-between text-[11px] mb-1">
-                                <span class="text-gray-300">Ukuran Object Robot</span>
-                                <span id="val-robot-scale" class="font-mono text-emerald-400 font-bold">{{ number_format($settings3D['robot_scale'] ?? 0.6, 1) }}x</span>
-                            </div>
-                            <input id="input-robot-scale" type="range" min="0.3" max="3.0" step="0.1" value="{{ $settings3D['robot_scale'] ?? 0.6 }}" oninput="set3DRobotScale(this.value)" class="w-full accent-emerald-400">
-                            <div class="flex justify-between text-[10px] text-gray-400 px-0.5 mt-0.5">
-                                <span>Kecil (0.3x)</span>
-                                <span>Normal (1.0x)</span>
-                                <span>Besar (3.0x)</span>
-                            </div>
-                        </div>
-                        <!-- Actions -->
-                        <div class="flex gap-2 pt-1">
-                            <button onclick="reset3DRobotPosition()" class="flex-1 bg-slate-700 hover:bg-slate-600 border border-white/10 text-white font-bold py-2 rounded-xl transition text-[11px]">
-                                <i class="fa-solid fa-arrows-rotate mr-1"></i> Reset
-                            </button>
-                            <button onclick="save3DRobotToGraph()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl transition text-[11px]">
-                                <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan
-                            </button>
-                        </div>
-                        <p id="robot-3d-status" class="text-[10px] text-emerald-400 font-mono text-center pt-0.5"></p>
                     </div>
 
                     <!-- 3D Controls hint / badge -->
@@ -642,11 +435,26 @@
             </span>
         </div>
 
-        <!-- Center: Quick View Tools (Room Labels, Follow Robot, Focus) -->
+        <!-- Center: Quick View Tools (Room Labels, Label Size, Camera, Lighting & Shadow, Follow Robot, Focus) -->
         <div class="hidden md:flex items-center gap-2">
             <!-- Toggle Room Labels -->
             <button type="button" onclick="toggle3DRoomLabels()" id="fullview-btn-labels" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Tampilkan / Sembunyikan Label Ruangan">
                 <i class="fa-solid fa-tag text-emerald-400" id="fullview-icon-labels"></i> <span id="fullview-text-labels">Label: ON</span>
+            </button>
+
+            <!-- Room Label Size Panel Button -->
+            <button type="button" onclick="toggle3DControlPanel('label-size')" id="fullview-btn-label-size" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Ukuran Label & Model 3D">
+                <i class="fa-solid fa-text-height text-indigo-400"></i> <span>Ukuran Label</span>
+            </button>
+
+            <!-- Camera Panel Button -->
+            <button type="button" onclick="toggle3DControlPanel('camera')" id="fullview-btn-camera" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Sudut & Zoom Kamera">
+                <i class="fa-solid fa-video text-sky-400"></i> <span>Kamera</span>
+            </button>
+
+            <!-- Room Lighting, Shader & Shadow Panel Button -->
+            <button type="button" onclick="toggle3DControlPanel('light')" id="fullview-btn-light" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Pencahayaan, Shader & Bayangan Ruangan">
+                <i class="fa-solid fa-sun text-amber-400"></i> <span>Cahaya & Shadow</span>
             </button>
 
             <!-- Follow Active Robot -->
@@ -690,6 +498,286 @@
             <i class="fa-solid fa-hand text-sky-400"></i> Free Hand: Klik kiri orbit &bull; Klik kanan / Shift+Drag pan &bull; Scroll zoom
         </div>
     </div>
+</div>
+
+<!-- Camera, Light, Label Size & Robot Control Modal Panels (Accessible in both Standard View & Full View) -->
+<!-- 0. Label Size & Model Scale Panel -->
+<div id="panel-3d-label-size" class="hidden fixed top-16 right-4 control-modal-panel-3d z-[10005] w-76 max-h-[calc(100vh-100px)] overflow-y-auto bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl border border-white/15 shadow-2xl space-y-3 text-xs select-none">
+    <div class="flex items-center justify-between pb-2 border-b border-white/10">
+        <span class="font-bold flex items-center gap-1.5 text-indigo-400">
+            <i class="fa-solid fa-text-height"></i> Ukuran Label & Model
+        </span>
+        <button type="button" onclick="toggle3DControlPanel('label-size')" class="text-gray-400 hover:text-white p-1">
+            <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+    </div>
+    <div class="space-y-2">
+        <div class="flex justify-between text-[11px]">
+            <span class="text-gray-300">Skala Label Teks (Kecil - Besar)</span>
+            <span id="val-label-scale" class="font-mono text-indigo-400 font-bold">{{ number_format($labelScale ?? 1.0, 1) }}x</span>
+        </div>
+        <input id="input-label-scale" type="range" min="0.3" max="2.5" step="0.1" value="{{ $labelScale ?? 1.0 }}" oninput="update3DLabelScale(this.value)" class="w-full accent-indigo-400">
+        <div class="flex justify-between text-[10px] text-gray-400 px-0.5">
+            <span>Kecil (0.3x)</span>
+            <span>Normal (1.0x)</span>
+            <span>Besar (2.5x)</span>
+        </div>
+    </div>
+    <div class="space-y-2 pt-2 border-t border-white/10">
+        <div class="flex justify-between text-[11px]">
+            <span class="text-gray-300">Skala Objek Gedung 3D</span>
+            <span id="val-model-scale" class="font-mono text-indigo-400 font-bold">{{ number_format($settings3D['model_scale'] ?? 1.0, 1) }}x</span>
+        </div>
+        <input id="input-model-scale" type="range" min="0.5" max="3.0" step="0.1" value="{{ $settings3D['model_scale'] ?? 1.0 }}" oninput="update3DModelScale(this.value)" class="w-full accent-indigo-400">
+        <div class="flex justify-between text-[10px] text-gray-400 px-0.5">
+            <span>0.5x</span>
+            <span>1.0x (Normal)</span>
+            <span>3.0x (Besar)</span>
+        </div>
+    </div>
+    <div class="grid grid-cols-3 gap-1.5 pt-1">
+        <button type="button" onclick="setLabelScaleQuick(0.6)" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center border border-white/5 transition">Kecil</button>
+        <button type="button" onclick="setLabelScaleQuick(1.0)" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center border border-white/5 transition">Normal</button>
+        <button type="button" onclick="setLabelScaleQuick(1.6)" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center border border-white/5 transition">Besar</button>
+    </div>
+    <p id="label-scale-status" class="text-[10px] text-emerald-400 font-mono text-center pt-1"></p>
+</div>
+
+<!-- 1. Camera Panel -->
+<div id="panel-3d-camera" class="hidden fixed top-16 right-4 control-modal-panel-3d z-[10005] w-76 max-h-[calc(100vh-100px)] overflow-y-auto bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl border border-white/15 shadow-2xl space-y-3 text-xs select-none">
+    <div class="flex items-center justify-between pb-2 border-b border-white/10">
+        <span class="font-bold flex items-center gap-1.5 text-sky-400">
+            <i class="fa-solid fa-video"></i> Pengaturan Kamera
+        </span>
+        <button type="button" onclick="toggle3DControlPanel('camera')" class="text-gray-400 hover:text-white p-1">
+            <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+    </div>
+    <div>
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1">Preset Sudut Pandang</label>
+        <div class="grid grid-cols-3 gap-1.5">
+            <button type="button" onclick="setCameraPreset('iso')" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center border border-white/5 transition">Iso</button>
+            <button type="button" onclick="setCameraPreset('top')" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center border border-white/5 transition">Top (Atas)</button>
+            <button type="button" onclick="setCameraPreset('front')" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-2 rounded-lg text-[11px] font-semibold text-center border border-white/5 transition">Front</button>
+        </div>
+    </div>
+    <div>
+        <div class="flex justify-between text-[11px] mb-1">
+            <span class="text-gray-300">Jarak Zoom (0 - 10)</span>
+            <span id="val-cam-dist" class="font-mono text-sky-400">{{ number_format($settings3D['camera']['dist'] ?? 5.0, 1) }}</span>
+        </div>
+        <input id="input-cam-dist" type="range" min="0" max="10" step="0.1" value="{{ $settings3D['camera']['dist'] ?? 5.0 }}" oninput="updateCameraDistance(this.value)" class="w-full accent-sky-400">
+    </div>
+    <div>
+        <div class="flex justify-between text-[11px] mb-1">
+            <span class="text-gray-300">Field of View (FOV: 0 - 10)</span>
+            <span id="val-cam-fov" class="font-mono text-sky-400">{{ number_format($settings3D['camera']['fov'] ?? 5.0, 1) }}</span>
+        </div>
+        <input id="input-cam-fov" type="range" min="0" max="10" step="0.1" value="{{ $settings3D['camera']['fov'] ?? 5.0 }}" oninput="updateCameraFov(this.value)" class="w-full accent-sky-400">
+    </div>
+    <button type="button" onclick="reset3DCamera()" class="w-full bg-slate-800 hover:bg-slate-700 py-1.5 rounded-lg text-[11px] font-bold border border-white/10 text-gray-300 transition">
+        <i class="fa-solid fa-rotate-left mr-1"></i> Reset Kamera Bawaan
+    </button>
+    <p id="camera-settings-status" class="text-[10px] text-sky-400 font-mono text-center pt-0.5"></p>
+</div>
+
+<!-- 2. Light, Shader & Shadow Panel -->
+<div id="panel-3d-light" class="hidden fixed top-16 right-4 control-modal-panel-3d z-[10005] w-80 max-h-[calc(100vh-100px)] overflow-y-auto bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl border border-white/15 shadow-2xl space-y-3.5 text-xs select-none">
+    <div class="flex items-center justify-between pb-2 border-b border-white/10">
+        <div>
+            <span class="font-bold flex items-center gap-1.5 text-amber-400 text-sm">
+                <i class="fa-solid fa-sun"></i> Cahaya, Shader & Shadow
+            </span>
+            <p class="text-[10px] text-gray-400 mt-0.5">Pengaturan cahaya, bayangan & shader tone mapping</p>
+        </div>
+        <button type="button" onclick="toggle3DControlPanel('light')" class="text-gray-400 hover:text-white p-1">
+            <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+    </div>
+
+    <!-- Shadow Toggle Card -->
+    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-white/10 shadow-inner">
+        <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-amber-400/10 flex items-center justify-center text-amber-400">
+                <i class="fa-solid fa-cloud-moon"></i>
+            </div>
+            <div>
+                <span class="text-gray-200 font-bold text-[11px] block">Bayangan (Shadow)</span>
+                <span class="text-[9px] text-gray-400">Bayangan gedung & robot 3D</span>
+            </div>
+        </div>
+        <button type="button" id="btn-toggle-3d-shadow" onclick="toggle3DShadow()" class="px-3 py-1.5 rounded-lg text-xs font-black transition bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm active:scale-95">
+            ON
+        </button>
+    </div>
+
+    <!-- Preset Mood Ruangan -->
+    <div>
+        <label class="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+            <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> Preset Suasana Ruangan
+        </label>
+        <div class="grid grid-cols-4 gap-1.5">
+            <button type="button" onclick="setLightingPreset('siang')" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-1 rounded-lg text-[10px] font-bold text-center border border-white/5 text-gray-200 hover:text-white transition">
+                <i class="fa-solid fa-sun text-amber-300 block mb-0.5 text-xs"></i> Siang
+            </button>
+            <button type="button" onclick="setLightingPreset('sore')" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-1 rounded-lg text-[10px] font-bold text-center border border-white/5 text-gray-200 hover:text-white transition">
+                <i class="fa-solid fa-cloud-sun text-orange-400 block mb-0.5 text-xs"></i> Sore
+            </button>
+            <button type="button" onclick="setLightingPreset('malam')" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-1 rounded-lg text-[10px] font-bold text-center border border-white/5 text-gray-200 hover:text-white transition">
+                <i class="fa-solid fa-moon text-indigo-400 block mb-0.5 text-xs"></i> Malam
+            </button>
+            <button type="button" onclick="setLightingPreset('studio')" class="bg-slate-800 hover:bg-slate-700 py-1.5 px-1 rounded-lg text-[10px] font-bold text-center border border-white/5 text-gray-200 hover:text-white transition">
+                <i class="fa-solid fa-lightbulb text-emerald-400 block mb-0.5 text-xs"></i> Studio
+            </button>
+        </div>
+    </div>
+
+    <!-- Sliders -->
+    <div class="space-y-2.5 pt-1">
+        <div>
+            <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-gray-300">Ambient Light (Kecerahan Ruang)</span>
+                <span id="val-light-ambient" class="font-mono text-amber-400 font-bold">{{ number_format($settings3D['lighting']['ambient'] ?? 1.4, 1) }}</span>
+            </div>
+            <input id="input-light-ambient" type="range" min="0.1" max="3.5" step="0.1" value="{{ $settings3D['lighting']['ambient'] ?? 1.4 }}" oninput="update3DLight('ambient', this.value)" class="w-full accent-amber-400">
+        </div>
+        <div>
+            <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-gray-300">Sun Light (Cahaya Utama / Direct)</span>
+                <span id="val-light-sun" class="font-mono text-amber-400 font-bold">{{ number_format($settings3D['lighting']['sun'] ?? 1.8, 1) }}</span>
+            </div>
+            <input id="input-light-sun" type="range" min="0.0" max="4.5" step="0.1" value="{{ $settings3D['lighting']['sun'] ?? 1.8 }}" oninput="update3DLight('sun', this.value)" class="w-full accent-amber-400">
+        </div>
+        <div>
+            <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-gray-300">Exposure (Shader Tone Mapping)</span>
+                <span id="val-light-exp" class="font-mono text-amber-400 font-bold">{{ number_format($settings3D['lighting']['exposure'] ?? 1.0, 2) }}</span>
+            </div>
+            <input id="input-light-exp" type="range" min="0.2" max="2.5" step="0.05" value="{{ $settings3D['lighting']['exposure'] ?? 1.0 }}" oninput="update3DLight('exposure', this.value)" class="w-full accent-amber-400">
+        </div>
+        <div>
+            <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-gray-300">Fill Sky Light (Aksen Biru)</span>
+                <span id="val-light-fill" class="font-mono text-amber-400 font-bold">{{ number_format($settings3D['lighting']['fill'] ?? 0.8, 1) }}</span>
+            </div>
+            <input id="input-light-fill" type="range" min="0.0" max="2.0" step="0.1" value="{{ $settings3D['lighting']['fill'] ?? 0.8 }}" oninput="update3DLight('fill', this.value)" class="w-full accent-amber-400">
+        </div>
+    </div>
+
+    <!-- Reset Button -->
+    <div class="pt-1">
+        <button type="button" onclick="reset3DLighting()" class="w-full bg-slate-800 hover:bg-slate-700 py-1.5 rounded-lg text-[11px] font-bold border border-white/10 text-gray-300 hover:text-white transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-rotate-left text-xs"></i> Reset Pencahayaan Bawaan
+        </button>
+    </div>
+    <p id="light-settings-status" class="text-[10px] text-amber-400 font-mono text-center pt-0.5"></p>
+</div>
+
+<!-- 3. Robot Position Control Panel (D-pad + Rotasi + World XZ) -->
+<div id="panel-3d-robot-control" class="hidden fixed top-16 right-4 control-modal-panel-3d z-[10005] w-76 max-h-[calc(100vh-100px)] overflow-y-auto bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl border border-white/15 shadow-2xl space-y-3 text-xs select-none">
+    <div class="flex items-center justify-between pb-2 border-b border-white/10">
+        <span class="font-bold flex items-center gap-1.5 text-emerald-400">
+            <i class="fa-solid fa-robot"></i> Kontrol Posisi Robot
+        </span>
+        <button type="button" onclick="toggle3DControlPanel('robot')" class="text-gray-400 hover:text-white p-1">
+            <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+    </div>
+    <!-- Selected Robot Selector & Info -->
+    <div class="space-y-1.5">
+        <label class="block font-bold text-gray-400 uppercase tracking-wider text-[10px]">Pilih Robot</label>
+        <select id="select-3d-robot" onchange="select3DRobotFromDropdown(this.value)" class="w-full bg-slate-800 border border-white/15 rounded-xl px-2.5 py-2 font-bold text-white focus:border-emerald-400 focus:outline-none transition text-xs">
+            <option value="">-- Pilih Robot --</option>
+            @foreach($robots as $robot)
+                <option value="{{ $robot->id }}">{{ $robot->name }} (Lantai {{ $robot->floor ?? 1 }})</option>
+            @endforeach
+        </select>
+        <div id="selected-robot-3d-info" class="bg-slate-800/80 border border-white/10 rounded-xl px-3 py-1.5 font-mono text-[11px] text-gray-300 truncate">Pilih robot dari dropdown atau klik avatar</div>
+    </div>
+    <!-- D-Pad 4 Arah (X/Z World) -->
+    <div>
+        <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1.5 text-[10px]">Gerak Datar (X/Z World)</label>
+        <div class="grid grid-cols-3 gap-1.5 max-w-[180px] mx-auto">
+            <div></div>
+            <button type="button" onclick="move3DRobot(0, -0.3)" class="bg-slate-700 hover:bg-slate-600 border border-white/10 text-white font-bold py-2 rounded-lg transition flex items-center justify-center" title="Depan (-Z)">
+                <i class="fa-solid fa-arrow-up"></i>
+            </button>
+            <div></div>
+            <button type="button" onclick="move3DRobot(-0.3, 0)" class="bg-slate-700 hover:bg-slate-600 border border-white/10 text-white font-bold py-2 rounded-lg transition flex items-center justify-center" title="Kiri (-X)">
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <button type="button" onclick="move3DRobot(0, 0.3)" class="bg-slate-700 hover:bg-slate-600 border border-white/10 text-white font-bold py-2 rounded-lg transition flex items-center justify-center" title="Belakang (+Z)">
+                <i class="fa-solid fa-arrow-down"></i>
+            </button>
+            <button type="button" onclick="move3DRobot(0.3, 0)" class="bg-slate-700 hover:bg-slate-600 border border-white/10 text-white font-bold py-2 rounded-lg transition flex items-center justify-center" title="Kanan (+X)">
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+    <!-- D-Pad Vertikal (Y World) -->
+    <div>
+        <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1.5 text-[10px]">Gerak Vertikal (Y World)</label>
+        <div class="flex items-center justify-center gap-2 max-w-[180px] mx-auto">
+            <button type="button" onclick="move3DRobotY(0.3)" class="bg-sky-900/60 hover:bg-sky-800 border border-sky-400/30 text-sky-300 font-bold py-2 px-4 rounded-lg transition flex items-center justify-center" title="Naik (+Y)">
+                <i class="fa-solid fa-arrow-up mr-1"></i> <span class="text-[10px]">Naik</span>
+            </button>
+            <button type="button" onclick="move3DRobotY(-0.3)" class="bg-sky-900/60 hover:bg-sky-800 border border-sky-400/30 text-sky-300 font-bold py-2 px-4 rounded-lg transition flex items-center justify-center" title="Turun (-Y)">
+                <i class="fa-solid fa-arrow-down mr-1"></i> <span class="text-[10px]">Turun</span>
+            </button>
+        </div>
+    </div>
+    <!-- Rotasi Y -->
+    <div>
+        <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1.5 text-[10px]">Rotasi Y</label>
+        <div class="flex items-center gap-2 mb-2">
+            <button type="button" onclick="rotate3DRobot(-15)" class="bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-400/30 text-indigo-300 font-bold py-2 px-3 rounded-lg transition" title="Putar CCW -15°">
+                <i class="fa-solid fa-rotate-left"></i>
+            </button>
+            <button type="button" onclick="rotate3DRobot(15)" class="bg-indigo-900/60 hover:bg-indigo-800 border border-indigo-400/30 text-indigo-300 font-bold py-2 px-3 rounded-lg transition" title="Putar CW +15°">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+            <span id="val-robot-3d-rotation" class="text-[11px] font-mono font-bold text-indigo-300 ml-1">0°</span>
+        </div>
+        <input type="range" min="0" max="360" step="1" value="0" id="slider-robot-3d-rotation" oninput="set3DRobotRotation(this.value)" class="w-full accent-emerald-400">
+    </div>
+    <!-- World Coords Input -->
+    <div class="grid grid-cols-2 gap-2">
+        <div>
+            <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1 text-[10px]">World X</label>
+            <input type="number" step="0.1" id="input-robot-3d-x" oninput="set3DRobotWorldX(this.value)" class="w-full bg-slate-800 border border-white/10 rounded-xl px-2 py-2 font-mono font-bold text-white focus:border-emerald-400 focus:outline-none transition">
+        </div>
+        <div>
+            <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1 text-[10px]">World Z</label>
+            <input type="number" step="0.1" id="input-robot-3d-z" oninput="set3DRobotWorldZ(this.value)" class="w-full bg-slate-800 border border-white/10 rounded-xl px-2 py-2 font-mono font-bold text-white focus:border-emerald-400 focus:outline-none transition">
+        </div>
+        <div>
+            <label class="block font-bold text-gray-400 uppercase tracking-wider mb-1 text-[10px]">World Y</label>
+            <input type="number" step="0.1" id="input-robot-3d-y" oninput="set3DRobotWorldY(this.value)" class="w-full bg-slate-800 border border-white/10 rounded-xl px-2 py-2 font-mono font-bold text-white focus:border-sky-400 focus:outline-none transition">
+        </div>
+    </div>
+    <!-- Robot Object Scale (Custom Size) -->
+    <div>
+        <div class="flex justify-between text-[11px] mb-1">
+            <span class="text-gray-300">Ukuran Object Robot</span>
+            <span id="val-robot-scale" class="font-mono text-emerald-400 font-bold">{{ number_format($settings3D['robot_scale'] ?? 0.6, 1) }}x</span>
+        </div>
+        <input id="input-robot-scale" type="range" min="0.3" max="3.0" step="0.1" value="{{ $settings3D['robot_scale'] ?? 0.6 }}" oninput="set3DRobotScale(this.value)" class="w-full accent-emerald-400">
+        <div class="flex justify-between text-[10px] text-gray-400 px-0.5 mt-0.5">
+            <span>Kecil (0.3x)</span>
+            <span>Normal (1.0x)</span>
+            <span>Besar (3.0x)</span>
+        </div>
+    </div>
+    <!-- Actions -->
+    <div class="flex gap-2 pt-1">
+        <button type="button" onclick="reset3DRobotPosition()" class="flex-1 bg-slate-700 hover:bg-slate-600 border border-white/10 text-white font-bold py-2 rounded-xl transition text-[11px]">
+            <i class="fa-solid fa-arrows-rotate mr-1"></i> Reset
+        </button>
+        <button type="button" onclick="save3DRobotToGraph()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl transition text-[11px]">
+            <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan
+        </button>
+    </div>
+    <p id="robot-3d-status" class="text-[10px] text-emerald-400 font-mono text-center pt-0.5"></p>
 </div>
 @endsection
 
@@ -758,7 +846,8 @@
             ambient: parseFloat(settings3D?.lighting?.ambient ?? 1.4),
             sun: parseFloat(settings3D?.lighting?.sun ?? 1.8),
             exposure: parseFloat(settings3D?.lighting?.exposure ?? 1.0),
-            fill: parseFloat(settings3D?.lighting?.fill ?? 0.8)
+            fill: parseFloat(settings3D?.lighting?.fill ?? 0.8),
+            shadow: (settings3D?.lighting?.shadow !== undefined) ? !!settings3D.lighting.shadow : true
         },
         model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
         robot_scale: parseFloat(settings3D?.robot_scale ?? 0.1),
@@ -1158,7 +1247,8 @@
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = parseFloat(current3DSettings.lighting.exposure ?? 1.0);
-        renderer.shadowMap.enabled = true;
+        const isShadowOn = current3DSettings.lighting.shadow !== false;
+        renderer.shadowMap.enabled = isShadowOn;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.innerHTML = '';
         container.appendChild(renderer.domElement);
@@ -1180,7 +1270,7 @@
 
         const sunLight = new THREE.DirectionalLight(0xffffff, parseFloat(current3DSettings.lighting.sun ?? 1.8));
         sunLight.position.set(35, 55, 35);
-        sunLight.castShadow = true;
+        sunLight.castShadow = isShadowOn;
         sunLight.shadow.mapSize.width = 1024;
         sunLight.shadow.mapSize.height = 1024;
         scene.add(sunLight);
@@ -2378,33 +2468,106 @@
         }
     }
 
-    // Light Adjustments — langsung simpan ke graph.json (berlaku ke semua viewer, setting dishare)
+    // Light, Shader & Shadow Adjustments — langsung sync ke semua viewer dan simpan ke settings
     function update3DLight(type, val) {
-        const v = activeStdViewer();
-        if (!v) return;
         const num = parseFloat(val);
+        if (isNaN(num)) return;
+        if (!current3DSettings.lighting) current3DSettings.lighting = {};
+
         if (type === 'ambient') {
             current3DSettings.lighting.ambient = num;
-            document.getElementById('val-light-ambient').textContent = num.toFixed(1);
+            const el = document.getElementById('val-light-ambient');
+            if (el) el.textContent = num.toFixed(1);
         } else if (type === 'sun') {
             current3DSettings.lighting.sun = num;
-            document.getElementById('val-light-sun').textContent = num.toFixed(1);
+            const el = document.getElementById('val-light-sun');
+            if (el) el.textContent = num.toFixed(1);
         } else if (type === 'exposure') {
             current3DSettings.lighting.exposure = num;
-            document.getElementById('val-light-exp').textContent = num.toFixed(2);
+            const el = document.getElementById('val-light-exp');
+            if (el) el.textContent = num.toFixed(2);
         } else if (type === 'fill') {
             current3DSettings.lighting.fill = num;
-            document.getElementById('val-light-fill').textContent = num.toFixed(1);
+            const el = document.getElementById('val-light-fill');
+            if (el) el.textContent = num.toFixed(1);
         }
         // sync semua viewer (std + full, lantai 1 + 2)
         allViewers().forEach(vw => {
-            if (!vw || !vw.lights) return;
-            if (type === 'ambient') vw.lights.ambient.intensity = num;
-            if (type === 'sun') vw.lights.sun.intensity = num;
-            if (type === 'fill') vw.lights.fill.intensity = num;
-            if (type === 'exposure') vw.renderer.toneMappingExposure = num;
+            if (!vw) return;
+            if (vw.lights) {
+                if (type === 'ambient' && vw.lights.ambient) vw.lights.ambient.intensity = num;
+                if (type === 'sun' && vw.lights.sun) vw.lights.sun.intensity = num;
+                if (type === 'fill' && vw.lights.fill) vw.lights.fill.intensity = num;
+            }
+            if (type === 'exposure' && vw.renderer) {
+                vw.renderer.toneMappingExposure = num;
+            }
         });
         save3DSettingsDebounced('light-settings-status');
+    }
+
+    function toggle3DShadow(forceState) {
+        if (!current3DSettings.lighting) current3DSettings.lighting = {};
+        const isCurrentOn = current3DSettings.lighting.shadow !== false;
+        const newState = (forceState !== undefined) ? !!forceState : !isCurrentOn;
+        current3DSettings.lighting.shadow = newState;
+
+        allViewers().forEach(vw => {
+            if (!vw || !vw.renderer) return;
+            vw.renderer.shadowMap.enabled = newState;
+            if (vw.lights && vw.lights.sun) {
+                vw.lights.sun.castShadow = newState;
+            }
+            if (vw.scene) {
+                vw.scene.traverse(node => {
+                    if (node.isMesh && node.material) {
+                        node.material.needsUpdate = true;
+                    }
+                });
+            }
+        });
+
+        const btn = document.getElementById('btn-toggle-3d-shadow');
+        if (btn) {
+            if (newState) {
+                btn.className = "px-3 py-1.5 rounded-lg text-xs font-black transition bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm active:scale-95";
+                btn.textContent = "ON";
+            } else {
+                btn.className = "px-3 py-1.5 rounded-lg text-xs font-black transition bg-slate-700 hover:bg-slate-600 text-gray-400 shadow-sm active:scale-95";
+                btn.textContent = "OFF";
+            }
+        }
+        save3DSettingsDebounced('light-settings-status');
+    }
+
+    function setLightingPreset(presetName) {
+        const presets = {
+            'siang': { ambient: 1.8, sun: 2.2, exposure: 1.10, fill: 0.9, shadow: true },
+            'sore': { ambient: 1.2, sun: 1.8, exposure: 0.95, fill: 0.5, shadow: true },
+            'malam': { ambient: 0.6, sun: 0.8, exposure: 0.80, fill: 0.3, shadow: true },
+            'studio': { ambient: 1.4, sun: 2.5, exposure: 1.20, fill: 0.8, shadow: true }
+        };
+        const p = presets[presetName];
+        if (!p) return;
+
+        update3DLight('ambient', p.ambient);
+        update3DLight('sun', p.sun);
+        update3DLight('exposure', p.exposure);
+        update3DLight('fill', p.fill);
+        toggle3DShadow(p.shadow);
+
+        const ambInp = document.getElementById('input-light-ambient');
+        const sunInp = document.getElementById('input-light-sun');
+        const expInp = document.getElementById('input-light-exp');
+        const fillInp = document.getElementById('input-light-fill');
+        if (ambInp) ambInp.value = p.ambient;
+        if (sunInp) sunInp.value = p.sun;
+        if (expInp) expInp.value = p.exposure;
+        if (fillInp) fillInp.value = p.fill;
+    }
+
+    function reset3DLighting() {
+        setLightingPreset('studio');
     }
 
     function getRobotColor(robotId) {
@@ -2580,11 +2743,24 @@
 
         const stdView = document.getElementById('standard-view');
         const fullView = document.getElementById('fullview-mode');
-        const mainScroll = document.querySelector('main > div');
-        const asideEl = document.querySelector('body > aside') || document.querySelector('aside');
+        const asideEl = document.getElementById('main-sidebar') || document.querySelector('body > aside') || document.querySelector('aside');
+        const mainEl = document.getElementById('main-content') || document.querySelector('body > main') || document.querySelector('main');
 
         if (asideEl) {
-            asideEl.style.display = isFullViewMode ? 'none' : '';
+            if (isFullViewMode) {
+                asideEl.style.setProperty('display', 'none', 'important');
+                asideEl.classList.add('hidden', 'fullview-hidden');
+            } else {
+                asideEl.style.removeProperty('display');
+                asideEl.classList.remove('hidden', 'fullview-hidden');
+            }
+        }
+        if (mainEl) {
+            if (isFullViewMode) {
+                mainEl.style.setProperty('z-index', '99999', 'important');
+            } else {
+                mainEl.style.removeProperty('z-index');
+            }
         }
         document.body.classList.toggle('body-in-fullview', isFullViewMode);
 
@@ -4143,6 +4319,10 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         updateAutopilotUI();
+        // Sync shadow button state on load
+        if (current3DSettings.lighting.shadow === false) {
+            toggle3DShadow(false);
+        }
         // Default tampil Lantai 1 (3D) — switch sekaligus init viewer F1 + tampilkan kanvas
         switchDashboardFloor(1);
         setInterval(runSimulationStep, 50);

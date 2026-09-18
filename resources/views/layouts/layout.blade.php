@@ -288,7 +288,7 @@
 <body class="bg-gray-50 text-gray-800 font-sans h-screen flex overflow-hidden">
     
     <!-- Sidebar Navigation -->
-    <aside class="w-64 bg-brand-blue text-white flex flex-col justify-between shrink-0 shadow-lg z-20">
+    <aside id="main-sidebar" class="w-64 bg-brand-blue text-white flex flex-col justify-between shrink-0 shadow-lg z-20">
         <div>
             <!-- Sidebar Header / Logo -->
             <div class="h-20 flex items-center px-6 border-b border-white/20 gap-3 bg-brand-blue">
@@ -363,7 +363,7 @@
     </aside>
 
     <!-- Main Content Area -->
-    <main class="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
+    <main id="main-content" class="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
         <!-- Topbar -->
         <header class="h-20 border-b border-gray-200 bg-white shadow-sm flex items-center justify-between px-6 lg:px-8 shrink-0 z-10 gap-4">
             <div class="min-w-0">
