@@ -89,9 +89,10 @@
     .botctrl-inspector-floating {
         position: fixed !important;
         top: 4.5rem !important;
-        right: 1.25rem !important;
+        right: 1rem !important;
         z-index: 10001 !important;
-        width: 25rem !important;
+        width: min(25rem, calc(100vw - 2rem)) !important;
+        max-width: calc(100vw - 2rem) !important;
         max-height: calc(100vh - 5.5rem) !important;
         overflow-y: auto !important;
         background: rgba(255, 255, 255, 0.98) !important;
@@ -161,59 +162,59 @@
     <!-- Main Workspace: Interactive Map Canvas (Full Width, hidden by default in normal view) -->
     <div class="w-full space-y-4">
         <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl transition-all hidden" id="editor-map-card">
-                <!-- Dedicated Top Bar for Full Map Mode (Single Sleek Contextual Row) -->
-                <div id="fullmap-top-bar" class="hidden flex items-center justify-between gap-3 pb-2.5 mb-2 border-b border-slate-700/60 select-none text-xs">
+                <!-- Dedicated Top Bar for Full Map Mode (Responsive Single Sleek Contextual Row) -->
+                <div id="fullmap-top-bar" class="hidden flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-700/60 select-none text-xs shrink-0 w-full">
                     <!-- Left: Floor Switcher & Mode Switcher -->
-                    <div class="flex items-center gap-2 shrink-0">
+                    <div class="flex items-center gap-1.5 shrink-0">
                         <!-- Floor Switcher -->
                         <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
-                            <button type="button" onclick="switchFloor(1)" id="fullmap-tab-floor-1" class="px-3 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow">
-                                <i class="fa-solid fa-layer-group mr-1"></i> Lantai 1
+                            <button type="button" onclick="switchFloor(1)" id="fullmap-tab-floor-1" class="px-2.5 sm:px-3 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow">
+                                <i class="fa-solid fa-layer-group sm:mr-1"></i> <span class="hidden sm:inline">Lantai </span>1
                             </button>
-                            <button type="button" onclick="switchFloor(2)" id="fullmap-tab-floor-2" class="px-3 py-1.5 rounded-lg font-bold transition text-gray-400 hover:bg-white/10">
-                                <i class="fa-solid fa-layer-group mr-1"></i> Lantai 2
+                            <button type="button" onclick="switchFloor(2)" id="fullmap-tab-floor-2" class="px-2.5 sm:px-3 py-1.5 rounded-lg font-bold transition text-gray-400 hover:bg-white/10">
+                                <i class="fa-solid fa-layer-group sm:mr-1"></i> <span class="hidden sm:inline">Lantai </span>2
                             </button>
                         </div>
 
                         <!-- Mode Switcher -->
                         <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
-                            <button type="button" onclick="setEditTargetMode('node')" id="fullmap-tab-mode-node" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Mode Edit Jalur &amp; Ruangan">
-                                <i class="fa-solid fa-circle-dot"></i> <span>Edit Ruangan</span>
+                            <button type="button" onclick="setEditTargetMode('node')" id="fullmap-tab-mode-node" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Mode Edit Jalur &amp; Ruangan">
+                                <i class="fa-solid fa-circle-dot"></i> <span><span class="hidden md:inline">Edit </span>Ruangan</span>
                             </button>
-                            <button type="button" onclick="setEditTargetMode('robot')" id="fullmap-tab-mode-robot" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white shadow font-bold flex items-center gap-1.5 transition" title="Mode Edit Robot">
-                                <i class="fa-solid fa-robot"></i> <span>Edit Robot</span>
+                            <button type="button" onclick="setEditTargetMode('robot')" id="fullmap-tab-mode-robot" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-indigo-600 text-white shadow font-bold flex items-center gap-1.5 transition" title="Mode Edit Robot">
+                                <i class="fa-solid fa-robot"></i> <span><span class="hidden md:inline">Edit </span>Robot</span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Center 1: Dedicated Node Tools (ONLY SHOWN IN NODE MODE) -->
-                    <div id="fullmap-node-contextual" class="hidden flex items-center gap-2">
+                    <!-- Center 1: Dedicated Node Tools (ONLY SHOWN IN NODE MODE, Scrollable smoothly on narrower screens) -->
+                    <div id="fullmap-node-contextual" class="hidden flex-1 min-w-0 overflow-x-auto no-scrollbar py-0.5 mx-1 items-center gap-1.5">
                         <!-- Node Tool Actions -->
-                        <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
-                            <button type="button" onclick="setEditorTool('hand')" id="fullmap-tool-hand" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Navigasi Bebas: Geser kanvas / navigasi bebas 3D">
+                        <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold shrink-0">
+                            <button type="button" onclick="setEditorTool('hand')" id="fullmap-tool-hand" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition whitespace-nowrap" title="Navigasi Bebas: Geser kanvas / navigasi bebas 3D">
                                 <i class="fa-solid fa-hand"></i> <span>Navigasi Bebas</span>
                             </button>
-                            <button type="button" onclick="setEditorTool('move')" id="fullmap-tool-move" class="px-3 py-1.5 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Geser posisi node">
+                            <button type="button" onclick="setEditorTool('move')" id="fullmap-tool-move" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition whitespace-nowrap" title="Geser posisi node">
                                 <i class="fa-solid fa-up-down-left-right"></i> <span>Geser Node</span>
                             </button>
-                            <button type="button" onclick="setEditorTool('add')" id="fullmap-tool-add" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Tambah titik node baru">
+                            <button type="button" onclick="setEditorTool('add')" id="fullmap-tool-add" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition whitespace-nowrap" title="Tambah titik node baru">
                                 <i class="fa-solid fa-plus-circle"></i> <span>Tambah</span>
                             </button>
-                            <button type="button" onclick="setEditorTool('connect')" id="fullmap-tool-connect" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Hubungkan rute jalur antar node">
+                            <button type="button" onclick="setEditorTool('connect')" id="fullmap-tool-connect" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition whitespace-nowrap" title="Hubungkan rute jalur antar node">
                                 <i class="fa-solid fa-diagram-project"></i> <span>Hubungkan</span>
                             </button>
-                            <button type="button" onclick="setEditorTool('delete')" id="fullmap-tool-delete" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Hapus node">
+                            <button type="button" onclick="setEditorTool('delete')" id="fullmap-tool-delete" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition whitespace-nowrap" title="Hapus node">
                                 <i class="fa-solid fa-trash-can"></i> <span>Hapus</span>
                             </button>
                         </div>
 
                         <!-- Transit Dots Toggle -->
-                        <button type="button" onclick="toggleShowHiddenDots()" id="fullmap-btn-toggle-hidden" class="bg-sky-950/80 hover:bg-sky-900 border border-sky-500/40 text-sky-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Tampilkan / Sembunyikan Titik Transit Tanpa Nama">
+                        <button type="button" onclick="toggleShowHiddenDots()" id="fullmap-btn-toggle-hidden" class="bg-sky-950/80 hover:bg-sky-900 border border-sky-500/40 text-sky-300 font-bold px-2.5 sm:px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="Tampilkan / Sembunyikan Titik Transit Tanpa Nama">
                             <i class="fa-solid fa-eye text-sky-400" id="fullmap-icon-toggle-hidden"></i> <span id="fullmap-text-toggle-hidden">Transit: Tampil</span>
                         </button>
 
                         <!-- Label Size Scale -->
-                        <div class="flex items-center gap-1 bg-slate-900/90 border border-white/10 px-2 py-1 rounded-xl text-xs font-bold whitespace-nowrap" title="Sesuaikan Ukuran Label Teks">
+                        <div class="flex items-center gap-1 bg-slate-900/90 border border-white/10 px-2 py-1 rounded-xl text-xs font-bold whitespace-nowrap shrink-0" title="Sesuaikan Ukuran Label Teks">
                             <span class="text-gray-400 text-[11px]"><i class="fa-solid fa-font text-indigo-400 mr-1"></i>Label:</span>
                             <button type="button" onclick="adjustLabelScale(-0.1)" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-gray-200 flex items-center justify-center text-xs font-bold transition active:scale-95">
                                 <i class="fa-solid fa-minus text-[9px]"></i>
@@ -225,40 +226,45 @@
                         </div>
                     </div>
 
-                    <!-- Center 2: Dedicated Robot Tools (ONLY SHOWN IN ROBOT MODE) -->
-                    <div id="fullmap-robot-contextual" class="flex items-center gap-2">
+                    <!-- Center 2: Dedicated Robot Tools (ONLY SHOWN IN ROBOT MODE, Scrollable smoothly on narrower screens) -->
+                    <div id="fullmap-robot-contextual" class="flex-1 min-w-0 overflow-x-auto no-scrollbar py-0.5 mx-1 flex items-center gap-1.5">
                         <!-- Robot Actions Group -->
-                        <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
-                            <button type="button" onclick="setEditorTool('hand')" id="fullmap-tool-robot-hand" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Navigasi Bebas: Navigasi bebas 3D (Pan &amp; Orbit)">
+                        <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold shrink-0">
+                            <button type="button" onclick="setEditorTool('hand')" id="fullmap-tool-robot-hand" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition whitespace-nowrap" title="Navigasi Bebas: Navigasi bebas 3D (Pan &amp; Orbit)">
                                 <i class="fa-solid fa-hand"></i> <span>Navigasi Bebas</span>
                             </button>
-                            <button type="button" onclick="setEditorTool('move')" id="fullmap-tool-robot-move" class="px-3 py-1.5 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Geser Robot: Geser posisi robot di kanvas 3D">
+                            <button type="button" onclick="setEditorTool('move')" id="fullmap-tool-robot-move" class="px-2.5 sm:px-3 py-1.5 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition whitespace-nowrap" title="Geser Robot: Geser posisi robot di kanvas 3D">
                                 <i class="fa-solid fa-arrows-up-down-left-right"></i> <span>Geser Robot</span>
                             </button>
-                            <button type="button" onclick="focusOnActiveSelection()" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Pusatkan kamera ke posisi robot aktif">
+                            <button type="button" onclick="focusOnActiveSelection()" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition whitespace-nowrap" title="Pusatkan kamera ke posisi robot aktif">
                                 <i class="fa-solid fa-crosshairs text-amber-400"></i> <span>Fokus</span>
                             </button>
-                            <button type="button" onclick="resetActiveRobotPosition()" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Reset posisi robot">
+                            <button type="button" onclick="resetActiveRobotPosition()" class="px-2.5 sm:px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition whitespace-nowrap" title="Reset posisi robot">
                                 <i class="fa-solid fa-arrows-rotate"></i> <span>Reset</span>
                             </button>
                         </div>
 
                         <!-- Toggle Robot Avatar -->
-                        <button type="button" onclick="toggleShowRobots()" id="fullmap-btn-toggle-robots" class="bg-sky-950/80 border border-sky-500/40 text-sky-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Sembunyikan / Tampilkan Avatar Robot 3D">
+                        <button type="button" onclick="toggleShowRobots()" id="fullmap-btn-toggle-robots" class="bg-sky-950/80 border border-sky-500/40 text-sky-300 font-bold px-2.5 sm:px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="Sembunyikan / Tampilkan Avatar Robot 3D">
                             <i class="fa-solid fa-robot text-sky-400" id="fullmap-icon-toggle-robots"></i> <span id="fullmap-text-toggle-robots">Robot: Tampil</span>
                         </button>
                     </div>
 
-                    <!-- Right: Inspector Toggle & Exit -->
-                    <div class="flex items-center gap-2 shrink-0">
+                    <!-- Right: Save Button, Inspector Toggle & Exit (Always pinned and NEVER cut off) -->
+                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0 ml-auto z-20">
+                        <!-- Save Button (Prominent Emerald Green with floppy disk icon) -->
+                        <button type="button" onclick="handleFullMapSave()" id="fullmap-btn-save" class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black px-3 sm:px-4 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-600/30 transition border border-emerald-400/40 cursor-pointer shrink-0" title="Simpan Perubahan (Ctrl+S)">
+                            <i class="fa-solid fa-floppy-disk"></i> <span id="fullmap-save-label">Simpan Denah</span>
+                        </button>
+
                         <!-- Inspector Toggle Button -->
-                        <button type="button" onclick="toggleInspectorPanel()" id="fullmap-btn-inspector" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition" title="Tampilkan / Sembunyikan Panel Edit Manual XYZ">
-                            <i class="fa-solid fa-sliders"></i> <span id="fullmap-inspector-btn-label">Edit Manual XYZ</span>
+                        <button type="button" onclick="toggleInspectorPanel()" id="fullmap-btn-inspector" class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition shrink-0" title="Tampilkan / Sembunyikan Panel Edit Manual XYZ">
+                            <i class="fa-solid fa-sliders"></i> <span id="fullmap-inspector-btn-label" class="hidden sm:inline">Edit Manual</span><span class="sm:hidden">Manual</span>
                             <span id="fullmap-node-badge" class="ml-1 text-[10px] bg-white/25 px-1.5 py-0.5 rounded-md font-mono hidden"></span>
                         </button>
 
-                        <!-- Exit Full Map Button -->
-                        <button type="button" onclick="toggleFullMap(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition" title="Keluar dari Layar Penuh (Esc)">
+                        <!-- Exit Full Map Button (Always Pinned, Never Cut Off) -->
+                        <button type="button" onclick="toggleFullMap(false)" class="bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-black px-3 sm:px-4 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-rose-600/30 transition border border-rose-400/40 cursor-pointer shrink-0" title="Keluar dari Layar Penuh (Esc)">
                             <i class="fa-solid fa-compress"></i> <span>Keluar</span>
                         </button>
                     </div>
@@ -321,21 +327,23 @@
                 </div>
 
                 <!-- Floating Inspector Card: Node / Ruangan -->
-                <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col transition-all botctrl-inspector-floating hidden" id="node-inspector-card">
+                <div class="bg-white border border-gray-200 p-4 sm:p-6 rounded-2xl shadow-xl flex flex-col transition-all botctrl-inspector-floating hidden" id="node-inspector-card">
                     <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 select-none">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shadow-xs">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shadow-xs shrink-0">
                                 <i class="fa-solid fa-circle-dot text-base"></i>
                             </div>
-                            <div>
-                                <h3 class="text-base font-bold text-gray-800" id="inspector-title-text">Inspektur Properti Node</h3>
-                                <p class="text-[11px] text-gray-400">Atur rute, nama ruangan, titik transit, dan elevasi lantai.</p>
+                            <div class="min-w-0">
+                                <h3 class="text-sm sm:text-base font-bold text-gray-800 truncate" id="inspector-title-text">Inspektur Properti Node</h3>
+                                <p class="text-[10px] sm:text-[11px] text-gray-400 truncate">Atur rute, nama ruangan, titik transit, dan elevasi lantai.</p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200" id="inspector-mode-tag">EDIT NODE</span>
+                        <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                            <button type="button" onclick="saveGraphToServer()" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition cursor-pointer" title="Simpan Denah Sekarang">
+                                <i class="fa-solid fa-floppy-disk"></i> <span>Simpan</span>
+                            </button>
                             <!-- Close Button -->
-                            <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector" class="text-gray-400 hover:text-gray-700 w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-sm font-bold transition" title="Tutup Panel">
+                            <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector" class="text-gray-400 hover:text-gray-700 w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-sm font-bold transition cursor-pointer" title="Tutup Panel">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                         </div>
@@ -414,21 +422,23 @@
             </div>
 
             <!-- Floating Inspector Card: Robot -->
-            <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col transition-all botctrl-inspector-floating hidden" id="robot-control-card">
+            <div class="bg-white border border-gray-200 p-4 sm:p-6 rounded-2xl shadow-xl flex flex-col transition-all botctrl-inspector-floating hidden" id="robot-control-card">
                 <div class="flex items-center justify-between mb-4 pb-3 border-b border-gray-200 select-none">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-[#3b4cb8] shadow-xs">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-[#3b4cb8] shadow-xs shrink-0">
                             <i class="fa-solid fa-robot text-base"></i>
                         </div>
-                        <div>
-                            <h3 class="text-base font-bold text-gray-800">Pengaturan Robot</h3>
-                            <p class="text-[11px] text-gray-400">Sesuaikan skala universal dan ketinggian roda robot.</p>
+                        <div class="min-w-0">
+                            <h3 class="text-sm sm:text-base font-bold text-gray-800 truncate">Pengaturan Robot</h3>
+                            <p class="text-[10px] sm:text-[11px] text-gray-400 truncate">Sesuaikan skala universal dan ketinggian roda robot.</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">ROBOT</span>
+                    <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                        <button type="button" onclick="saveRobotPosition()" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition cursor-pointer" title="Simpan Posisi Robot Sekarang">
+                            <i class="fa-solid fa-floppy-disk"></i> <span>Simpan</span>
+                        </button>
                         <!-- Close Button -->
-                        <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector-robot" class="text-gray-400 hover:text-gray-700 w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-sm font-bold transition" title="Tutup Panel">
+                        <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector-robot" class="text-gray-400 hover:text-gray-700 w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-sm font-bold transition cursor-pointer" title="Tutup Panel">
                             <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
@@ -2866,11 +2876,11 @@
                 badgeText = (selectedNodeId && locationsData[selectedNodeId]) ? (locationsData[selectedNodeId].name || selectedNodeId) : '';
             }
             if (isShown) {
-                btnToggleInsp.className = "bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition";
-                btnToggleInsp.innerHTML = '<i class="fa-solid fa-eye-slash"></i> <span>Tutup Inspector</span>' + (badgeText ? `<span id="fullmap-node-badge" class="ml-1 text-[10px] bg-black/20 px-1.5 py-0.5 rounded-md font-mono">${badgeText}</span>` : `<span id="fullmap-node-badge" class="ml-1 text-[10px] bg-black/20 px-1.5 py-0.5 rounded-md font-mono hidden"></span>`);
+                btnToggleInsp.className = "bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-900 font-bold px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition shrink-0";
+                btnToggleInsp.innerHTML = '<i class="fa-solid fa-eye-slash"></i> <span class="hidden sm:inline">Tutup </span><span>Inspector</span>' + (badgeText ? `<span id="fullmap-node-badge" class="ml-1 text-[10px] bg-black/20 px-1.5 py-0.5 rounded-md font-mono">${badgeText}</span>` : `<span id="fullmap-node-badge" class="ml-1 text-[10px] bg-black/20 px-1.5 py-0.5 rounded-md font-mono hidden"></span>`);
             } else {
-                btnToggleInsp.className = "bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition";
-                btnToggleInsp.innerHTML = '<i class="fa-solid fa-sliders"></i> <span>Edit Manual XYZ</span>' + (badgeText ? `<span id="fullmap-node-badge" class="ml-1 text-[10px] bg-white/25 px-1.5 py-0.5 rounded-md font-mono">${badgeText}</span>` : `<span id="fullmap-node-badge" class="ml-1 text-[10px] bg-white/25 px-1.5 py-0.5 rounded-md font-mono hidden"></span>`);
+                btnToggleInsp.className = "bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold px-2.5 sm:px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition shrink-0";
+                btnToggleInsp.innerHTML = '<i class="fa-solid fa-sliders"></i> <span class="hidden sm:inline">Edit Manual</span><span class="sm:hidden">Manual</span>' + (badgeText ? `<span id="fullmap-node-badge" class="ml-1 text-[10px] bg-white/25 px-1.5 py-0.5 rounded-md font-mono">${badgeText}</span>` : `<span id="fullmap-node-badge" class="ml-1 text-[10px] bg-white/25 px-1.5 py-0.5 rounded-md font-mono hidden"></span>`);
             }
         }
     }
@@ -4067,6 +4077,11 @@
     });
 
     window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+            e.preventDefault();
+            handleFullMapSave();
+            return;
+        }
         if (e.key === 'Escape') {
             const addModal = document.getElementById('modal-add-node-3d');
             if (addModal && !addModal.classList.contains('hidden')) {
