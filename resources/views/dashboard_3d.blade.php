@@ -3321,6 +3321,7 @@
         robot.floor = floorNum;
         if (delivery) delivery.status = 'Pending';
 
+        const locationName = resolveLocationName(coords.x, coords.y, floorNum);
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
         fetch(`/api/robots/${robot.id}/simulate-issue`, {
             method: 'POST',
@@ -3331,7 +3332,7 @@
             },
             body: JSON.stringify({
                 issue_type: 'Collision',
-                description: `Robot ${robot.name} menabrak hambatan/dinding koridor di ${resolveLocationName(coords.x, coords.y, floorNum)}! Pengantaran mandek (pending).`,
+                description: `Robot ${robot.name} mengalami tabrakan dengan rintangan di area ${locationName} (Lantai ${floorNum}). Pengantaran terhenti sementara.`,
                 current_x: coords.x,
                 current_y: coords.y,
                 floor: floorNum,
@@ -3730,16 +3731,16 @@
             let coords = { x: robot.current_x, y: robot.current_y };
             let floorNum = robot.floor || 1;
             const baseLoc = getBaseLocation();
-            let taskText = `Siaga di ${baseLoc.name || 'Base Station'}`;
+            let taskText = `Siaga di ${baseLoc.name || 'Markas Robot'}`;
             let currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
 
             if (hasIssue) {
                 const issueName = robotAlert ? robotAlert.issue_type : (robot.battery_level <= 10 ? 'Baterai Habis' : 'Perbaikan');
                 if (delivery) {
-                    taskText = `<span class="text-rose-600 font-black animate-pulse"><i class="fa-solid fa-triangle-exclamation mr-1"></i> MASALAH: ${issueName} - Pengantaran Mandek!</span>`;
-                    currentLocName = `Mandek di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
+                    taskText = `<span class="text-rose-600 font-black animate-pulse"><i class="fa-solid fa-triangle-exclamation mr-1"></i> KENDALA: ${issueName} - Pengantaran Terhenti!</span>`;
+                    currentLocName = `Terhenti di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
                 } else {
-                    taskText = `<span class="text-rose-600 font-black animate-pulse"><i class="fa-solid fa-triangle-exclamation mr-1"></i> MASALAH: ${issueName} (Perlu Penanganan)</span>`;
+                    taskText = `<span class="text-rose-600 font-black animate-pulse"><i class="fa-solid fa-triangle-exclamation mr-1"></i> KENDALA: ${issueName} (Perlu Penanganan)</span>`;
                     currentLocName = `Tertahan di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
                 }
             } else if (robotAlert && robot.status === 'Idle') {
@@ -3751,8 +3752,8 @@
                 robot.current_y = baseLoc.y;
                 robot.floor = 1;
 
-                taskText = `<i class="fa-solid fa-bolt text-orange-500 mr-1 animate-pulse"></i> Pengisian Daya di ${baseLoc.name || 'Base'} (${robot.battery_level}%)...`;
-                currentLocName = baseLoc.name || 'Base Station';
+                taskText = `<i class="fa-solid fa-bolt text-orange-500 mr-1 animate-pulse"></i> Pengisian Daya di ${baseLoc.name || 'Markas Robot'} (${robot.battery_level}%)...`;
+                currentLocName = baseLoc.name || 'Markas Robot';
                 
                 // Active charging at base station
                 const nowTime = now.getTime();
