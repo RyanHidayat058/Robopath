@@ -333,18 +333,12 @@ class TelemetryController extends Controller
 
         $robot = Robot::find($request->robot_id);
 
-        // Update robot status based on issue keywords
-        $newStatus = 'Maintenance';
-        if (stripos($request->issue_type, 'battery') !== false || stripos($request->issue_type, 'baterai') !== false) {
-            $newStatus = 'Charging';
-        }
-
-        $robot->update([
-            'status' => $newStatus,
-        ]);
+        // Jangan otomatis ubah robot ke Maintenance/Charging saat dilaporkan.
+        // Robot tetap pada status aslinya (misal Idle), nanti admin yang menentukan dan mengubahnya di Kontrol Bot.
 
         return response()->json([
             'success' => true,
+            'message' => 'Laporan kendala berhasil dicatat dan diteruskan ke Admin.',
             'report' => $report->load('robot'),
             'robot' => $robot,
         ]);
@@ -413,7 +407,7 @@ class TelemetryController extends Controller
     public function simulateIssue(Request $request, Robot $robot)
     {
         $request->validate([
-            'issue_type' => 'required|string|in:Collision,Low Battery,Sensor Error',
+            'issue_type' => 'required|string',
             'description' => 'nullable|string',
             'current_x' => 'nullable|numeric',
             'current_y' => 'nullable|numeric',
@@ -422,11 +416,12 @@ class TelemetryController extends Controller
         ]);
 
         $issueType = $request->input('issue_type', 'Collision');
-        $defaultDesc = $issueType === 'Collision'
-            ? "Robot {$robot->name} mengalami tabrakan dengan hambatan di jalur! Pengantaran mandek (pending)."
-            : ($issueType === 'Low Battery'
-                ? "Baterai Robot {$robot->name} habis kritis (<20%) di tengah jalan! Pengantaran mandek (pending)."
-                : "Sensor Lidar Robot {$robot->name} mengalami disfungsi hardware! Pengantaran mandek (pending).");
+        $defaultDesc = match ($issueType) {
+            'Collision' => "Robot {$robot->name} mengalami tabrakan dengan hambatan di jalur! Pengantaran mandek (pending).",
+            'Low Battery' => "Baterai Robot {$robot->name} habis kritis (<20%) di tengah jalan! Pengantaran mandek (pending).",
+            'Sensor Error' => "Sensor Lidar Robot {$robot->name} mengalami disfungsi hardware! Pengantaran mandek (pending).",
+            default => "Robot {$robot->name} dialihkan ke status {$issueType} oleh Admin.",
+        };
 
         $description = $request->input('description') ?: $defaultDesc;
 

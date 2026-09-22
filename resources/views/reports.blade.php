@@ -12,7 +12,7 @@
         <div class="flex items-center justify-between pb-4 mb-6 border-b border-gray-100">
             <div>
                 <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <i class="fa-solid fa-triangle-exclamation text-amber-500"></i> Catat Insiden Manual
+                    </i> Catat Insiden Manual
                 </h3>
                 <p class="text-xs text-gray-500 mt-0.5">Laporkan kendala rintangan fisik atau kerusakan robot secara manual dengan lampiran bukti (Maks. 1MB)</p>
             </div>
@@ -33,14 +33,10 @@
                     </select>
                 </div>
 
-                <!-- Select Incident Type -->
+                <!-- Input Incident Type -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Jenis Insiden / Kendala</label>
-                    <select id="incident-type" required class="w-full bg-gray-50 border border-gray-300 text-gray-800 text-sm rounded-xl p-3 focus:outline-none focus:border-[#3b4cb8] transition">
-                        <option value="Collision">Tabrakan / Rintangan Fisik</option>
-                        <option value="Sensor Error">Kerusakan Sensor / LiDAR</option>
-                        <option value="Low Battery">Baterai Kritis / Lemah</option>
-                    </select>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Jenis Kendala</label>
+                    <input type="text" id="incident-type" required placeholder="Contoh: Rintangan di jalur, Sensor kotor, Baterai drop, dll." class="w-full bg-gray-50 border border-gray-300 text-gray-800 text-sm rounded-xl p-3 focus:outline-none focus:border-[#3b4cb8] transition placeholder:text-gray-400">
                 </div>
 
                 <!-- Evidence Photo Upload (Max 1MB) -->
@@ -64,7 +60,7 @@
 
             <div class="flex justify-end">
                 <button type="submit" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 px-6 rounded-xl text-sm transition duration-200 shadow-md hover:shadow-lg flex items-center gap-2">
-                    <i class="fa-solid fa-bug"></i> Kirim Laporan Insiden
+                    </i> Kirim Laporan
                 </button>
             </div>
         </form>
@@ -76,14 +72,9 @@
         <div class="p-6 bg-[#3b4cb8] text-white flex items-center justify-between shadow-sm">
             <div>
                 <h3 class="text-base font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-triangle-exclamation"></i> Log Peringatan & Gangguan Sistem
+                    </i> Log Peringatan & Gangguan Sistem
                 </h3>
                 <p class="text-xs text-blue-100/90 font-medium mt-1">Pantau dan selesaikan kendala perangkat keras aktif (Total {{ $reports->total() }} data)</p>
-            </div>
-            <div>
-                <button onclick="confirmReset()" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition duration-200">
-                    <i class="fa-solid fa-trash-can"></i> Bersihkan Semua Log
-                </button>
             </div>
         </div>
 
@@ -110,9 +101,9 @@
                             {{ $report->robot?->name ?? 'Robot Tidak Diketahui' }}
                         </td>
                         <td class="px-6 py-4">
-                            <span class="text-xs font-bold flex items-center gap-1.5 {{ $report->issue_type === 'Collision' || $report->issue_type === 'Sensor Error' ? 'text-rose-600' : 'text-amber-600' }}">
-                                <i class="fa-solid @if($report->issue_type === 'Collision') fa-burst @elseif($report->issue_type === 'Low Battery') fa-battery-empty @else fa-microchip-exclamation @endif"></i>
-                                {{ $report->issue_type === 'Collision' ? 'Tabrakan' : ($report->issue_type === 'Low Battery' ? 'Baterai Lemah' : ($report->issue_type === 'Sensor Error' ? 'Kerusakan Sensor' : $report->issue_type)) }}
+                            <span class="text-xs font-bold flex items-center gap-1.5 text-rose-600">
+                                <i class="fa-solid fa-triangle-exclamation"></i>
+                                {{ $report->issue_type }}
                             </span>
                         </td>
                         <td class="px-6 py-4 text-gray-600 text-xs max-w-[200px] truncate" title="{{ $report->description }}">
@@ -235,13 +226,24 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                succDiv.textContent = `Insiden berhasil dilaporkan! Status ${data.robot.name} diperbarui menjadi ${data.robot.status}.`;
+                succDiv.textContent = 'Laporan kendala berhasil dikirim! Notifikasi telah diteruskan ke Admin untuk ditinjau di menu Kontrol Bot.';
                 succDiv.classList.remove('hidden');
                 document.getElementById('incident-form').reset();
                 
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                if (window.RobopathSwal) {
+                    window.RobopathSwal.fire({
+                        title: 'Laporan Berhasil Terkirim!',
+                        text: 'Laporan kendala telah dicatat dan notifikasi diteruskan ke Admin. Status robot saat ini tetap siaga sampai Admin memutuskan untuk mengubahnya ke mode Perbaikan di Kontrol Bot.',
+                        icon: 'success',
+                        confirmButtonText: 'Mengerti'
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1200);
+                }
             } else {
                 errDiv.textContent = data.message || 'Gagal melaporkan insiden.';
                 errDiv.classList.remove('hidden');
@@ -270,53 +272,6 @@
             }
         })
         .catch(err => console.error('Error resolving incident:', err));
-    }
-
-    async function confirmReset() {
-        const confirmed = await window.showConfirmDialog({
-            title: 'Hapus Log Masalah & Reset Robot?',
-            text: 'Semua riwayat laporan masalah/insiden akan dibersihkan dan armada robot dikembalikan ke Base Station (Markas Robot). Tindakan ini permanen.',
-            confirmText: '<i class="fa-solid fa-trash-can mr-1.5"></i> Ya, Bersihkan Log',
-            cancelText: 'Batal',
-            icon: 'warning',
-            isDanger: true
-        });
-
-        if (!confirmed) return;
-
-        RobopathSwal.fire({
-            title: 'Membersihkan Log & Reset Armada...',
-            html: '<p class="text-xs text-gray-500 mt-1">Menghapus seluruh log insiden dan mereset status armada...</p>',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-
-        try {
-            const res = await fetch('/api/system/reset', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Accept': 'application/json'
-                }
-            });
-            const data = await res.json();
-            if (data.success) {
-                await window.showSuccessAlert(
-                    'Log Berhasil Dibersihkan!',
-                    'Seluruh log insiden telah dibersihkan dan unit robot telah dikembalikan ke base.'
-                );
-                window.location.reload();
-            } else {
-                window.showErrorAlert('Gagal Mereset Log', data.message || 'Terjadi kendala saat mereset sistem.');
-            }
-        } catch (err) {
-            console.error('Error resetting:', err);
-            window.showErrorAlert('Kesalahan Jaringan', 'Terjadi kesalahan saat menghubungi server untuk mereset log.');
-        }
     }
 </script>
 @endsection

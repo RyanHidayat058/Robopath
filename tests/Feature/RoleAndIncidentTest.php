@@ -111,6 +111,51 @@ class RoleAndIncidentTest extends TestCase
         $robot->update(['status' => 'Idle', 'battery_level' => 100]);
     }
 
+    public function test_incident_report_does_not_auto_change_robot_to_maintenance(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $robot = Robot::create([
+            'name' => 'Robot Beta',
+            'status' => 'Idle',
+            'battery_level' => 90,
+            'current_x' => 85.48,
+            'current_y' => 51.07,
+            'floor' => 1,
+        ]);
+
+        // 1. Submit incident report with custom text for issue_type
+        $resp = $this->actingAs($admin)->postJson('/api/reports', [
+            'robot_id' => $robot->id,
+            'issue_type' => 'Rintangan di lorong utama',
+            'description' => 'Ada troli barang menghalangi jalan robot.',
+        ]);
+
+        $resp->assertStatus(200);
+        $resp->assertJson(['success' => true]);
+
+        // Robot MUST remain 'Idle' (NOT auto changed to Maintenance)
+        $robot->refresh();
+        $this->assertEquals('Idle', $robot->status);
+
+        // Report is stored as Active with the custom issue_type text
+        $report = Report::where('robot_id', $robot->id)->where('status', 'Active')->first();
+        $this->assertNotNull($report);
+        $this->assertEquals('Rintangan di lorong utama', $report->issue_type);
+
+        // 2. Admin then manually changes robot to Maintenance in bot control
+        $simResp = $this->actingAs($admin)->postJson("/api/robots/{$robot->id}/simulate-issue", [
+            'issue_type' => $report->issue_type,
+        ]);
+        $simResp->assertStatus(200);
+
+        $robot->refresh();
+        $this->assertEquals('Maintenance', $robot->status);
+
+        // Clean up
+        $report->delete();
+        $robot->delete();
+    }
+
     public function test_autopilot_toggle_and_auto_dispatch(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

@@ -3717,25 +3717,28 @@
             
             // Check if robot has active issue / alert
             const robotAlert = activeAlerts.find(a => Number(a.robot_id) === Number(robot.id) && a.status === 'Active');
-            const hasIssue = !!robotAlert || robot.status === 'Maintenance' || (robot.status === 'Charging' && robot.battery_level <= 10) || (delivery && delivery.status === 'Pending');
+            const isMaintenance = robot.status === 'Maintenance';
+            const hasIssue = isMaintenance || (robot.status === 'Charging' && robot.battery_level <= 10) || (delivery && delivery.status === 'Pending');
             robot.hasIssue = hasIssue;
             robot.activeAlert = robotAlert;
 
             let coords = { x: robot.current_x, y: robot.current_y };
             let floorNum = robot.floor || 1;
             const baseLoc = getBaseLocation();
-            let taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
+            let taskText = `Siaga di ${baseLoc.name || 'Base Station'}`;
             let currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
 
             if (hasIssue) {
-                const issueName = robotAlert ? robotAlert.issue_type : (robot.battery_level <= 10 ? 'Baterai Habis' : 'Maintenance');
+                const issueName = robotAlert ? robotAlert.issue_type : (robot.battery_level <= 10 ? 'Baterai Habis' : 'Perbaikan');
                 if (delivery) {
                     taskText = `<span class="text-rose-600 font-black animate-pulse"><i class="fa-solid fa-triangle-exclamation mr-1"></i> MASALAH: ${issueName} - Pengantaran Mandek!</span>`;
                     currentLocName = `Mandek di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
                 } else {
-                    taskText = `<span class="text-rose-600 font-black animate-pulse"><i class="fa-solid fa-triangle-exclamation mr-1"></i> MASALAH: ${issueName} (Cepat Benerin!)</span>`;
+                    taskText = `<span class="text-rose-600 font-black animate-pulse"><i class="fa-solid fa-triangle-exclamation mr-1"></i> MASALAH: ${issueName} (Perlu Penanganan)</span>`;
                     currentLocName = `Tertahan di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
                 }
+            } else if (robotAlert && robot.status === 'Idle') {
+                taskText = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1 animate-bounce"></i> Ada Laporan: ${robotAlert.issue_type} (Tinjau di Kontrol Bot)</span>`;
             } else if (robot.status === 'Charging') {
                 coords = { x: baseLoc.x, y: baseLoc.y };
                 floorNum = 1;
@@ -4099,9 +4102,12 @@
 
             if (badge) {
                 if (hasIssue) {
-                    const issueLabel = robot.activeAlert ? robot.activeAlert.issue_type.toUpperCase() : 'MASALAH';
+                    const issueLabel = robot.activeAlert ? robot.activeAlert.issue_type.toUpperCase() : 'PERBAIKAN';
                     badge.textContent = issueLabel;
                     badge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-300 animate-pulse';
+                } else if (robot.activeAlert && robot.status === 'Idle') {
+                    badge.textContent = 'Siaga (Laporan)';
+                    badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-300 animate-pulse';
                 } else if (robot.isReturning) {
                     badge.textContent = 'Kembali';
                     badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-indigo-100 text-indigo-700 border border-indigo-200';
@@ -4142,16 +4148,21 @@
         const banner = document.getElementById('emergency-alert-banner');
         const bannerText = document.getElementById('emergency-banner-text');
         const issueRobots = robots.filter(r => r.hasIssue);
+        const alertRobots = robots.filter(r => r.activeAlert && !r.hasIssue);
 
         if (!banner || !bannerText) return;
 
         if (issueRobots.length > 0) {
             banner.classList.remove('hidden');
             const descriptions = issueRobots.map(r => {
-                const alertType = r.activeAlert ? r.activeAlert.issue_type : (r.battery_level <= 10 ? 'Baterai Habis' : 'Kendala Teknis');
+                const alertType = r.activeAlert ? r.activeAlert.issue_type : (r.battery_level <= 10 ? 'Baterai Habis' : 'Perbaikan');
                 return `${r.name}: ${alertType} (${r.activeAlert?.description || 'Pengantaran mandek'})`;
             }).join(' | ');
-            bannerText.innerHTML = `⚠️ ${descriptions}. <strong>Cepat benerin agar robot dapat kembali bekerja!</strong>`;
+            bannerText.innerHTML = `⚠️ ${descriptions}. <strong>Cepat perbaiki agar robot dapat kembali bekerja!</strong>`;
+        } else if (alertRobots.length > 0) {
+            banner.classList.remove('hidden');
+            const descriptions = alertRobots.map(r => `${r.name}: ${r.activeAlert.issue_type} (${r.activeAlert.description || 'Laporan baru'})`).join(' | ');
+            bannerText.innerHTML = `⚠️ <strong>Pemberitahuan Admin:</strong> Terdapat laporan kendala untuk ${descriptions}. <a href="/bot-control" class="underline font-bold text-amber-200 hover:text-white ml-1">Buka Kontrol Bot untuk kelola status &rarr;</a>`;
         } else {
             banner.classList.add('hidden');
         }

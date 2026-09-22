@@ -324,9 +324,12 @@
                 </a>
 
                 <a href="{{ route('reports') }}" 
-                   class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('reports') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
-                    <i class="fa-solid fa-triangle-exclamation text-lg {{ Route::is('reports') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
-                    <span class="text-sm">Peringatan</span>
+                   class="flex items-center justify-between px-4 py-3 rounded transition duration-200 group {{ Route::is('reports') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
+                    <div class="flex items-center gap-4 min-w-0">
+                        <i class="fa-solid fa-triangle-exclamation text-lg {{ Route::is('reports') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
+                        <span class="text-sm truncate">Laporan</span>
+                    </div>
+                    <span id="sidebar-reports-count" class="hidden bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">0</span>
                 </a>
 
                 <a href="{{ route('history') }}" 
@@ -338,7 +341,7 @@
                 <a href="{{ route('bot-control') }}" 
                    class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('bot-control') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-sliders text-lg {{ Route::is('bot-control') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
-                    <span class="text-sm">Kontrol Bot</span>
+                    <span class="text-sm">Kontrol Robot</span>
                 </a>
                 @endif
             </nav>
@@ -362,6 +365,15 @@
                     <div class="h-8 w-px bg-gray-200 hidden sm:block"></div>
                 @endif
                 
+                @if(auth()->check() && auth()->user()->isAdmin())
+                <div class="relative">
+                    <a href="{{ route('reports') }}" id="topbar-bell-btn" class="relative w-9 h-9 rounded-xl bg-gray-100 hover:bg-amber-50 text-gray-600 hover:text-amber-600 border border-gray-200 flex items-center justify-center transition" title="Laporan Kendala Aktif">
+                        <i class="fa-solid fa-bell text-sm"></i>
+                        <span id="topbar-alert-badge" class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-extrabold px-1 rounded-full flex items-center justify-center animate-bounce shadow-xs">0</span>
+                    </a>
+                </div>
+                @endif
+
                 <div class="flex items-center gap-3 shrink-0">
                     <div class="text-right hidden md:block">
                         <p class="text-sm font-semibold text-gray-800 leading-tight">{{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin' : (auth()->user()->name ?? 'Pengguna') }}</p>
@@ -516,6 +528,58 @@
             if (confirmed) {
                 document.getElementById('logout-form').submit();
             }
+        }
+
+        // Global Telemetry & Incident Notification Poller for Admin
+        if (window.isAdmin) {
+            let lastKnownAlertCount = null;
+            let notifiedAlertIds = new Set();
+
+            function checkGlobalAdminAlerts() {
+                fetch('/api/telemetry')
+                    .then(res => res.json())
+                    .then(data => {
+                        const activeAlerts = data.active_alerts || [];
+                        const count = activeAlerts.length;
+
+                        // Update badges
+                        const sbBadge = document.getElementById('sidebar-reports-count');
+                        const tbBadge = document.getElementById('topbar-alert-badge');
+                        if (sbBadge) {
+                            if (count > 0) {
+                                sbBadge.textContent = count;
+                                sbBadge.classList.remove('hidden');
+                            } else {
+                                sbBadge.classList.add('hidden');
+                            }
+                        }
+                        if (tbBadge) {
+                            if (count > 0) {
+                                tbBadge.textContent = count;
+                                tbBadge.classList.remove('hidden');
+                            } else {
+                                tbBadge.classList.add('hidden');
+                            }
+                        }
+
+                        // Check for new unnotified alerts
+                        activeAlerts.forEach(a => {
+                            if (!notifiedAlertIds.has(a.id)) {
+                                notifiedAlertIds.add(a.id);
+                                if (lastKnownAlertCount !== null) {
+                                    // New alert came in while admin is viewing!
+                                    window.showToast(`⚠️ Laporan Baru: Robot ${a.robot?.name || ''} mengalami ${a.issue_type}! Cek Kontrol Bot.`, 'warning');
+                                }
+                            }
+                        });
+                        lastKnownAlertCount = count;
+                    })
+                    .catch(() => {});
+            }
+
+            // Check immediately and poll periodically
+            checkGlobalAdminAlerts();
+            setInterval(checkGlobalAdminAlerts, 5000);
         }
 
         // Global fallback override for native window.alert
