@@ -88,7 +88,6 @@
                         <th class="px-6 py-4">Keterangan</th>
                         <th class="px-6 py-4 text-center">Foto Bukti</th>
                         <th class="px-6 py-4 text-center">Status</th>
-                        <th class="px-6 py-4 text-right">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -123,19 +122,10 @@
                                 {{ $report->status === 'Active' ? 'Aktif' : 'Selesai' }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 text-right">
-                            @if($report->status === 'Active')
-                            <button onclick="resolveIncident({{ $report->id }})" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow transition duration-150">
-                                <i class="fa-solid fa-check mr-1"></i> Perbaiki Unit
-                            </button>
-                            @else
-                            <span class="text-gray-400 text-xs font-semibold"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i> Terselesaikan</span>
-                            @endif
-                        </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="py-12 text-center text-gray-400 text-xs">
+                        <td colspan="6" class="py-12 text-center text-gray-400 text-xs">
                             Tidak ada peringatan tercatat. Semua unit beroperasi dalam kondisi ideal.
                         </td>
                     </tr>
@@ -254,24 +244,6 @@
             errDiv.textContent = 'Terjadi kesalahan jaringan. Silakan coba lagi.';
             errDiv.classList.remove('hidden');
         });
-    }
-
-    function resolveIncident(reportId) {
-        fetch(`/api/reports/${reportId}/resolve`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                window.location.reload();
-            }
-        })
-        .catch(err => console.error('Error resolving incident:', err));
     }
 </script>
 @endsection
