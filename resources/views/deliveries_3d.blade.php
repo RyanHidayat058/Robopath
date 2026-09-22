@@ -1,265 +1,112 @@
 @extends('layouts.layout')
 
-@section('title', 'ROBOPATH - Pengiriman & Pelacakan Langsung')
+@section('title', 'ROBOPATH - Manajemen Pengiriman')
 @section('page_title', 'Manajemen Pengiriman')
-@section('page_subtitle', 'Tugaskan pengiriman baru, pantau misi aktif, dan lacak posisi unit robot')
-
-@section('styles')
-<style>
-    .map-container {
-        position: relative;
-        background-color: #0f172a;
-        background-size: 100% 100%;
-        background-repeat: no-repeat;
-        background-position: center;
-        aspect-ratio: 16/9;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
-        overflow: hidden;
-    }
-    #deliv-3d-canvas-container, #deliv-3d-canvas-f1 {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 0;
-    }
-    #deliv-3d-canvas-container canvas, #deliv-3d-canvas-f1 canvas {
-        display: block;
-        width: 100% !important;
-        height: 100% !important;
-    }
-    .location-pin {
-        position: absolute;
-        transform: translate(-50%, -50%);
-        cursor: pointer;
-    }
-</style>
-@endsection
+@section('page_subtitle', 'Pantau misi pengantaran berjalan dan riwayat aktivitas pengiriman hari ini')
 
 @section('content')
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Left Column: Dispatch Panel & Recent Activity (1/3 width) -->
-    <div class="space-y-8">
-        <!-- Dispatch Form -->
-        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
-            <h3 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <i class="fa-solid fa-paper-plane text-brand-blue"></i>
-                Tugaskan Pengiriman Baru
-            </h3>
-            
-            <div id="dispatch-error" class="hidden bg-red-100 border border-red-200 text-red-500 text-xs p-3 rounded-xl mb-4">
-                Pesan kesalahan
+    <!-- Left Column: Recent Activity Timeline Today (1/3 width) -->
+    <div class="lg:col-span-1">
+        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col h-full">
+            <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+                <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-brand-blue"></i>
+                    Riwayat Aktivitas Hari Ini
+                </h3>
+                <span class="text-[11px] font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full" id="timeline-count-badge">
+                    {{ $recentActivity->count() }} Aktivitas
+                </span>
             </div>
             
-            <form id="dispatch-form" onsubmit="dispatchDelivery(event)" class="space-y-4">
-                <!-- Select Robot -->
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Pilih Robot Tersedia</label>
-                    <select id="dispatch-robot" onchange="updateStartLocation()" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
-                        <option value="" disabled selected>Pilih robot...</option>
-                        @php
-                            $statusIndoMap = [
-                                'Idle' => 'Siaga',
-                                'Delivering' => 'Mengantar',
-                                'Charging' => 'Mengisi Daya',
-                                'Maintenance' => 'Perbaikan',
-                                'Returning' => 'Kembali'
-                            ];
-                        @endphp
-                        @foreach($robots as $robot)
-                        @php
-                            $rStatusText = $statusIndoMap[$robot->status] ?? $robot->status;
-                        @endphp
-                        <option value="{{ $robot->id }}" 
-                                data-status="{{ $robot->status }}" 
-                                data-battery="{{ $robot->battery_level }}" 
-                                data-x="{{ $robot->current_x }}" 
-                                data-y="{{ $robot->current_y }}"
-                                @if($robot->status !== 'Idle' || $robot->battery_level <= 20) disabled @endif>
-                            {{ $robot->name }} ({{ $rStatusText }} - Bat: {{ $robot->battery_level }}%) 
-                            @if($robot->status !== 'Idle') [{{ $rStatusText }}] @elseif($robot->battery_level <= 20) [Baterai Rendah] @endif
-                        </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <!-- Select Item -->
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Barang yang Diantar</label>
-                    <select id="dispatch-item" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
-                        <option value="" disabled selected>Pilih jenis barang...</option>
-                        <option value="Handuk">Handuk</option>
-                        <option value="Makanan">Makanan</option>
-                        <option value="Dokumen">Dokumen</option>
-                        <option value="Kopi">Kopi</option>
-                        <option value="Paket">Paket</option>
-                        <option value="Botol Air">Botol Air</option>
-                        <option value="Sparepart">Suku Cadang (Sparepart)</option>
-                    </select>
-                </div>
-
-                <!-- Starting Location (Titik Jemput) -->
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Titik Jemput (Lokasi Ambil)</label>
-                    <select id="dispatch-start" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
-                        <option value="" disabled selected>Pilih titik jemput barang...</option>
-                        <optgroup label="Lantai 1">
-                            @foreach($locations as $id => $coords)
-                            @if(($coords['floor'] ?? 1) == 1 && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
-                            <option value="{{ $id }}">{{ $coords['name'] }} (Lantai 1)</option>
-                            @endif
-                            @endforeach
-                        </optgroup>
-                        <optgroup label="Lantai 2">
-                            @foreach($locations as $id => $coords)
-                            @if(($coords['floor'] ?? 1) == 2 && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
-                            <option value="{{ $id }}">{{ $coords['name'] }} (Lantai 2)</option>
-                            @endif
-                            @endforeach
-                        </optgroup>
-                    </select>
-                </div>
-
-                <!-- Destination Location -->
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Ruangan Tujuan (Lokasi Antar)</label>
-                    <select id="dispatch-dest" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
-                        <option value="" disabled selected>Pilih ruangan tujuan...</option>
-                        <optgroup label="Lantai 1">
-                            @foreach($locations as $id => $coords)
-                            @if(($coords['floor'] ?? 1) == 1 && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
-                            <option value="{{ $id }}">{{ $coords['name'] }} (Lantai 1)</option>
-                            @endif
-                            @endforeach
-                        </optgroup>
-                        <optgroup label="Lantai 2">
-                            @foreach($locations as $id => $coords)
-                            @if(($coords['floor'] ?? 1) == 2 && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
-                            <option value="{{ $id }}">{{ $coords['name'] }} (Lantai 2)</option>
-                            @endif
-                            @endforeach
-                        </optgroup>
-                    </select>
-                </div>
-
-                <button type="submit" class="w-full bg-sky-500 hover:bg-brand-blue text-slate-900/50  font-bold py-3 rounded-xl  hover:shadow-sky-500/50 transition duration-200 text-sm">
-                    <i class="fa-solid fa-truck-flatbed mr-1.5"></i> Tugaskan Robot
-                </button>
-            </form>
-        </div>
-
-        <!-- Recent Activity Timeline -->
-        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col">
-            <h3 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2 pb-3 border-b border-gray-200">
-                <i class="fa-solid fa-list-check text-brand-blue"></i>
-                Riwayat Aktivitas Terbaru
-            </h3>
-            <div class="space-y-4 overflow-y-auto max-h-[300px] pr-2" id="timeline-container">
-                @foreach($recentActivity->take(6) as $act)
+            <div class="space-y-4 overflow-y-auto max-h-[600px] pr-2" id="timeline-container">
+                @forelse($recentActivity as $act)
                 <div class="relative pl-6 border-l border-gray-200">
                     <!-- Glowing indicator dot -->
-                    <span class="absolute left-[-4.5px] top-1.5 w-2.5 h-2.5 rounded-full {{ $act->status === 'Completed' ? 'bg-green-500 ' : ($act->status === 'Failed' ? 'bg-rose-400 ' : 'bg-brand-blue  animate-pulse') }}"></span>
+                    <span class="absolute left-[-4.5px] top-1.5 w-2.5 h-2.5 rounded-full {{ $act->status === 'Completed' ? 'bg-green-500' : ($act->status === 'Failed' ? 'bg-rose-500' : 'bg-brand-blue animate-pulse') }}"></span>
                     
-                    <span class="text-[10px] text-gray-400 font-semibold block">{{ $act->updated_at->diffForHumans() }}</span>
+                    <span class="text-[10px] text-gray-400 font-semibold block">
+                        {{ $act->updated_at ? $act->updated_at->format('H:i:s') : '-' }} ({{ $act->updated_at ? $act->updated_at->diffForHumans() : '-' }})
+                    </span>
                     <p class="text-xs font-bold text-gray-800 mt-0.5">
-                        {{ $act->robot->name }}
+                        {{ $act->robot ? $act->robot->name : 'Robot' }}
                     </p>
                     <p class="text-[11px] text-gray-500 mt-0.5">
                         @if($act->status === 'Completed')
                         Berhasil mengantar <strong class="text-gray-700">{{ $act->item_name }}</strong> ke <strong class="text-gray-700">{{ $act->formatted_destination_location }}</strong>
                         @elseif($act->status === 'In Progress')
                         Sedang mengantar <strong class="text-gray-700">{{ $act->item_name }}</strong> ke <strong class="text-gray-700">{{ $act->formatted_destination_location }}</strong>
+                        @elseif($act->status === 'Pending')
+                        Menunggu antaran <strong class="text-gray-700">{{ $act->item_name }}</strong> ke <strong class="text-gray-700">{{ $act->formatted_destination_location }}</strong>
                         @else
                         Gagal mengantar <strong class="text-gray-700">{{ $act->item_name }}</strong>
                         @endif
                     </p>
                 </div>
-                @endforeach
+                @empty
+                <div class="text-xs text-gray-400 font-medium text-center py-12">
+                    <i class="fa-solid fa-box-open text-2xl mb-2 text-gray-300 block"></i>
+                    Belum ada riwayat aktivitas untuk hari ini.
+                </div>
+                @endforelse
             </div>
         </div>
     </div>
 
-    <!-- Right Column: Live Tracker & Current Deliveries (2/3 width) -->
-    <div class="lg:col-span-2 space-y-8 lg:sticky lg:top-6 self-start">
-        <!-- Live Tracker Map -->
-        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h3 class="text-base font-bold text-gray-800" id="live-map-title">
-                        <i class="fa-solid fa-layer-group text-[#3b4cb8] mr-1"></i> Pelacakan Langsung - Lantai 1
-                    </h3>
-                    <p class="text-xs text-gray-500" id="live-map-subtitle">Lantai 1 (Lobi, Kantor & Resepsionis)</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="focusOnRobotOrBase()" class="px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold border border-white/10 shadow flex items-center gap-1.5 transition" title="Fokuskan kamera ke Robot / Markas">
-                        <i class="fa-solid fa-crosshairs text-sky-400"></i>
-                        <span>Fokus Robot</span>
-                    </button>
-                    <button onclick="toggle3DRoomLabels()" id="btn-toggle-deliv-labels" class="px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold border border-white/10 shadow flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Nama Ruangan">
-                        <i class="fa-solid fa-tag text-emerald-400" id="icon-deliv-labels"></i>
-                        <span id="text-deliv-labels">Label: AKTIF</span>
-                    </button>
-                    <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
-                        <button onclick="switchLiveFloor(1)" id="btn-deliv-f1" class="px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition">
-                            Lantai 1
-                        </button>
-                        <button onclick="switchLiveFloor(2)" id="btn-deliv-f2" class="px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">
-                            Lantai 2
-                        </button>
-                    </div>
-                </div>
+    <!-- Right Column: Current Active Deliveries (2/3 width) -->
+    <div class="lg:col-span-2">
+        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col h-full">
+            <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
+                <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
+                    <i class="fa-solid fa-truck-ramp-box text-[#3b4cb8]"></i>
+                    Misi Pengantaran Berjalan
+                </h3>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                    <span class="w-2 h-2 rounded-full bg-sky-500 animate-ping"></span>
+                    <span id="active-count-text">{{ $activeDeliveries->count() }} Aktif</span>
+                </span>
             </div>
-
-            <!-- The Map — kedua lantai murni 3D -->
-            <div class="map-container relative overflow-hidden" id="map-container" style="background-color:#0f172a;">
-                <!-- 3D Canvas Layer for Floor 1 -->
-                <div id="deliv-3d-canvas-f1" class="absolute inset-0 z-0 hidden pointer-events-auto"></div>
-                <!-- 3D Canvas Layer for Floor 2 -->
-                <div id="deliv-3d-canvas-container" class="absolute inset-0 z-0 hidden pointer-events-auto"></div>
-
-                <!-- 3D Loading Overlay (dipakai bergantian per lantai aktif) -->
-                <div id="deliv-3d-loader" class="absolute inset-0 z-30 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center text-white">
-                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#3b4cb8] to-sky-400 p-0.5 shadow-2xl mb-4 animate-bounce">
-                        <div class="w-full h-full bg-slate-900 rounded-2xl flex items-center justify-center">
-                            <i class="fa-solid fa-cube text-2xl text-sky-400 animate-spin"></i>
-                        </div>
-                    </div>
-                    <h4 class="font-bold text-sm tracking-wide text-gray-100 mb-1" id="deliv-3d-loader-title">Memuat Model 3D Lantai 1...</h4>
-                    <p class="text-xs text-gray-400 mb-4" id="deliv-3d-loader-status">Mengunduh aset GLB (8 MB)...</p>
-                    <div class="w-56 bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
-                        <div id="deliv-3d-loader-bar" class="bg-gradient-to-r from-[#3b4cb8] to-sky-400 h-2 rounded-full transition-all duration-200" style="width:5%"></div>
-                    </div>
-                    <span id="deliv-3d-loader-pct" class="text-[11px] font-mono text-sky-400 font-bold mt-2">5%</span>
-                </div>
-
-                <!-- 3D Hint Badge -->
-                <div id="deliv-3d-hint" class="hidden absolute bottom-2 right-2 z-30 bg-slate-900/80 backdrop-blur-md text-white px-2.5 py-1 rounded-lg text-[10px] font-semibold border border-white/10 shadow flex items-center gap-1.5 pointer-events-none">
-                    <i class="fa-solid fa-cube text-sky-400"></i> Model 3D Aktif &bull; Putar (Drag) &bull; Zoom (Scroll)
-                </div>
-            </div>
-        </div>
-
-        <!-- Current Deliveries List -->
-        <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
-            <h3 class="text-base font-bold text-gray-800 mb-4 border-b border-gray-200 pb-3">Misi Pengantaran Berjalan</h3>
             
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm text-gray-700">
                     <thead>
                         <tr class="text-gray-400 text-xs font-bold uppercase border-b border-gray-200">
-                            <th class="py-2.5">Robot</th>
-                            <th>Muatan</th>
-                            <th>Titik Jemput</th>
-                            <th>Tujuan</th>
-                            <th>Progres</th>
+                            <th class="py-3 px-2">Robot</th>
+                            <th class="py-3 px-2">Muatan</th>
+                            <th class="py-3 px-2">Titik Jemput</th>
+                            <th class="py-3 px-2">Tujuan</th>
+                            <th class="py-3 px-2">Progres</th>
                         </tr>
                     </thead>
                     <tbody id="active-deliveries-table-body">
-                        <tr>
-                            <td colspan="5" class="py-8 text-center text-gray-400 text-xs">Tidak ada misi pengantaran aktif saat ini.</td>
+                        @forelse($activeDeliveries as $deliv)
+                        <tr class="border-b border-gray-100 hover:bg-gray-50/70 transition text-xs">
+                            <td class="py-3.5 px-2 font-bold text-gray-700">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
+                                    <span>{{ $deliv->robot ? $deliv->robot->name : 'Robot' }}</span>
+                                </div>
+                            </td>
+                            <td class="py-3.5 px-2 text-gray-600 font-semibold">{{ $deliv->item_name }}</td>
+                            <td class="py-3.5 px-2 text-gray-500 font-medium">{{ $deliv->formatted_start_location }}</td>
+                            <td class="py-3.5 px-2 text-gray-800 font-semibold">{{ $deliv->formatted_destination_location }}</td>
+                            <td class="py-3.5 px-2">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-28 bg-gray-100 rounded-full h-2 overflow-hidden border border-gray-200">
+                                        <div class="bg-brand-blue h-2 rounded-full transition-all duration-300" style="width: 25%"></div>
+                                    </div>
+                                    <span class="font-bold text-brand-blue font-mono text-xs">25%</span>
+                                </div>
+                            </td>
                         </tr>
+                        @empty
+                        <tr>
+                            <td colspan="5" class="py-12 text-center text-gray-400 text-xs">
+                                <i class="fa-solid fa-circle-check text-2xl mb-2 text-gray-300 block"></i>
+                                Tidak ada misi pengantaran aktif saat ini.
+                            </td>
+                        </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -270,1931 +117,26 @@
 
 @section('scripts')
 <script>
-    const locations = {
-        @foreach($locations as $id => $loc)
-        '{{ $id }}': { 
-            id: '{{ $id }}',
-            name: '{{ addslashes($loc['name'] ?? $id) }}',
-            x: {{ $loc['x'] }}, 
-            y: {{ $loc['y'] }}, 
-            floor: {{ $loc['floor'] ?? 1 }},
-            hidden: {{ ($loc['hidden'] ?? false) ? 'true' : 'false' }},
-            is_destination: {{ ($loc['is_destination'] ?? false) ? 'true' : 'false' }},
-            objectName: {!! isset($loc['objectName']) && $loc['objectName'] ? ("'" . addslashes($loc['objectName']) . "'") : 'null' !!}
-        },
-        @endforeach
-    };
-
-    const adj = {
-        @foreach($adj as $node => $neighbors)
-        '{{ $node }}': [ @foreach($neighbors as $nbr) '{{ $nbr }}', @endforeach ],
-        @endforeach
-    };
-
-    // Auto-bridge isolated nodes like 1_Markas Robot to adjacent corridor nodes dynamically at runtime
-    (function bridgeGraphNodes() {
-        const baseId = '1_Markas Robot';
-        if (locations[baseId]) {
-            if (!adj[baseId] || adj[baseId].length === 0) {
-                const targetNode = locations['1_N114'] ? '1_N114' : '1_N110';
-                if (targetNode && locations[targetNode]) {
-                    adj[baseId] = [targetNode];
-                    if (!adj[targetNode]) adj[targetNode] = [];
-                    if (!adj[targetNode].includes(baseId)) adj[targetNode].push(baseId);
-                }
-            }
-        }
-    })();
-
-    // Parking slot calculation for Markas Robot so robots NEVER overlap
-    function getBaseParkingOffset(robotIndex) {
-        const i = Number(robotIndex) || 0;
-        const col = i % 3; // 0, 1, 2
-        const row = Math.floor(i / 3); // 0, 1
-        const dx = (col - 1) * 1.8; // -1.8%, 0%, +1.8%
-        const dy = (row - 0.5) * 1.6; // -0.8%, +0.8%
-        return { dx, dy };
-    }
-
     let robots = @json($robots);
     let activeDeliveries = @json($activeDeliveries);
-    let activeAlerts = [];
     let serverClientOffset = 0;
-    let liveCurrentFloor = 1;
-    let simulationInterval = null;
-    let syncInterval = null;
-    let autopilotEnabled = {{ Illuminate\Support\Facades\Cache::get('autopilot_enabled', false) ? 'true' : 'false' }};
 
-    const floor1ModelUrl = "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
-    const floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
-    const robotModelUrl = "{{ asset('models/robot.glb') }}";
-    const MODEL_CACHE_NAME = 'robopath-glb-cache-v1';
-    let threeDeliv = null;
-    let threeDelivF1 = null;
-    let modelLoadedByFloor = { 1: false, 2: false };
-    let labelScaleMultiplier = {{ $labelScale ?? 1.0 }};
-    let settings3D = @json($settings3D ?? []);
-    let current3DSettings = {
-        camera: { dist: parseFloat(settings3D?.camera?.dist ?? 5.0), fov: parseFloat(settings3D?.camera?.fov ?? 5.0), preset: settings3D?.camera?.preset ?? 'iso' },
-        lighting: { ambient: parseFloat(settings3D?.lighting?.ambient ?? 1.4), sun: parseFloat(settings3D?.lighting?.sun ?? 1.8), exposure: parseFloat(settings3D?.lighting?.exposure ?? 1.0), fill: parseFloat(settings3D?.lighting?.fill ?? 0.8) },
-        model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
-        robot_scale: parseFloat(settings3D?.robot_scale ?? 0.1),
-        robot_elevation_f1: parseFloat(settings3D?.robot_elevation_f1 ?? 0.059),
-        robot_elevation_f2: parseFloat(settings3D?.robot_elevation_f2 ?? 0.112)
-    };
-    // robot template shared (same as dashboard)
-    let robotTemplate = null, robotTemplateReady = false, robotTemplateLoading = false, robotTemplateFailed = false;
-    let robotTemplateCallbacks = [], robotTemplateTries = 0;
-    function activeDelivViewer(){ return Number(liveCurrentFloor)===1 ? threeDelivF1 : threeDeliv; }
-    function allDelivViewers(){ return [threeDeliv, threeDelivF1].filter(Boolean); }
-    function viewerOfHolder(holder){
-        if(!holder) return null;
-        for(const v of allDelivViewers()){ if(v && v.robotMeshes && v.robotMeshes.has(Number(holder.userData?.robotId))) return v; }
-        return activeDelivViewer();
-    }
-
-    let showRoomLabels = true;
-    function toggle3DRoomLabels() {
-        showRoomLabels = !showRoomLabels;
-        allDelivViewers().forEach(v => {
-            if (v && v.labelsGroup) v.labelsGroup.visible = showRoomLabels;
-        });
-        const icon = document.getElementById('icon-deliv-labels');
-        const text = document.getElementById('text-deliv-labels');
-        const btn = document.getElementById('btn-toggle-deliv-labels');
-        if (showRoomLabels) {
-            if (icon) icon.className = 'fa-solid fa-tag text-emerald-400';
-            if (text) text.textContent = 'Label: AKTIF';
-            if (btn) btn.className = 'px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold border border-white/10 shadow flex items-center gap-1.5 transition';
-        } else {
-            if (icon) icon.className = 'fa-solid fa-tag text-gray-500';
-            if (text) text.textContent = 'Label: NONAKTIF';
-            if (btn) btn.className = 'px-2.5 py-1.5 rounded-xl bg-slate-900/40 hover:bg-slate-900/80 text-gray-400 text-xs font-bold border border-white/5 shadow flex items-center gap-1.5 transition';
+    function formatLocationDisplay(loc) {
+        if (!loc) return '-';
+        const str = String(loc).trim();
+        const match = str.match(/^(\d+)_(.+)$/);
+        if (match) {
+            const floor = match[1];
+            const name = match[2].trim();
+            return `${name} (Lantai ${floor})`;
         }
-    }
-
-    function focusOnRobotOrBase() {
-        const viewer = activeDelivViewer();
-        if (!viewer || !viewer.controls || !viewer.camera) return;
-        const baseLoc = getBaseLocation();
-        const sz = viewer.getModelSize ? viewer.getModelSize() : null;
-        if (!sz || sz.x <= 0.1) return;
-
-        const activeRob = robots.find(r => Number(r.floor || 1) === Number(liveCurrentFloor)) || robots[0];
-        let targetPt = null;
-        if (activeRob && activeRob.current_x !== undefined) {
-            targetPt = worldPosForLoc({ x: activeRob.current_x, y: activeRob.current_y }, sz);
-        } else if (baseLoc && Number(liveCurrentFloor) === 1) {
-            targetPt = worldPosForLoc(baseLoc, sz);
-        }
-
-        if (targetPt) {
-            const elev = (Number(liveCurrentFloor) === 2)
-                ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
-                : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
-            
-            const targetPos = new THREE.Vector3(targetPt.x, elev, targetPt.z);
-            viewer.controls.target.copy(targetPos);
-            viewer.camera.position.set(targetPos.x + 2.5, elev + 3.8, targetPos.z + 4.2);
-            viewer.controls.update();
-        }
-    }
-
-    // Helper: Create sleek 2D-style robot icon sprite (white card + vector robot icon + colored border, compact)
-    function create2DRobotMarkerSprite(robotId, robotName, robotColor) {
-        const cPin = document.createElement('canvas');
-        cPin.width = 128;
-        cPin.height = 128;
-        const ctx = cPin.getContext('2d');
-
-        // White rounded card
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(14, 14, 100, 100, 22);
-        else ctx.rect(14, 14, 100, 100);
-        ctx.fill();
-        ctx.strokeStyle = robotColor;
-        ctx.lineWidth = 7;
-        ctx.stroke();
-
-        // Vector robot icon (FontAwesome fa-robot style)
-        ctx.fillStyle = robotColor;
-        // Antenna
-        ctx.beginPath();
-        ctx.arc(64, 30, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillRect(62, 33, 4, 8);
-
-        // Robot Head
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(36, 41, 56, 46, 8);
-        else ctx.rect(36, 41, 56, 46);
-        ctx.fill();
-
-        // Ears
-        ctx.fillRect(28, 53, 8, 18);
-        ctx.fillRect(92, 53, 8, 18);
-
-        // Eye Visor / Eyes
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(44, 51, 40, 14, 4);
-        else ctx.rect(44, 51, 40, 14);
-        ctx.fill();
-
-        ctx.fillStyle = '#0f172a';
-        ctx.beginPath();
-        ctx.arc(52, 58, 3.5, 0, Math.PI * 2);
-        ctx.arc(76, 58, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Mouth grill
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(48, 73, 32, 4);
-
-        const pinTex = new THREE.CanvasTexture(cPin);
-        pinTex.minFilter = THREE.LinearFilter;
-        const pinMat = new THREE.SpriteMaterial({ map: pinTex, transparent: true, depthTest: false, depthWrite: false });
-        const markerSprite = new THREE.Sprite(pinMat);
-        markerSprite.scale.set(0.075, 0.075, 1);
-        markerSprite.position.set(0, 0.13, 0);
-        markerSprite.renderOrder = 1002;
-        return markerSprite;
-    }
-
-    // Helper: Create compact, sleek robot name badge (not giant!)
-    function create2DRobotNameSprite(robotName, robotColor) {
-        const c = document.createElement('canvas');
-        c.width = 256;
-        c.height = 56;
-        const ctx = c.getContext('2d');
-
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
-        ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(6, 6, 244, 44, 10);
-        else ctx.rect(6, 6, 244, 44);
-        ctx.fill();
-        ctx.strokeStyle = robotColor;
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        let cleanName = String(robotName || 'Robot').replace(/^Robot\s*/i, '');
-        ctx.fillText(cleanName, 128, 28);
-
-        const tex = new THREE.CanvasTexture(c);
-        tex.minFilter = THREE.LinearFilter;
-        const sMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
-        const nameSprite = new THREE.Sprite(sMat);
-        nameSprite.scale.set(0.155, 0.034, 1);
-        nameSprite.position.set(0, 0.09, 0);
-        nameSprite.renderOrder = 1001;
-        nameSprite.userData = { canvas: c, texture: tex };
-        return nameSprite;
-    }
-
-    // Helper: Create room label sprite (compact, elegant & close to floor)
-    function createRoomLabelSprite(text, isDest = true, isStairs = false) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 384;
-        canvas.height = 80;
-
-        const isMarkas = String(text).toLowerCase().includes('markas');
-        const bgFill = isMarkas 
-            ? 'rgba(16, 185, 129, 0.95)' 
-            : (isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.88)' : 'rgba(30, 41, 59, 0.80)'));
-        const borderColor = isMarkas 
-            ? '#34d399' 
-            : (isStairs ? '#fbbf24' : (isDest ? '#38bdf8' : '#94a3b8'));
-
-        const radius = 16;
-        ctx.fillStyle = bgFill;
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.roundRect(6, 6, canvas.width - 12, canvas.height - 12, radius);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = borderColor;
-        ctx.beginPath();
-        ctx.arc(28, canvas.height / 2, 6, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-
-        let cleanText = String(text).replace(/^[12]_/, '');
-        if (cleanText.length > 18) cleanText = cleanText.substring(0, 16) + '...';
-        ctx.fillText(cleanText, 46, canvas.height / 2);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: true, depthWrite: false });
-        const sprite = new THREE.Sprite(spriteMaterial);
-        // Skala proporsional & rapi (tidak raksasa)
-        const lw = 1.35 * labelScaleMultiplier;
-        const lh = 0.28 * labelScaleMultiplier;
-        sprite.scale.set(lw, lh, 1);
-        sprite.renderOrder = 900;
-        return sprite;
-    }
-    function worldPosForLoc(loc, size){
-        const u = (loc._u ?? loc.x/100), v = (loc._v ?? loc.y/100);
-        const yElev = (loc.y_elev !== undefined && loc.y_elev !== null) ? Number(loc.y_elev) : (loc._fy ?? 0);
-        return new THREE.Vector3((u-0.5)*(size.x*0.95), yElev, (v-0.5)*(size.z*0.95));
-    }
-
-    // Helper: Unified Cached GLB loader leveraging window.RobopathGLBCache (Memory + IDB + CacheStorage)
-    async function fetchGLBBufferWithCache(url, onProgress) {
-        if (window.RobopathGLBCache && typeof window.RobopathGLBCache.fetchWithProgress === 'function') {
-            return await window.RobopathGLBCache.fetchWithProgress(url, onProgress);
-        }
-        if ('caches' in window) {
-            try {
-                const cache = await caches.open(MODEL_CACHE_NAME);
-                const cachedResponse = await cache.match(url);
-                if (cachedResponse) {
-                    if (onProgress) {
-                        try { onProgress(1, 1, true); } catch (e) {}
-                    }
-                    return await cachedResponse.arrayBuffer();
-                }
-            } catch (e) {}
-        }
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const contentLength = response.headers.get('content-length');
-        const totalBytes = contentLength ? parseInt(contentLength,10) : 8000000;
-        let loadedBytes=0; const reader=response.body.getReader(); const chunks=[];
-        while(true){
-            const {done,value}=await reader.read();
-            if(done) break;
-            chunks.push(value); loadedBytes+=value.length;
-            if(onProgress) {
-                try { onProgress(loadedBytes, totalBytes, false); } catch (e) {}
-            }
-        }
-        const all=new Uint8Array(loadedBytes); let pos=0; for(const c of chunks){ all.set(c,pos); pos+=c.length; }
-        const buffer=all.buffer;
-        if ('caches' in window) {
-            try {
-                const cache = await caches.open(MODEL_CACHE_NAME);
-                const headers=new Headers(); headers.append('Content-Type','model/gltf-binary'); headers.append('Content-Length', String(buffer.byteLength));
-                const cacheResponse = new Response(buffer.slice(0), { headers });
-                await cache.put(url, cacheResponse);
-            } catch (e) {}
-        }
-        return buffer;
-    }
-
-    function ensureRobotTemplate(cb){
-        if(robotTemplateReady){ cb(robotTemplate); return; }
-        if(robotTemplateFailed){ cb(null); return; }
-        robotTemplateCallbacks.push(cb);
-        if(robotTemplateLoading) return;
-        robotTemplateLoading=true; robotTemplateTries++;
-        fetchGLBBufferWithCache(robotModelUrl).then(buf=>{
-            const loader=new THREE.GLTFLoader();
-            if(typeof THREE.DRACOLoader!=='undefined'){ const d=new THREE.DRACOLoader(); d.setDecoderPath("{{ asset('draco') }}/"); loader.setDRACOLoader(d); }
-            loader.parse(buf,'',(gltf)=>{
-                const root=gltf.scene;
-                const box=new THREE.Box3().setFromObject(root); const sz=box.getSize(new THREE.Vector3()); const ctr=box.getCenter(new THREE.Vector3());
-                root.position.x-=ctr.x; root.position.z-=ctr.z; root.position.y-=box.min.y;
-                const targetH=0.55; const s=sz.y>0.01?(targetH/sz.y):0.35; root.scale.set(s,s,s);
-                root.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; }});
-                robotTemplate=root; robotTemplateReady=true; robotTemplateLoading=false;
-                robotTemplateCallbacks.forEach(fn=>{ try{fn(robotTemplate);}catch(e){} }); robotTemplateCallbacks=[];
-            },()=>{ robotTemplateLoading=false; if(robotTemplateTries<3) setTimeout(()=>ensureRobotTemplate(()=>{}),1500); else { robotTemplateFailed=true; robotTemplateCallbacks.forEach(fn=>{try{fn(null);}catch(e){}}); robotTemplateCallbacks=[]; }});
-        }).catch(e=>{ robotTemplateLoading=false; if(robotTemplateTries<3) setTimeout(()=>ensureRobotTemplate(()=>{}),1500); else { robotTemplateFailed=true; robotTemplateCallbacks.forEach(fn=>{try{fn(null);}catch(e){}}); robotTemplateCallbacks=[]; }});
-    }
-    // ObjectName anchor: posisi runtime dari Box3 center geometri GLB (GLB = source of truth).
-    // Hasil di field runtime _u/_v/_fy — tidak pernah persist ke graph.json. Fallback x/y bila Not found.
-    function locUV(loc) {
-        return { u: (loc._u ?? loc.x / 100), v: (loc._v ?? loc.y / 100) };
-    }
-    function resolveObjectAnchor(loc, model, size) {
-        if (!loc || !loc.objectName || !model || !size || !(size.x > 0.1)) return false;
-        const obj = model.getObjectByName(loc.objectName);
-        if (!obj) { console.warn('[Robopath] objectName tidak ditemukan di GLB:', loc.objectName); return false; }
-        const box = new THREE.Box3().setFromObject(obj);
-        if (box.isEmpty()) return false;
-        const c = box.getCenter(new THREE.Vector3());
-        const clamp01 = v => Math.max(0, Math.min(1, v));
-        loc._u = clamp01(c.x / (size.x * 0.95) + 0.5);
-        loc._v = clamp01(c.z / (size.z * 0.95) + 0.5);
-        try {
-            const rc = new THREE.Raycaster(new THREE.Vector3(c.x, c.y + 5, c.z), new THREE.Vector3(0, -1, 0), 0, 20);
-            const hits = rc.intersectObject(model, true);
-            loc._fy = hits.length ? hits[0].point.y : 0.05;
-        } catch (e) { loc._fy = 0.05; }
-        return true;
-    }
-    function resolveAllObjectAnchors(store, model, size, floorNum) {
-        const f = floorNum!=null ? Number(floorNum) : 2;
-        let ok = 0; const miss = [];
-        for (const id in store) {
-            const loc = store[id];
-            if (Number(loc.floor) !== f || !loc.objectName) continue;
-            if (resolveObjectAnchor(loc, model, size)) ok++;
-            else miss.push(id + ' (' + loc.objectName + ')');
-        }
-        console.log('[Robopath] object anchors resolved:', ok, miss.length ? ('NOT FOUND: ' + miss.join(', ')) : '');
-    }
-
-    function initThreeViewer(containerId, floorNum) {
-        floorNum = Number(floorNum)===1 ? 1 : 2;
-        const modelUrl = floorNum===1 ? floor1ModelUrl : floor2ModelUrl;
-        const container = document.getElementById(containerId);
-        if (!container) return null;
-
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x0f172a);
-        const width = container.clientWidth || 800;
-        const height = container.clientHeight || 450;
-
-        const initFovVal = parseFloat(current3DSettings.camera.fov ?? 5.0);
-        const initFov = 20 + (initFovVal / 10) * 70;
-        const camera = new THREE.PerspectiveCamera(initFov, width / height, 0.1, 1000);
-        camera.position.set(0, 38, 48);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(width, height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
-        renderer.outputEncoding = THREE.sRGBEncoding;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = parseFloat(current3DSettings.lighting.exposure ?? 1.0);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        container.innerHTML = '';
-        container.appendChild(renderer.domElement);
-
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.maxPolarAngle = Math.PI / 2.05;
-        controls.minDistance = 0.2;
-        controls.maxDistance = 120;
-
-        const ambientLight = new THREE.AmbientLight(0xffffff, parseFloat(current3DSettings.lighting.ambient ?? 1.4));
-        scene.add(ambientLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, parseFloat(current3DSettings.lighting.sun ?? 1.8));
-        dirLight.position.set(30, 50, 30);
-        dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 1024;
-        dirLight.shadow.mapSize.height = 1024;
-        scene.add(dirLight);
-        const fillLight = new THREE.DirectionalLight(0x93c5fd, parseFloat(current3DSettings.lighting.fill ?? 0.8));
-        fillLight.position.set(-30, 20, -30);
-        scene.add(fillLight);
-        scene.add(fillLight);
-
-        const grid = new THREE.GridHelper(80, 40, 0x3b4cb8, 0x334155);
-        grid.position.y = -0.05;
-        scene.add(grid);
-
-        const labelsGroup = new THREE.Group();
-        scene.add(labelsGroup);
-        const robotsGroup = new THREE.Group();
-        scene.add(robotsGroup);
-        const robotMeshes = new Map();
-        const activePathGroup = new THREE.Group();
-        scene.add(activePathGroup);
-
-        let defaultCamTarget = new THREE.Vector3(0,0,0);
-        let defaultCamPos = new THREE.Vector3(0,38,48);
-        let loadedModel = null;
-        let modelSize = new THREE.Vector3();
-
-        function snapRobot3D(holder, worldPct, sz, floorNum){
-            const wp = worldPosForLoc(worldPct, sz);
-            const f = Number(floorNum || 1);
-            const elev = (f === 2)
-                ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
-                : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
-            holder.position.set(wp.x, elev, wp.z);
-            if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3();
-            holder.userData.targetWp.copy(holder.position);
-            return wp;
-        }
-        function hideRobot3DAvatar(viewer, robot) {
-            if (!viewer || !viewer.robotMeshes) return;
-            const holder = viewer.robotMeshes.get(Number(robot.id));
-            if (holder) holder.visible = false;
-        }
-        function smoothFaceTowards(holder, deg){
-            const rad = -(deg||0)*Math.PI/180;
-            holder.rotation.y += (rad - holder.rotation.y)*0.2;
-        }
-        function updateRobotStatusSprite(holder, robot, delivery, hasIssue, destName){
-            if(!holder.userData.statusSprite) return;
-            const spr=holder.userData.statusSprite; const tex=spr.material.map; if(!tex || !spr.userData.canvas) return;
-            const c=spr.userData.canvas, ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
-            let label='', bg='';
-            if(hasIssue){
-                let issue = 'KENDALA';
-                if (robot._activeIssue) {
-                    const it = String(robot._activeIssue).toUpperCase();
-                    if (it.includes('COLLISION') || it.includes('TABRAKAN')) issue = 'TABRAKAN';
-                    else if (it.includes('LOW BATTERY') || it.includes('BATERAI')) issue = 'BATERAI LEMAH';
-                    else if (it.includes('SENSOR')) issue = 'SENSOR RUSAK';
-                    else issue = it;
-                } else {
-                    issue = 'PERBAIKAN';
-                }
-                label='⚠ ' + issue; bg='rgba(225,29,72,0.94)';
-            }
-            else if(robot.status==='Delivering' && delivery){ label='▶ MENGANTAR → '+(destName||delivery.destination_location||''); bg='rgba(59,130,246,0.94)'; }
-            else if(robot.status==='Returning' || robot.isReturning){ label='◀ MENUJU MARKAS'; bg='rgba(99,102,241,0.94)'; }
-            else if(robot.status==='Charging'){ label='⚡ MENGISI DAYA'; bg='rgba(234,88,12,0.94)'; }
-            else if(robot.status==='Maintenance'){ label='🔧 PERBAIKAN'; bg='rgba(225,29,72,0.94)'; }
-            else { label='● SIAGA (Markas)'; bg='rgba(16,185,129,0.94)'; }
-            ctx.font='bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'; 
-            const pad=16, h=36, tw=Math.min(c.width-12, ctx.measureText(label).width+28), radius=h/2;
-            const x0=(c.width-tw)/2, y0=(c.height-h)/2;
-            ctx.fillStyle=bg; ctx.beginPath(); 
-            if(ctx.roundRect) ctx.roundRect(x0,y0,tw,h,radius); else ctx.rect(x0,y0,tw,h);
-            ctx.fill();
-            ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=2; ctx.stroke();
-            ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,c.width/2,c.height/2);
-            tex.needsUpdate=true; spr.visible=true;
-        }
-        function getOrCreateRobotMesh(robot){
-            const rid=Number(robot.id);
-            if(robotMeshes.has(rid)) return robotMeshes.get(rid);
-            const holder=new THREE.Group(); holder.userData.robotId=rid;
-            const rSc = parseFloat(current3DSettings.robot_scale ?? 0.1);
-            
-            // Sub-group untuk model fisik robot (di-scale rSc agar fisik robot pas)
-            const modelHolder=new THREE.Group();
-            modelHolder.scale.set(rSc, rSc, rSc);
-            modelHolder.rotation.y = Math.PI;
-            holder.add(modelHolder);
-            holder.userData.modelHolder = modelHolder;
-
-            const boxGeo=new THREE.BoxGeometry(0.5,0.5,0.5);
-            const boxMat=new THREE.MeshStandardMaterial({color:getRobotColor(rid), metalness:0.3, roughness:0.4});
-            const box=new THREE.Mesh(boxGeo, boxMat); box.position.y=0.25; 
-            modelHolder.add(box);
-            holder.userData.boxMesh=box;
-
-            // 2D Style Robot Marker Card Sprite (sleek white card with vector robot icon & robot border)
-            const markerSprite = create2DRobotMarkerSprite(rid, robot.name, getRobotColor(rid));
-            markerSprite.position.set(0, 0.13, 0);
-            holder.add(markerSprite);
-            holder.userData.markerSprite = markerSprite;
-
-            // Compact Badge Nama Robot (World space: proporsional, tajam & rapi)
-            const nameSprite = create2DRobotNameSprite(robot.name, getRobotColor(rid));
-            nameSprite.position.set(0, 0.09, 0);
-            holder.add(nameSprite); 
-            holder.userData.nameSprite=nameSprite;
-
-            // Compact Status Badge Sprite
-            const c3=document.createElement('canvas'); c3.width=384; c3.height=56;
-            const stMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c3), transparent:true, depthTest:false, depthWrite:false});
-            const stSpr=new THREE.Sprite(stMat); 
-            stSpr.scale.set(0.165, 0.026, 1); 
-            stSpr.position.set(0, 0.06, 0); 
-            stSpr.renderOrder=1000; 
-            stSpr.visible=false;
-            stSpr.userData={canvas:c3, texture:stMat.map}; 
-            holder.add(stSpr); 
-            holder.userData.statusSprite=stSpr;
-
-            holder.visible=false;
-            const swap=(tpl)=>{
-                if(!tpl || !holder.userData.boxMesh) return;
-                try{ 
-                    const clone=tpl.clone(true); 
-                    clone.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; }}); 
-                    clone.position.set(0, 0, 0);
-                    modelHolder.remove(holder.userData.boxMesh); 
-                    modelHolder.add(clone); 
-                    holder.userData.glbClone=clone; 
-                }catch(e){}
-            };
-            if(robotTemplateReady) swap(robotTemplate); else try{ ensureRobotTemplate(swap);}catch(e){}
-            
-            robotsGroup.add(holder); 
-            robotMeshes.set(rid, holder); 
-            return holder;
-        }
-        function updateRobot3DAvatar(viewer, robot, coords, destName){
-            if(!viewer || !viewer.getModelSize || !viewer.robotMeshes) return false;
-            const sz=viewer.getModelSize(); if(!sz||sz.x<=0.1) return false;
-            const holder=viewer.getOrCreateRobotMesh(robot); snapRobot3D(holder, coords, sz, robot.floor || (viewer===threeDeliv ? 2 : 1)); holder.visible=true; try{holder.rotation.y=-((robot.rotation||0)*Math.PI/180);}catch(e){}
-            const d=(robot.status==='Delivering') ? (robot._activeDelivery||null) : null;
-            try{ updateRobotStatusSprite(holder, robot, d, !!robot.hasIssue, destName);}catch(e){}
-            return true;
-        }
-
-        const loaderEl = document.getElementById('deliv-3d-loader');
-        const loaderBar = document.getElementById('deliv-3d-loader-bar');
-        const loaderPct = document.getElementById('deliv-3d-loader-pct');
-        const loaderStatus = document.getElementById('deliv-3d-loader-status');
-        const loaderTitle = document.getElementById('deliv-3d-loader-title');
-        if(loaderEl && !modelLoadedByFloor[floorNum]){
-            loaderEl.classList.remove('hidden');
-            if(loaderTitle) loaderTitle.textContent=`Memuat Model 3D Lantai ${floorNum}...`;
-            if(loaderStatus) loaderStatus.textContent=`Memeriksa penyimpanan lokal...`;
-            if(loaderBar) loaderBar.style.width='5%';
-            if(loaderPct) loaderPct.textContent='5%';
-            if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
-                window.RobopathGLBCache.isCached(modelUrl).then(isCached => {
-                    if (isCached && loaderStatus) {
-                        loaderStatus.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
-                        if (loaderBar) loaderBar.style.width = '85%';
-                        if (loaderPct) loaderPct.textContent = '85%';
-                    } else if (loaderStatus) {
-                        loaderStatus.textContent = `Mengunduh aset GLB (${floorNum === 1 ? '8' : '14'} MB)...`;
-                    }
-                }).catch(() => {});
-            }
-        }
-
-        const gltfLoader = new THREE.GLTFLoader();
-        if (typeof THREE.DRACOLoader !== 'undefined') {
-            const dracoLoader = new THREE.DRACOLoader();
-            dracoLoader.setDecoderPath("{{ asset('draco') }}/");
-            gltfLoader.setDRACOLoader(dracoLoader);
-        }
-
-        // Safety watchdog: loader overlay cannot be stuck permanently (max 10s auto-dismiss)
-        const watchdogTimer = setTimeout(() => {
-            if (loaderEl && !loaderEl.classList.contains('hidden') && Number(liveCurrentFloor) === floorNum) {
-                console.warn(`[Robopath Deliv 3D] Watchdog auto-dismiss loader for Floor ${floorNum}`);
-                if (loaderBar) loaderBar.style.width = '100%';
-                if (loaderPct) loaderPct.textContent = '100%';
-                loaderEl.classList.add('hidden');
-            }
-        }, 10000);
-
-        let _delivModel = null;
-        let _delivSize = new THREE.Vector3();
-        fetchGLBBufferWithCache(modelUrl, (loadedBytes, totalBytes, fromCache) => {
-            if (!loaderEl || (Number(liveCurrentFloor) === floorNum && modelLoadedByFloor[floorNum])) return;
-            if (fromCache) {
-                if (loaderBar) loaderBar.style.width = '95%';
-                if (loaderPct) loaderPct.textContent = '95%';
-                if (loaderStatus) loaderStatus.textContent = 'Memuat dari Cache Lokal (Instan)...';
-            } else {
-                const pct = Math.min(Math.round((loadedBytes / totalBytes) * 100), 99);
-                if (loaderBar) loaderBar.style.width = pct + '%';
-                if (loaderPct) loaderPct.textContent = pct + '%';
-                if (loaderStatus) loaderStatus.textContent = `Mengunduh: ${(loadedBytes / 1048576).toFixed(1)} MB / ${(totalBytes / 1048576).toFixed(1)} MB`;
-            }
-        }).then(buffer => {
-            gltfLoader.parse(buffer, '', (gltf) => {
-                clearTimeout(watchdogTimer);
-                try {
-                    const model = gltf.scene;
-                    _delivModel = model; loadedModel=model;
-                    const box = new THREE.Box3().setFromObject(model);
-                    const center = box.getCenter(new THREE.Vector3());
-                    const size = box.getSize(new THREE.Vector3());
-                    _delivSize.copy(size); modelSize.copy(size);
-
-                    model.position.x -= center.x;
-                    model.position.y -= box.min.y;
-                    model.position.z -= center.z;
-                    const mScale = parseFloat(current3DSettings.model_scale ?? 1.0);
-                    model.scale.set(mScale,mScale,mScale);
-                    const scaledBox = new THREE.Box3().setFromObject(model);
-                    const scaledSize = scaledBox.getSize(new THREE.Vector3());
-                    if(scaledSize.x>0.1) { size.copy(scaledSize); _delivSize.copy(scaledSize); modelSize.copy(scaledSize); }
-
-                    model.traverse((child) => {
-                        if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
-                    });
-                    scene.add(model);
-                    modelLoadedByFloor[floorNum]=true;
-                    try { resolveAllObjectAnchors(locations, model, _delivSize, floorNum); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
-
-                    labelsGroup.clear();
-                    const floorElev = (floorNum === 2)
-                        ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
-                        : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
-
-                    let labelIdx = 0;
-                    for (let id in locations) {
-                        const loc = locations[id];
-                        if (Number(loc.floor) !== floorNum) continue;
-                        const isStairs = id.includes('Stairs') || id.includes('Tangga');
-                        if (!loc.is_destination && !isStairs) continue;
-                        const sprite = createRoomLabelSprite(loc.name || id, loc.is_destination, isStairs);
-                        const wp = worldPosForLoc(loc, _delivSize);
-                        // Posisikan tepat di atas lantai ruangan (bukan melayang di langit-langit!)
-                        sprite.position.set(wp.x, floorElev + 0.16 + (labelIdx % 3) * 0.03, wp.z);
-                        labelIdx++;
-                        labelsGroup.add(sprite);
-                    }
-                    labelsGroup.visible = showRoomLabels;
-
-                    try {
-                        const baseLoc = getBaseLocation();
-                        robots.forEach((r, idx) => {
-                            const holder = getOrCreateRobotMesh(r);
-                            const isIdleNearBase = (r.status === 'Idle' || !r.status || (Number(r.floor || 1) === 1 && Math.hypot((r.current_x || baseLoc.x) - baseLoc.x, (r.current_y || baseLoc.y) - baseLoc.y) < 3.0));
-                            const parkOffset = isIdleNearBase ? getBaseParkingOffset(idx) : { dx: 0, dy: 0 };
-                            const rx = (r.current_x !== undefined && r.current_x !== null && !isIdleNearBase) ? r.current_x : (baseLoc.x + parkOffset.dx);
-                            const ry = (r.current_y !== undefined && r.current_y !== null && !isIdleNearBase) ? r.current_y : (baseLoc.y + parkOffset.dy);
-                            const rf = Number(r.floor || 1);
-                            snapRobot3D(holder, { x: rx, y: ry }, _delivSize, rf);
-                            try { holder.rotation.y = -((r.rotation || 0) * Math.PI / 180); } catch(e) {}
-                            const d = (r.status === 'Delivering') ? (r._activeDelivery || null) : null;
-                            try { updateRobotStatusSprite(holder, r, d, !!r.hasIssue, null); } catch(e) {}
-                            holder.visible = (rf === floorNum);
-                        });
-                    } catch(e) {
-                        console.warn('[Robopath] Initial robot placement error:', e);
-                    }
-
-                    // Posisikan target kamera ke lantai (Markas Robot jika Lantai 1, atau tengah denah)
-                    let focusTarget = new THREE.Vector3(0, floorElev, 0);
-                    try {
-                        const baseLoc = getBaseLocation();
-                        if (floorNum === 1 && baseLoc) {
-                            const baseWp = worldPosForLoc(baseLoc, _delivSize);
-                            focusTarget.set(baseWp.x, floorElev, baseWp.z);
-                        } else {
-                            const bbox = new THREE.Box3().setFromObject(model);
-                            if (!bbox.isEmpty()) {
-                                const c = bbox.getCenter(new THREE.Vector3());
-                                focusTarget.set(c.x, floorElev, c.z);
-                            }
-                        }
-                    } catch(e) {}
-
-                    defaultCamTarget.copy(focusTarget);
-                    controls.target.copy(focusTarget);
-
-                    // Langsung zoom dekat ke lantai saat awal tampil (detail lantai dan robot langsung terlihat!)
-                    camera.position.set(
-                        focusTarget.x + 3.2,
-                        floorElev + 5.2,
-                        focusTarget.z + 6.2
-                    );
-                    camera.lookAt(focusTarget);
-                    controls.minDistance = 0.2;
-                    controls.maxDistance = 120;
-                    controls.update();
-                } catch(parseErr) {
-                    console.error('[Robopath Deliv 3D] Model setup error:', parseErr);
-                } finally {
-                    if(loaderEl && Number(liveCurrentFloor)===floorNum){
-                        if(loaderBar) loaderBar.style.width='100%'; if(loaderPct) loaderPct.textContent='100%'; if(loaderStatus) loaderStatus.textContent='Model siap!';
-                        setTimeout(()=>{ if(Number(liveCurrentFloor)===floorNum) loaderEl.classList.add('hidden'); },150);
-                    }
-                }
-            }, undefined, (err) => {
-                clearTimeout(watchdogTimer);
-                console.error('Error parsing GLB model Lantai '+floorNum+':', err);
-                if(loaderStatus) loaderStatus.textContent='Gagal memproses model 3D!';
-                setTimeout(() => { if (loaderEl) loaderEl.classList.add('hidden'); }, 1500);
-            });
-        }).catch(err => {
-            clearTimeout(watchdogTimer);
-            console.error('Error fetching GLB:', err);
-            if(loaderStatus) loaderStatus.textContent='Gagal mengunduh aset 3D!';
-            setTimeout(() => { if (loaderEl) loaderEl.classList.add('hidden'); }, 1500);
-        });
-
-        const raycaster=new THREE.Raycaster(); const mouse=new THREE.Vector2();
-        renderer.domElement.addEventListener('click',(e)=>{
-            const rect=renderer.domElement.getBoundingClientRect();
-            mouse.x=((e.clientX-rect.left)/rect.width)*2-1; mouse.y=-((e.clientY-rect.top)/rect.height)*2+1;
-            raycaster.setFromCamera(mouse,camera);
-            const targets=[]; robotMeshes.forEach(h=>{ if(h.visible) targets.push(h); });
-            const hits=raycaster.intersectObjects(targets,true);
-            if(hits.length){
-                let obj=hits[0].object; while(obj && obj.parent && !obj.userData.robotId) obj=obj.parent;
-                const rid=obj?.userData?.robotId ?? hits[0].object?.parent?.userData?.robotId;
-                let holder=obj; while(holder && !robotMeshes.has(Number(holder.userData?.robotId))) holder=holder.parent;
-                if(holder && holder.userData.robotId) { if(typeof focusDelivRobot==='function') focusDelivRobot(Number(holder.userData.robotId)); }
-                else if(rid && typeof focusDelivRobot==='function') focusDelivRobot(Number(rid));
-            }
-        });
-
-        let animationFrameId = null;
-        function animate() {
-            animationFrameId = requestAnimationFrame(animate);
-            if (document.hidden) return;
-            if (!container || container.offsetParent === null) return;
-            robotMeshes.forEach(holder=>{ 
-                const tgt=holder.userData.targetWp; 
-                if(tgt) {
-                    holder.position.x += (tgt.x - holder.position.x) * 0.25;
-                    holder.position.z += (tgt.z - holder.position.z) * 0.25;
-                    holder.position.y = tgt.y;
-                }
-            });
-            controls.update();
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        function onResize() {
-            if (!container || container.clientWidth === 0) return;
-            const w = container.clientWidth;
-            const h = container.clientHeight;
-            camera.aspect = w / h;
-            camera.updateProjectionMatrix();
-            renderer.setSize(w, h);
-        }
-        window.addEventListener('resize', onResize);
-
-        return { floor: floorNum, scene,camera,renderer,controls,labelsGroup,robotsGroup,activePathGroup,robotMeshes,getOrCreateRobotMesh,updateRobot3DAvatar,snapRobot3D,resize: onResize, getModelSize:()=>modelSize.clone(), getDefaultCamTarget:()=>defaultCamTarget.clone(), destroy: () => { if (animationFrameId) cancelAnimationFrame(animationFrameId); window.removeEventListener('resize', onResize); renderer.dispose(); } };
-    }
-
-    function switchLiveFloor(floorNum) {
-        liveCurrentFloor = floorNum;
-        const btnF1 = document.getElementById('btn-deliv-f1');
-        const btnF2 = document.getElementById('btn-deliv-f2');
-        const map = document.getElementById('map-container');
-        const title = document.getElementById('live-map-title');
-        const subtitle = document.getElementById('live-map-subtitle');
-        const canvas3D = document.getElementById('deliv-3d-canvas-container');
-        const canvas3DF1 = document.getElementById('deliv-3d-canvas-f1');
-        const hint3D = document.getElementById('deliv-3d-hint');
-        const loaderEl = document.getElementById('deliv-3d-loader');
-        map.style.backgroundImage = 'none';
-        map.style.backgroundColor = '#0f172a';
-        if (hint3D) hint3D.classList.remove('hidden');
-        if (floorNum === 1) {
-            btnF1.className = "px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition";
-            btnF2.className = "px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-emerald-400 mr-1"></i> Pelacakan Langsung - Lantai 1 <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/30 ml-1">3D</span>';
-            if (subtitle) subtitle.textContent = 'Lantai 1 (Lobi, Kantor & Resepsionis) [Mode 3D]';
-            if (canvas3D) canvas3D.classList.add('hidden');
-            if (canvas3DF1) {
-                canvas3DF1.classList.remove('hidden');
-                if (loaderEl && !modelLoadedByFloor[1]) {
-                    loaderEl.classList.remove('hidden');
-                    const t = document.getElementById('deliv-3d-loader-title'); if (t) t.textContent = 'Memuat Model 3D Lantai 1...';
-                    const s = document.getElementById('deliv-3d-loader-status'); if (s) s.textContent = 'Memeriksa penyimpanan lokal...';
-                    if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
-                        window.RobopathGLBCache.isCached(floor1ModelUrl).then(isCached => {
-                            if (isCached && s) s.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
-                            else if (s) s.textContent = 'Mengunduh aset GLB (8 MB)...';
-                        }).catch(() => {});
-                    }
-                }
-                else if (loaderEl && modelLoadedByFloor[1]) { loaderEl.classList.add('hidden'); }
-                setTimeout(() => {
-                    if (!threeDelivF1) {
-                        threeDelivF1 = initThreeViewer('deliv-3d-canvas-f1', 1);
-                    } else {
-                        try{ threeDelivF1.resize(); }catch(e){}
-                        if(!modelLoadedByFloor[1]){
-                            try{ const c=document.getElementById('deliv-3d-canvas-f1'); if(c) c.innerHTML=''; }catch(e){}
-                            threeDelivF1 = initThreeViewer('deliv-3d-canvas-f1', 1);
-                        }
-                    }
-                }, 50);
-            }
-        } else {
-            btnF2.className = "px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition";
-            btnF1.className = "px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-            if (canvas3DF1) canvas3DF1.classList.add('hidden');
-            if (canvas3D) {
-                canvas3D.classList.remove('hidden');
-                if (loaderEl && !modelLoadedByFloor[2]) {
-                    loaderEl.classList.remove('hidden');
-                    const t = document.getElementById('deliv-3d-loader-title'); if (t) t.textContent = 'Memuat Model 3D Lantai 2...';
-                    const s = document.getElementById('deliv-3d-loader-status'); if (s) s.textContent = 'Memeriksa penyimpanan lokal...';
-                    if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
-                        window.RobopathGLBCache.isCached(floor2ModelUrl).then(isCached => {
-                            if (isCached && s) s.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
-                            else if (s) s.textContent = 'Mengunduh aset GLB (14 MB)...';
-                        }).catch(() => {});
-                    }
-                }
-                else if (loaderEl && modelLoadedByFloor[2]) { loaderEl.classList.add('hidden'); }
-                setTimeout(() => {
-                    if (!threeDeliv) {
-                        threeDeliv = initThreeViewer('deliv-3d-canvas-container', 2);
-                    } else {
-                        try{ threeDeliv.resize(); }catch(e){}
-                        if(!modelLoadedByFloor[2]){
-                            try{ const c=document.getElementById('deliv-3d-canvas-container'); if(c) c.innerHTML=''; }catch(e){}
-                            threeDeliv = initThreeViewer('deliv-3d-canvas-container', 2);
-                        }
-                    }
-                }, 50);
-            }
-            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-sky-400 mr-1"></i> Pelacakan Langsung - Lantai 2 <span class="text-[10px] bg-sky-500/20 text-sky-400 px-1.5 py-0.5 rounded-full border border-sky-500/30 ml-1">3D</span>';
-            if (subtitle) subtitle.textContent = 'Lantai 2 (Ruang Direksi, Lounge & Ruang Rapat)';
-        }
-        drawRobotPaths();
-        runSimulationStep();
-    }
-
-    function getNode(nameOrId, preferredFloor = null) {
-        if (!nameOrId) return null;
-        if (locations[nameOrId]) return nameOrId;
-        
-        let matches = [];
-        for (let id in locations) {
-            if (locations[id].name === nameOrId) {
-                matches.push(id);
-            }
-        }
-        if (matches.length === 1) return matches[0];
-        if (matches.length > 1) {
-            if (preferredFloor) {
-                const match = matches.find(id => Number(locations[id].floor) === Number(preferredFloor));
-                if (match) return match;
-            }
-            return matches[0];
-        }
-        
-        for (let id in locations) {
-            if (locations[id].name && locations[id].name.toLowerCase() === String(nameOrId).toLowerCase()) {
-                return id;
-            }
-        }
-        return null;
-    }
-
-    function findShortestPath(start, end) {
-        if (!start || !end || !locations[start] || !locations[end]) return [];
-        if (start === end) return [start];
-        let queue = [[start]];
-        let visited = new Set([start]);
-        
-        while (queue.length > 0) {
-            let path = queue.shift();
-            let current = path[path.length - 1];
-            let neighbors = adj[current] || [];
-            for (let neighbor of neighbors) {
-                if (!visited.has(neighbor)) {
-                    visited.add(neighbor);
-                    let newPath = [...path, neighbor];
-                    if (neighbor === end) return newPath;
-                    queue.push(newPath);
-                }
-            }
-        }
-        return [];
-    }
-
-    function resolveLocationNodeId(x, y, floor = null) {
-        let closestId = null;
-        let minDst = Infinity;
-        for (let id in locations) {
-            const loc = locations[id];
-            if (floor && Number(loc.floor) !== Number(floor)) continue;
-            const dst = Math.hypot(loc.x - x, loc.y - y);
-            if (dst < minDst) {
-                minDst = dst;
-                closestId = id;
-            }
-        }
-        return closestId || (Number(floor) === 2 ? (locations['2_Tangga'] ? '2_Tangga' : '2_Stairs') : getBaseLocationId());
-    }
-
-    function resolveLocationName(x, y, floor = null) {
-        const id = resolveLocationNodeId(x, y, floor);
-        if (id && locations[id]) {
-            return locations[id].name || id;
-        }
-        return Number(floor) === 2 ? 'Lantai 2' : 'Lantai 1';
-    }
-
-    function updateStartLocation() {
-        // Biarkan pengguna memilih titik jemput barang secara bebas tanpa ditimpa paksa ke posisi robot
-    }
-
-    function dispatchDelivery(e) {
-        e.preventDefault();
-        
-        const robotId = document.getElementById('dispatch-robot').value;
-        const item = document.getElementById('dispatch-item').value;
-        const start = document.getElementById('dispatch-start').value;
-        const dest = document.getElementById('dispatch-dest').value;
-        const errDiv = document.getElementById('dispatch-error');
-        
-        errDiv.classList.add('hidden');
-        
-        if (start === dest) {
-            errDiv.textContent = 'Titik tujuan tidak boleh sama dengan titik jemput!';
-            errDiv.classList.remove('hidden');
-            return;
-        }
-
-        const robot = robots.find(r => Number(r.id) === Number(robotId));
-        const rFloor = Number(robot?.floor || 1);
-        const origin = (robot && robot.current_x != null && robot.current_y != null)
-            ? (resolveLocationNodeId(robot.current_x, robot.current_y, rFloor) || getBaseLocationId())
-            : getBaseLocationId();
-
-        fetch('/api/deliveries', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                robot_id: robotId,
-                item_name: item,
-                origin_location: origin,
-                start_location: start,
-                destination_location: dest
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                const bot = robots.find(r => Number(r.id) === Number(robotId));
-                if (bot) bot.status = 'Delivering';
-                
-                document.getElementById('dispatch-form').reset();
-                fetchData();
-                reloadPageDropdowns();
-            } else {
-                errDiv.textContent = data.message || 'Gagal menugaskan robot.';
-                errDiv.classList.remove('hidden');
-            }
-        })
-        .catch(err => {
-            console.error('Error dispatching:', err);
-            errDiv.textContent = 'Terjadi kesalahan jaringan. Silakan coba lagi.';
-            errDiv.classList.remove('hidden');
-        });
+        return str;
     }
 
     function parseServerDate(dateStr) {
         if (!dateStr) return new Date();
-        let s = String(dateStr).trim().replace(' ', 'T');
-        if (!s.includes('Z') && !s.includes('+') && !s.slice(10).includes('-')) {
-            s += 'Z';
-        }
-        return new Date(s);
-    }
-
-    function interpolate(p1, p2, ratio) {
-        return {
-            x: p1.x + (p2.x - p1.x) * ratio,
-            y: p1.y + (p2.y - p1.y) * ratio
-        };
-    }
-
-    function getBaseLocationId() {
-        if (locations['1_Markas Robot']) return '1_Markas Robot';
-        if (locations['1_N7']) return '1_N7';
-        for (const [id, loc] of Object.entries(locations)) {
-            if (Number(loc.floor) === 1 && (loc.name?.toLowerCase().includes('markas') || loc.name?.toLowerCase().includes('base'))) {
-                return id;
-            }
-        }
-        for (const [id, loc] of Object.entries(locations)) {
-            if (Number(loc.floor) === 1) return id;
-        }
-        return '1_Markas Robot';
-    }
-
-    function getBaseLocation() {
-        const id = getBaseLocationId();
-        return locations[id] || { x: 85.48, y: 51.07, floor: 1, name: 'Markas Robot' };
-    }
-
-    function getStairsNodeId(floor) {
-        const f = Number(floor || 1);
-        if (f === 1) {
-            if (locations['1_Tangga']) return '1_Tangga';
-            if (locations['1_Stairs']) return '1_Stairs';
-        } else {
-            if (locations['2_Tangga']) return '2_Tangga';
-            if (locations['2_Stairs']) return '2_Stairs';
-        }
-        for (const [id, loc] of Object.entries(locations)) {
-            if (Number(loc.floor) === f && (loc.name?.toLowerCase().includes('tangga') || loc.name?.toLowerCase().includes('stairs'))) {
-                return id;
-            }
-        }
-        return f === 1 ? '1_Tangga' : '2_Tangga';
-    }
-
-    function calculatePathDistance(path) {
-        if (!path || path.length < 2) return 0;
-        let dist = 0;
-        for (let i = 0; i < path.length - 1; i++) {
-            const p1 = locations[path[i]];
-            const p2 = locations[path[i + 1]];
-            dist += (p1 && p2) ? Math.hypot(p2.x - p1.x, p2.y - p1.y) : 3.0;
-        }
-        return Math.max(1.0, dist);
-    }
-
-    function interpolateAlongPath(path, ratio) {
-        if (!path || path.length === 0) return null;
-        if (path.length === 1) {
-            const p = locations[path[0]] || { x: 0, y: 0 };
-            return { coords: { x: p.x, y: p.y }, angle: 0, segIdx: 0 };
-        }
-
-        const clampedRatio = Math.max(0, Math.min(1.0, ratio));
-        const segDistances = [];
-        let totalDistance = 0;
-
-        for (let i = 0; i < path.length - 1; i++) {
-            const p1 = locations[path[i]];
-            const p2 = locations[path[i + 1]];
-            const dist = (p1 && p2) ? Math.hypot(p2.x - p1.x, p2.y - p1.y) : 0.001;
-            segDistances.push(dist);
-            totalDistance += dist;
-        }
-
-        if (totalDistance <= 0.0001) {
-            const p = locations[path[0]] || { x: 0, y: 0 };
-            return { coords: { x: p.x, y: p.y }, angle: 0, segIdx: 0 };
-        }
-
-        const targetDist = clampedRatio * totalDistance;
-        let accumulated = 0;
-        let currentSegIdx = path.length - 2;
-        let ratioInSeg = 1.0;
-
-        for (let i = 0; i < segDistances.length; i++) {
-            const nextAcc = accumulated + segDistances[i];
-            if (targetDist <= nextAcc || i === segDistances.length - 1) {
-                currentSegIdx = i;
-                const segLen = segDistances[i];
-                ratioInSeg = segLen > 0 ? (targetDist - accumulated) / segLen : 0;
-                ratioInSeg = Math.max(0, Math.min(1.0, ratioInSeg));
-                break;
-            }
-            accumulated = nextAcc;
-        }
-
-        const p1 = locations[path[currentSegIdx]] || { x: 0, y: 0 };
-        const p2 = locations[path[currentSegIdx + 1]] || p1;
-        const coords = interpolate(p1, p2, ratioInSeg);
-
-        let angle = 0;
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
-        if (dx !== 0 || dy !== 0) {
-            angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-        }
-
-        return { coords, angle, segIdx: currentSegIdx };
-    }
-
-    function planRouteBetween(fromId, toId) {
-        if (!locations[fromId] || !locations[toId]) return [];
-        const f1 = Number(locations[fromId].floor || 1);
-        const f2 = Number(locations[toId].floor || 1);
-        
-        if (f1 === f2) {
-            const p = findShortestPath(fromId, toId);
-            return [{ type: 'travel', floor: f1, path: p }];
-        } else {
-            const stairsFrom = getStairsNodeId(f1);
-            const stairsTo = getStairsNodeId(f2);
-            const p1 = findShortestPath(fromId, stairsFrom);
-            const p2 = findShortestPath(stairsTo, toId);
-            return [
-                { type: 'travel', floor: f1, path: p1 },
-                { type: 'stairs', fromFloor: f1, toFloor: f2, fromNode: stairsFrom, toNode: stairsTo, durationMs: 5500 },
-                { type: 'travel', floor: f2, path: p2 }
-            ];
-        }
-    }
-
-    function buildReturnMission(robot, now) {
-        const baseLoc = getBaseLocation();
-        const baseId = getBaseLocationId();
-        const robotFloor = Number(robot.floor || 1);
-        if (robotFloor === 1 && Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) < 1.5) {
-            robot.floor = 1;
-            return null;
-        }
-
-        const currentLocId = resolveLocationNodeId(robot.current_x, robot.current_y, robotFloor);
-        const targetId = baseId;
-        if (!currentLocId || (robotFloor === 1 && currentLocId === targetId)) return null;
-
-        const rawStages = planRouteBetween(currentLocId, targetId);
-        if (!rawStages || rawStages.length === 0) return null;
-
-        const consolidatedStages = [];
-        for (let st of rawStages) {
-            if (consolidatedStages.length > 0) {
-                const prev = consolidatedStages[consolidatedStages.length - 1];
-                if (prev.type === 'travel' && st.type === 'travel' && prev.floor === st.floor) {
-                    if (st.path && st.path.length > 0) prev.path = [...prev.path, ...st.path.slice(1)];
-                    continue;
-                }
-            }
-            consolidatedStages.push(st);
-        }
-
-        let accumulatedMs = 0;
-        consolidatedStages.forEach(st => {
-            st.startMs = accumulatedMs;
-            if (st.type === 'stairs') {
-                st.durationMs = 5000;
-            } else {
-                const dist = calculatePathDistance(st.path);
-                st.durationMs = Math.max(2500, Math.round(dist * 700));
-            }
-            accumulatedMs += st.durationMs;
-        });
-
-        return {
-            originId: currentLocId,
-            destId: targetId,
-            stages: consolidatedStages,
-            totalDurationMs: accumulatedMs,
-            startedAt: now.getTime() + 200
-        };
-    }
-
-    function syncRobotBaseLocation(robotId, bx, by) {
-        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        fetch(`/api/robots/${robotId}/telemetry`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrf || '',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                current_x: bx,
-                current_y: by
-            })
-        }).catch(err => console.error('Error syncing base station location:', err));
-    }
-
-    function getDeliveryMission(delivery, robot) {
-        if (delivery._cachedMission) return delivery._cachedMission;
-
-        const startNodeId = getNode(delivery.start_location);
-        const destNodeId = getNode(delivery.destination_location);
-        
-        const robotFloor = Number(robot?.floor || 1);
-        const baseLoc = getBaseLocation();
-        const baseId = getBaseLocationId();
-
-        let originNodeId = getNode(delivery.origin_location);
-        if (robot && robot.current_x && robot.current_y) {
-            const isAtBase = robotFloor === 1 && Math.hypot(robot.current_x - baseLoc.x, robot.current_y - baseLoc.y) < 2.0;
-            if (isAtBase) {
-                originNodeId = baseId;
-            } else {
-                originNodeId = resolveLocationNodeId(robot.current_x, robot.current_y, robotFloor) || baseId;
-            }
-        }
-        if (!originNodeId || !locations[originNodeId]) originNodeId = baseId;
-
-        const validStart = (startNodeId && locations[startNodeId]) ? startNodeId : Object.keys(locations)[0];
-        const validDest = (destNodeId && locations[destNodeId]) ? destNodeId : Object.keys(locations)[1];
-
-        const pickupStage = {
-            type: 'pickup',
-            nodeId: validStart,
-            floor: locations[validStart]?.floor || 1,
-            durationMs: 3000
-        };
-
-        const dropoffStage = {
-            type: 'dropoff',
-            nodeId: validDest,
-            floor: locations[validDest]?.floor || 1,
-            durationMs: 3000
-        };
-
-        let rawStages = [];
-        if (originNodeId !== validStart) {
-            rawStages = [
-                ...planRouteBetween(originNodeId, validStart),
-                pickupStage,
-                ...planRouteBetween(validStart, validDest),
-                dropoffStage
-            ];
-        } else {
-            rawStages = [
-                pickupStage,
-                ...planRouteBetween(validStart, validDest),
-                dropoffStage
-            ];
-        }
-
-        const consolidatedStages = [];
-        for (let st of rawStages) {
-            if (consolidatedStages.length > 0) {
-                const prev = consolidatedStages[consolidatedStages.length - 1];
-                if (prev.type === 'travel' && st.type === 'travel' && prev.floor === st.floor) {
-                    if (st.path && st.path.length > 0) prev.path = [...prev.path, ...st.path.slice(1)];
-                    continue;
-                }
-            }
-            consolidatedStages.push(st);
-        }
-
-        let accumulatedMs = 0;
-        consolidatedStages.forEach(st => {
-            st.startMs = accumulatedMs;
-            if (st.type === 'stairs') {
-                st.durationMs = 5000;
-            } else if (st.type === 'pickup' || st.type === 'dropoff') {
-                st.durationMs = 3000;
-            } else {
-                const dist = calculatePathDistance(st.path);
-                st.durationMs = Math.max(3000, Math.round(dist * 700));
-            }
-            accumulatedMs += st.durationMs;
-        });
-
-        const mission = {
-            originId: originNodeId,
-            startId: validStart,
-            destId: validDest,
-            pickupStartMs: pickupStage.startMs,
-            stages: consolidatedStages,
-            totalDurationMs: accumulatedMs
-        };
-        delivery._cachedMission = mission;
-        return mission;
-    }
-
-    function getRobotColor(robotId) {
-        const id = Number(robotId);
-        if (id === 1) return '#0284c7'; // Sky blue for Alpha
-        if (id === 2) return '#8b5cf6'; // Purple for Beta
-        if (id === 3) return '#f59e0b'; // Amber for Gamma
-        return '#10b981';
-    }
-
-    function drawRobotPaths() {
-        const viewers = allDelivViewers().filter(v=>v&&v.activePathGroup);
-        viewers.forEach(v=>v.activePathGroup.clear());
-        function drawPath3D(pts, color, dashed, targetFloor){
-            if(!pts || pts.length<2) return;
-            viewers.forEach(v=>{
-                const sz=v.getModelSize(); if(!sz||sz.x<=0.1) return;
-                const vFloor = Number(v.floor || 2);
-                if(targetFloor != null && Number(targetFloor) !== vFloor) return;
-                
-                const vecs = [];
-                for(let p of pts){
-                    const loc = typeof p==='string' ? locations[p] : p;
-                    if(!loc) continue;
-                    if(loc.floor!=null && Number(loc.floor)!==vFloor) continue;
-                    const wp=worldPosForLoc(loc, sz);
-                    vecs.push(new THREE.Vector3(wp.x, (wp.y || 0) + 0.012, wp.z));
-                }
-                if(vecs.length<2) return;
-
-                // Garis putus-putus khas 2D di kaki robot (depthTest: false agar tidak tenggelam)
-                const geo=new THREE.BufferGeometry().setFromPoints(vecs);
-                const mat=new THREE.LineDashedMaterial({
-                    color: new THREE.Color(color),
-                    linewidth: 1,
-                    dashSize: dashed ? 0.15 : 0.18,
-                    gapSize: dashed ? 0.15 : 0.12,
-                    transparent: true,
-                    opacity: dashed ? 0.65 : 0.95,
-                    depthTest: false,
-                    depthWrite: false
-                });
-                const line=new THREE.Line(geo, mat);
-                line.computeLineDistances();
-                line.renderOrder = 9999;
-                v.activePathGroup.add(line);
-            });
-        }
-        const now = new Date(new Date().getTime() + serverClientOffset);
-        activeDeliveries.forEach(delivery => {
-            const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
-            if (!robot || (robot.status !== 'Delivering' && delivery.status !== 'Pending')) return;
-            const mission = getDeliveryMission(delivery, robot);
-            if (!mission || !mission.stages) return;
-            const robotColor = getRobotColor(robot.id);
-            const startedTime = parseServerDate(delivery.started_at);
-            const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
-            mission.stages.forEach(st => {
-                if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
-                const stageEndMs = st.startMs + st.durationMs;
-                if (elapsedMs >= stageEndMs && delivery.status !== 'Pending') return;
-                const isCurrentActive = delivery.status !== 'Pending' && (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
-                const isFutureStage = delivery.status === 'Pending' || (elapsedMs < st.startMs);
-                let remainingPts=[];
-                const stageFloor = Number(st.floor || 1);
-                const robotFloor = Number(robot.floor || 1);
-
-                if (isCurrentActive && robotFloor === stageFloor) {
-                    remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: stageFloor, y_elev: locations[st.path[0]]?.y_elev });
-                    const segIdx = robot.currentSegIdx || 0;
-                    for (let i = segIdx + 1; i < st.path.length; i++) {
-                        if (locations[st.path[i]]) remainingPts.push(st.path[i]);
-                    }
-                } else if (isFutureStage || (isCurrentActive && robotFloor !== stageFloor)) {
-                    st.path.forEach(nodeId => { if (locations[nodeId]) remainingPts.push(nodeId); });
-                } else return;
-                if (remainingPts.length < 2) return;
-                drawPath3D(remainingPts, robotColor, delivery.status==='Pending', stageFloor);
-            });
-        });
-        robots.forEach(robot => {
-            if ((robot.status === 'Idle' || robot.status === 'Returning' || robot.isReturning) && robot.returnMission && robot.returnMission.stages) {
-                const robotColor = getRobotColor(robot.id);
-                const elapsedMs = now.getTime() - robot.returnMission.startedAt;
-                robot.returnMission.stages.forEach(st => {
-                    if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
-                    const stageEndMs = st.startMs + st.durationMs;
-                    if (elapsedMs >= stageEndMs) return;
-                    const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
-                    const isFutureStage = (elapsedMs < st.startMs);
-                    let remainingPts=[];
-                    const stageFloor = Number(st.floor || 1);
-                    const robotFloor = Number(robot.floor || 1);
-
-                    if (isCurrentActive && robotFloor === stageFloor) {
-                        remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: stageFloor, y_elev: locations[st.path[0]]?.y_elev });
-                        const segIdx = robot.returnSegIdx || 0;
-                        for (let i = segIdx + 1; i < st.path.length; i++) {
-                            if (locations[st.path[i]]) remainingPts.push(st.path[i]);
-                        }
-                    } else if (isFutureStage || (isCurrentActive && robotFloor !== stageFloor)) {
-                        st.path.forEach(nodeId => { if (locations[nodeId]) remainingPts.push(nodeId); });
-                    } else return;
-                    if (remainingPts.length < 2) return;
-                    drawPath3D(remainingPts, robotColor, true, stageFloor);
-                });
-            }
-        });
-    }
-
-    function runSimulationStep() {
-        const now = new Date(new Date().getTime() + serverClientOffset);
-        robots.forEach(robot => {
-            const delivery = activeDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending'));
-            let coords = { x: robot.current_x, y: robot.current_y };
-            let floorNum = robot.floor || 1;
-            let statusColor = 'bg-emerald-500';
-            let taskText = 'Siaga di markas robot (N7)';
-            
-            const hasIssue = (robot.status === 'Maintenance' || (robot.status === 'Charging' && robot.battery_level <= 10) || delivery?.status === 'Pending');
-
-            if (robot.status === 'Charging') {
-                statusColor = 'bg-orange-500';
-                taskText = 'Mengisi daya baterai';
-            } else if (robot.status === 'Maintenance') {
-                statusColor = 'bg-rose-500';
-                taskText = 'Perlu perbaikan';
-            }
-            
-            if (hasIssue) {
-                // Freezes in place while issue is unresolved
-                statusColor = 'bg-rose-600';
-                if (robot.status === 'Maintenance') {
-                    taskText = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Terjadi Masalah / Perlu Diperbaiki</span>';
-                } else if (robot.status === 'Charging' && robot.battery_level <= 10) {
-                    taskText = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-battery-empty mr-1"></i> Baterai Habis! Pengiriman Tertunda</span>';
-                } else {
-                    taskText = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-circle-pause mr-1"></i> Tertunda: Masalah Operasional</span>';
-                }
-            } else if (robot.status === 'Delivering' && delivery && delivery.status === 'In Progress') {
-                robot.isReturning = false;
-                robot.returnMission = null;
-                statusColor = 'bg-sky-500';
-                const mission = getDeliveryMission(delivery, robot);
-                
-                if (mission.stages && mission.stages.length > 0) {
-                    const startedTime = parseServerDate(delivery.started_at);
-                    const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
-                    let angle = 0;
-                    
-                    if (elapsedMs >= mission.totalDurationMs) {
-                        const lastStage = mission.stages[mission.stages.length - 1];
-                        const lastNodeId = (lastStage.type === 'travel' && lastStage.path) ? lastStage.path[lastStage.path.length - 1] : mission.destId;
-                        const destLoc = locations[lastNodeId] || locations[mission.destId];
-                        if (destLoc) {
-                            coords = destLoc;
-                            floorNum = destLoc.floor || 1;
-                        }
-                        taskText = `Selesai mengantar ${delivery.item_name} ke ${locations[mission.destId]?.name || delivery.destination_location}`;
-                        completeDeliveryAPI(delivery.id, coords.x, coords.y, floorNum);
-                    } else {
-                        let activeStage = null;
-                        for (let st of mission.stages) {
-                            if (elapsedMs >= st.startMs && elapsedMs < st.startMs + st.durationMs) {
-                                activeStage = st;
-                                break;
-                            }
-                        }
-                        if (!activeStage) activeStage = mission.stages[mission.stages.length - 1];
-
-                        const stageElapsed = Math.max(0, elapsedMs - activeStage.startMs);
-                        const stageRatio = Math.max(0, Math.min(stageElapsed / activeStage.durationMs, 1.0));
-
-                        if (activeStage.type === 'stairs') {
-                            const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
-                            const isSecondHalf = stageRatio >= 0.5;
-                            floorNum = isSecondHalf ? activeStage.toFloor : activeStage.fromFloor;
-                            const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
-                            coords = locations[currentNodeId] || coords;
-                            taskText = `Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec} dtk)...`;
-                            statusColor = 'bg-amber-500';
-                        } else if (activeStage.type === 'pickup') {
-                            const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
-                            const locNode = locations[activeStage.nodeId] || locations[mission.startId];
-                            if (locNode) {
-                                coords = locNode;
-                                floorNum = locNode.floor || 1;
-                            }
-                            taskText = `Mengambil ${delivery.item_name} di ${locations[mission.startId]?.name || delivery.start_location} (${remainingSec} dtk)...`;
-                            statusColor = 'bg-blue-500';
-                            robot.currentSegIdx = 0;
-                        } else if (activeStage.type === 'dropoff') {
-                            const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
-                            const locNode = locations[activeStage.nodeId] || locations[mission.destId];
-                            if (locNode) {
-                                coords = locNode;
-                                floorNum = locNode.floor || 1;
-                            }
-                            taskText = `Menyerahkan ${delivery.item_name} di ${locations[mission.destId]?.name || delivery.destination_location} (${remainingSec} dtk)...`;
-                            statusColor = 'bg-emerald-500';
-                            robot.currentSegIdx = 0;
-                        } else {
-                            floorNum = activeStage.floor || 1;
-                            const path = activeStage.path || [];
-                            const along = interpolateAlongPath(path, stageRatio);
-                            if (along) {
-                                coords = along.coords;
-                                angle = along.angle;
-                                robot.currentSegIdx = along.segIdx;
-                            }
-                            const isHeadingToPickup = mission.pickupStartMs && activeStage.startMs < mission.pickupStartMs;
-                            if (isHeadingToPickup) {
-                                taskText = `Menuju titik ambil: ${locations[mission.startId]?.name || delivery.start_location}`;
-                            } else {
-                                taskText = `Mengantar ${delivery.item_name} ke ${locations[mission.destId]?.name || delivery.destination_location}`;
-                            }
-                        }
-                    }
-                    robot.current_x = coords.x;
-                    robot.current_y = coords.y;
-                    robot.floor = floorNum;
-                    robot.rotation = angle;
-                }
-            } else if (robot.status === 'Idle' || robot.status === 'Returning') {
-                const baseLoc = getBaseLocation();
-                const rIdx = robots.findIndex(r => Number(r.id) === Number(robot.id));
-                const parkOff = getBaseParkingOffset(rIdx >= 0 ? rIdx : 0);
-                const distToBase = (Number(robot.floor || 1) === 1) 
-                    ? Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) 
-                    : 999;
-                const isNearBase = Number(robot.floor || 1) === 1 && distToBase < 2.2;
-
-                if (!isNearBase) {
-                    if (!robot.returnMission) {
-                        robot.returnMission = buildReturnMission(robot, now);
-                        if (!robot.returnMission) {
-                            // Fallback if no valid path: park safely at Markas Robot
-                            floorNum = 1;
-                            coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
-                            robot.current_x = coords.x;
-                            robot.current_y = coords.y;
-                            robot.floor = 1;
-                            robot.status = 'Idle';
-                            robot.isReturning = false;
-                            syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
-                        }
-                    }
-                }
-
-                if (isNearBase && (robot.status === 'Returning' || robot.isReturning || robot.returnMission)) {
-                    coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
-                    floorNum = 1;
-                    robot.current_x = coords.x;
-                    robot.current_y = coords.y;
-                    robot.floor = 1;
-                    robot.returnMission = null;
-                    robot.isReturning = false;
-                    robot.status = 'Idle';
-                    taskText = `Siaga di ${baseLoc.name || 'Markas Pangkalan'}`;
-                    syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
-                } else if (robot.returnMission) {
-                    robot.isReturning = true;
-                    robot.status = 'Returning';
-                    statusColor = 'bg-indigo-500';
-                    const mission = robot.returnMission;
-                    const elapsedMs = now.getTime() - mission.startedAt;
-                    let angle = 0;
-
-                    if (elapsedMs < 0) {
-                        taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-box-open mr-1"></i> Selesai antar, persiapan kembali ke ${baseLoc.name || 'Markas'}...</span>`;
-                        coords = { x: robot.current_x, y: robot.current_y };
-                        floorNum = robot.floor || 1;
-                    } else if (elapsedMs >= mission.totalDurationMs) {
-                        coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
-                        floorNum = 1;
-                        robot.current_x = coords.x;
-                        robot.current_y = coords.y;
-                        robot.floor = 1;
-                        robot.returnMission = null;
-                        robot.isReturning = false;
-                        robot.status = 'Idle';
-                        taskText = `Siaga di ${baseLoc.name || 'Markas Pangkalan'}`;
-                        syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
-                    } else {
-                        let activeStage = null;
-                        for (let st of mission.stages) {
-                            if (elapsedMs >= st.startMs && elapsedMs < st.startMs + st.durationMs) {
-                                activeStage = st;
-                                break;
-                            }
-                        }
-                        if (!activeStage) activeStage = mission.stages[mission.stages.length - 1];
-
-                        const stageElapsed = Math.max(0, elapsedMs - activeStage.startMs);
-                        const stageRatio = Math.max(0, Math.min(stageElapsed / activeStage.durationMs, 1.0));
-
-                        if (activeStage.type === 'stairs') {
-                            const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
-                            const isSecondHalf = stageRatio >= 0.5;
-                            floorNum = isSecondHalf ? activeStage.toFloor : activeStage.fromFloor;
-                            const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
-                            coords = locations[currentNodeId] || coords;
-                            taskText = `Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec} dtk)...`;
-                            statusColor = 'bg-amber-500';
-                            robot.returnSegIdx = 0;
-                        } else {
-                            floorNum = activeStage.floor || 1;
-                            const path = activeStage.path || [];
-                            const along = interpolateAlongPath(path, stageRatio);
-                            if (along) {
-                                coords = along.coords;
-                                angle = along.angle;
-                                robot.returnSegIdx = along.segIdx;
-                            }
-                            taskText = `Kembali ke ${baseLoc.name || 'Markas Pangkalan'}...`;
-                        }
-
-                        robot.current_x = coords.x;
-                        robot.current_y = coords.y;
-                        robot.floor = floorNum;
-                        robot.rotation = angle;
-                    }
-                } else {
-                    robot.isReturning = false;
-                    if (isNearBase) {
-                        coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
-                        floorNum = 1;
-                    } else {
-                        coords = { x: robot.current_x || baseLoc.x, y: robot.current_y || baseLoc.y };
-                        floorNum = robot.floor || 1;
-                    }
-                    robot.current_x = coords.x;
-                    robot.current_y = coords.y;
-                    robot.floor = floorNum;
-                }
-            }
-            
-            // 3D avatar update per floor
-            robot._activeDelivery = delivery || null;
-            const _activeDeliv = delivery||null;
-            const destIdForBadge = (_activeDeliv && _activeDeliv.destination_location) ? _activeDeliv.destination_location : (delivery && delivery.destination_location);
-            const destNameForBadge = destIdForBadge ? (locations[destIdForBadge]?.name || destIdForBadge) : null;
-            const _knownIssue = hasIssue;
-            const _floorNum = Number(floorNum)||1;
-            function delivSyncAvatar(viewer, robot, coords, destName){
-                if(!viewer || !viewer.getOrCreateRobotMesh) return;
-                const sz=viewer.getModelSize ? viewer.getModelSize() : null;
-                if(!sz || sz.x<=0.1) return;
-                const holder=viewer.getOrCreateRobotMesh(robot);
-                const wp = worldPosForLoc(coords, sz);
-                const elev = (_floorNum === 2)
-                    ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
-                    : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
-                if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3(wp.x, elev, wp.z);
-                holder.userData.targetWp.set(wp.x, elev, wp.z);
-                
-                // First initialization or large distance jump (e.g. floor change) -> snap directly
-                if(!holder.userData.hasInitialPos || holder.position.distanceTo(holder.userData.targetWp) > 4.0){
-                    holder.position.set(wp.x, elev, wp.z);
-                    holder.userData.hasInitialPos = true;
-                }
-
-                // Smooth rotation lerp
-                const targetRot = -((robot.rotation||0)*Math.PI/180);
-                if (holder.rotation) {
-                    let diff = targetRot - holder.rotation.y;
-                    while (diff < -Math.PI) diff += Math.PI * 2;
-                    while (diff > Math.PI) diff -= Math.PI * 2;
-                    holder.rotation.y += diff * 0.3;
-                }
-                holder.visible=true;
-                try{
-                    if(holder.userData.statusSprite && holder.userData.statusSprite.userData.canvas){
-                        const spr=holder.userData.statusSprite, c=spr.userData.canvas, ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
-                        let label='', bg='';
-                        if(_knownIssue){
-                            let issue = 'KENDALA';
-                            if (robot._activeIssue) {
-                                const it = String(robot._activeIssue).toUpperCase();
-                                if (it.includes('COLLISION') || it.includes('TABRAKAN')) issue = 'TABRAKAN';
-                                else if (it.includes('LOW BATTERY') || it.includes('BATERAI')) issue = 'BATERAI LEMAH';
-                                else if (it.includes('SENSOR')) issue = 'SENSOR RUSAK';
-                                else issue = it;
-                            } else {
-                                issue = 'PERBAIKAN';
-                            }
-                            label='⚠ ' + issue; bg='rgba(225,29,72,0.94)';
-                        }
-                        else if(robot.status==='Delivering' && _activeDeliv){ label='▶ MENGANTAR → '+(destName||_activeDeliv.destination_location||''); bg='rgba(59,130,246,0.94)'; }
-                        else if(robot.status==='Returning' || robot.isReturning){ label='◀ MENUJU MARKAS'; bg='rgba(99,102,241,0.94)'; }
-                        else if(robot.status==='Charging'){ label='⚡ MENGISI DAYA'; bg='rgba(234,88,12,0.94)'; }
-                        else if(robot.status==='Maintenance'){ label='🔧 PERBAIKAN'; bg='rgba(225,29,72,0.94)'; }
-                        else { label='● SIAGA (Markas)'; bg='rgba(16,185,129,0.94)'; }
-                        ctx.font='bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'; 
-                        const pad=16, h=36, tw=Math.min(c.width-12, ctx.measureText(label).width+28), radius=h/2;
-                        const x0=(c.width-tw)/2, y0=(c.height-h)/2;
-                        ctx.fillStyle=bg; ctx.beginPath(); 
-                        if(ctx.roundRect) ctx.roundRect(x0,y0,tw,h,radius); else ctx.rect(x0,y0,tw,h);
-                        ctx.fill();
-                        ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=2; ctx.stroke();
-                        ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,c.width/2,c.height/2);
-                        spr.material.map.needsUpdate=true; spr.visible=true;
-                    }
-                }catch(e){}
-            }
-            if(_floorNum===2){
-                if(threeDeliv) delivSyncAvatar(threeDeliv, robot, coords, destNameForBadge);
-                if(threeDelivF1 && threeDelivF1.robotMeshes && threeDelivF1.robotMeshes.has(Number(robot.id))){
-                    try{ const h=threeDelivF1.robotMeshes.get(Number(robot.id)); h.visible=false; }catch(e){}
-                }
-            } else {
-                if(threeDelivF1) delivSyncAvatar(threeDelivF1, robot, coords, destNameForBadge);
-                if(threeDeliv && threeDeliv.robotMeshes && threeDeliv.robotMeshes.has(Number(robot.id))){
-                    try{ const h=threeDeliv.robotMeshes.get(Number(robot.id)); h.visible=false; }catch(e){}
-                }
-            }
-        });
-        drawRobotPaths();
-        runAutopilotManager();
-    }
-
-    function completeDeliveryAPI(deliveryId, finalX, finalY, finalFloor) {
-        const delivery = activeDeliveries.find(d => d.id === deliveryId);
-        if (!delivery || delivery.isCompleting) return;
-        delivery.isCompleting = true;
-        
-        fetch(`/api/deliveries/${deliveryId}/complete`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ 
-                current_x: finalX, 
-                current_y: finalY,
-                floor: finalFloor || 1
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                const robot = robots.find(r => r.id === delivery.robot_id);
-                if (robot && data.robot) {
-                    robot.status = data.robot.status;
-                    robot.current_x = data.robot.current_x;
-                    robot.current_y = data.robot.current_y;
-                    robot.floor = data.robot.floor;
-                }
-                fetchData();
-                reloadPageDropdowns();
-            }
-        })
-        .catch(err => { console.error('Error completing delivery:', err); delivery.isCompleting = false; });
-    }
-
-    function reloadPageDropdowns() {
-        const select = document.getElementById('dispatch-robot');
-        if (!select) return;
-        const currentValue = select.value;
-        select.innerHTML = '<option value="" disabled>Pilih robot...</option>';
-        const statusIndoMap = {
-            'Idle': 'Siaga',
-            'Delivering': 'Mengantar',
-            'Charging': 'Mengisi Daya',
-            'Maintenance': 'Perbaikan',
-            'Returning': 'Kembali'
-        };
-        robots.forEach(robot => {
-            const isBusy = robot.status !== 'Idle' || robot.battery_level <= 20 || robot.isReturning;
-            const option = document.createElement('option');
-            option.value = robot.id;
-            option.setAttribute('data-x', robot.current_x ?? 0);
-            option.setAttribute('data-y', robot.current_y ?? 0);
-            option.setAttribute('data-floor', robot.floor ?? 1);
-            const rStatusText = robot.isReturning ? 'Kembali' : (statusIndoMap[robot.status] || robot.status);
-            let badgeText = '';
-            if (robot.isReturning) {
-                badgeText = ' [Kembali ke Markas]';
-            } else if (robot.status !== 'Idle') {
-                badgeText = ` [${rStatusText}]`;
-            } else if (robot.battery_level <= 20) {
-                badgeText = ' [Baterai Rendah]';
-            }
-            option.textContent = `${robot.name} (${rStatusText} - Bat: ${robot.battery_level}%)${badgeText}`;
-            if (isBusy) option.disabled = true;
-            if (robot.id.toString() === currentValue) option.selected = true;
-            select.appendChild(option);
-        });
-        updateStartLocation();
-    }
-
-    function runAutopilotManager() {
-        const isEnabled = autopilotEnabled || localStorage.getItem('autopilot_enabled') === 'true';
-        if (!isEnabled) return;
-        
-        const idleRobots = robots.filter(r => r.status === 'Idle' && r.battery_level > 20 && !r.isReturning);
-        const baseId = getBaseLocationId();
-        let destinationNodeIds = Object.keys(locations).filter(id => locations[id].is_destination && id !== baseId && !id.includes('Tangga') && !id.includes('_Stairs'));
-        if (destinationNodeIds.length < 2) {
-            destinationNodeIds = Object.keys(locations).filter(id => !id.includes('_N') && !id.includes('Tangga') && !id.includes('_Stairs') && id !== baseId);
-        }
-        if (destinationNodeIds.length < 2) return;
-
-        const items = ['Handuk', 'Makanan', 'Dokumen', 'Kopi', 'Paket', 'Botol Air', 'Sparepart'];
-
-        idleRobots.forEach((robot, idx) => {
-            if (robot.isDispatching || robot.isReturning) return;
-            robot.isDispatching = true;
-            
-            setTimeout(() => {
-                if (robot.status !== 'Idle' || robot.isReturning) { robot.isDispatching = false; return; }
-                const item = items[(idx + Math.floor(Math.random() * items.length)) % items.length];
-                let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || baseId;
-                
-                // Pick a realistic pickup point (Titik Jemput) that is NOT base station
-                const availablePickups = destinationNodeIds.filter(id => id !== currentLoc);
-                const pickupLoc = availablePickups[Math.floor(Math.random() * availablePickups.length)] || availablePickups[0];
-
-                // Pick a destination (Titik Antar) that is DIFFERENT from pickup and DIFFERENT from current location
-                const availableDests = destinationNodeIds.filter(id => id !== pickupLoc && id !== currentLoc);
-                const dest = availableDests[Math.floor(Math.random() * availableDests.length)] || availableDests[0];
-                
-                fetch('/api/deliveries', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        robot_id: robot.id,
-                        item_name: item,
-                        origin_location: currentLoc,
-                        start_location: pickupLoc,
-                        destination_location: dest
-                    })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        fetchData();
-                    }
-                    robot.isDispatching = false;
-                })
-                .catch(err => {
-                    console.error('Error starting autopilot delivery:', err);
-                    robot.isDispatching = false;
-                });
-            }, Math.random() * 2500 + 1500);
-        });
-    }
-
-    function syncTelemetry() {
-        robots.forEach(robot => {
-            if (robot.status === 'Delivering' || (robot.status === 'Idle' && !robot.returnPath)) {
-                return; // Skip telemetry sync during active deliveries or stationary idle
-            }
-            
-            let nextBattery = robot.battery_level;
-            let nextStatus = robot.status;
-            
-            if (robot.status === 'Charging') {
-                nextBattery = Math.min(100, robot.battery_level + 5);
-                if (nextBattery === 100) {
-                    nextStatus = 'Idle';
-                    resolveAlertForRobot(robot.id, 'Low Battery');
-                }
-            }
-            
-            fetch(`/api/robots/${robot.id}/telemetry`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({
-                    status: nextStatus,
-                    battery_level: nextBattery
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.robot) {
-                    robot.battery_level = data.robot.battery_level;
-                    robot.status = data.robot.status;
-                }
-            })
-            .catch(err => console.error('Error syncing telemetry:', err));
-        });
-    }
-
-    function triggerIncident(robotId, type, desc) {
-        fetch('/api/reports', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                robot_id: robotId,
-                issue_type: type,
-                description: desc
-            })
-        })
-        .then(() => {
-            fetchData();
-            reloadPageDropdowns();
-        });
-    }
-
-    function resolveAlertForRobot(robotId, type) {
-        fetch('/api/telemetry')
-        .then(res => res.json())
-        .then(data => {
-            const alert = data.active_alerts.find(a => Number(a.robot_id) === Number(robotId) && a.issue_type === type);
-            if (alert) {
-                fetch(`/api/reports/${alert.id}/resolve`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(() => fetchData());
-            }
-        });
+        const d = new Date(dateStr);
+        return isNaN(d.getTime()) ? new Date() : d;
     }
 
     function fetchData() {
@@ -2206,108 +148,64 @@
                 const clientTime = new Date();
                 serverClientOffset = serverTime.getTime() - clientTime.getTime();
             }
-            if (activeDeliveries && Array.isArray(activeDeliveries)) {
-                data.active_deliveries.forEach(newDeliv => {
-                    const existing = activeDeliveries.find(d => d.id === newDeliv.id);
-                    if (existing) {
-                        if (existing._cachedMission) newDeliv._cachedMission = existing._cachedMission;
-                        if (existing._cachedPath) newDeliv._cachedPath = existing._cachedPath;
-                        if (existing.isCompleting) newDeliv.isCompleting = existing.isCompleting;
-                    }
-                });
-            }
-            activeDeliveries = data.active_deliveries;
-            activeAlerts = data.active_alerts;
-            if (typeof data.autopilot_enabled !== 'undefined') {
-                autopilotEnabled = !!data.autopilot_enabled;
-            }
-            
-            // Merge robots data keeping local animation properties
-            data.robots.forEach(newRobot => {
-                const existing = robots.find(r => Number(r.id) === Number(newRobot.id));
-                if (existing) {
-                    const bLoc = getBaseLocation();
-                    const isClientAtBase = Number(existing.floor || 1) === 1 && Math.hypot((existing.current_x || bLoc.x) - bLoc.x, (existing.current_y || bLoc.y) - bLoc.y) < 2.0;
-                    const hasDeliveryInProgress = activeDeliveries.some(d => Number(d.robot_id) === Number(existing.id) && d.status === 'In Progress');
 
-                    if (existing.status === 'Delivering') {
-                        if (newRobot.status === 'Maintenance') {
-                            existing.status = 'Maintenance';
-                            existing.hasIssue = true;
-                        } else if (!hasDeliveryInProgress) {
-                            existing.status = newRobot.status;
-                            if (newRobot.status === 'Idle' && !isClientAtBase) {
-                                existing.returnMission = buildReturnMission(existing, new Date(new Date().getTime() + serverClientOffset));
-                                existing.isReturning = true;
-                            }
-                        }
-                    } else if (existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
-                        if (newRobot.status === 'Maintenance') {
-                            existing.status = 'Maintenance';
-                            existing.hasIssue = true;
-                        }
-                    } else if (existing.status === 'Idle') {
-                        if (hasDeliveryInProgress) {
-                            existing.status = 'Delivering';
-                        } else if (newRobot.status === 'Charging') {
-                            existing.status = 'Charging';
-                        } else if (newRobot.status === 'Returning' && !isClientAtBase) {
-                            existing.status = 'Returning';
-                        }
-                    } else {
-                        existing.status = newRobot.status;
-                    }
+            robots = data.robots || [];
+            activeDeliveries = data.active_deliveries || [];
 
-                    // Coordinates & Floor Merge (Firmly lock Base/Charging and Client Navigation)
-                    if (existing.status === 'Charging' || (existing.status === 'Idle' && isClientAtBase)) {
-                        existing.floor = 1;
-                        existing.current_x = bLoc.x;
-                        existing.current_y = bLoc.y;
-                    } else if (existing.status === 'Delivering' || existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
-                        // Keep live client-side coordinates and floor along path - NEVER overwrite from server!
-                    } else if (newRobot.current_x != null && newRobot.current_y != null) {
-                        existing.floor = newRobot.floor || existing.floor || 1;
-                        existing.current_x = newRobot.current_x;
-                        existing.current_y = newRobot.current_y;
-                    }
-                    existing.battery_level = newRobot.battery_level;
-                } else {
-                    robots.push(newRobot);
-                }
-            });
-            
             updateActiveMissionsTable();
-            updateTimeline(data.recent_deliveries);
+            updateTimeline(data.recent_deliveries || []);
         })
-        .catch(err => console.error('Error fetching:', err));
+        .catch(err => console.error('Error fetching telemetry:', err));
     }
 
     function updateTimeline(recentDeliveries) {
         const container = document.getElementById('timeline-container');
+        const badge = document.getElementById('timeline-count-badge');
         if (!container) return;
+
+        if (badge) {
+            badge.textContent = `${recentDeliveries.length} Aktivitas`;
+        }
+
         if (!recentDeliveries || recentDeliveries.length === 0) {
-            container.innerHTML = `<div class="text-xs text-gray-400 font-medium text-center py-6">Belum ada riwayat aktivitas.</div>`;
+            container.innerHTML = `
+                <div class="text-xs text-gray-400 font-medium text-center py-12">
+                    <i class="fa-solid fa-box-open text-2xl mb-2 text-gray-300 block"></i>
+                    Belum ada riwayat aktivitas untuk hari ini.
+                </div>
+            `;
             return;
         }
         
         container.innerHTML = '';
         recentDeliveries.forEach(act => {
-            const timeStr = new Date(act.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateObj = new Date(act.updated_at || act.created_at);
+            const timeStr = !isNaN(dateObj.getTime()) ? dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
             const isCompleted = act.status === 'Completed';
-            const dotColor = isCompleted ? 'bg-green-500 ' : (act.status === 'Failed' ? 'bg-rose-400 ' : 'bg-brand-blue  animate-pulse');
+            const isFailed = act.status === 'Failed';
+            const dotColor = isCompleted ? 'bg-green-500' : (isFailed ? 'bg-rose-500' : 'bg-brand-blue animate-pulse');
             
+            const robotName = act.robot ? act.robot.name : 'Robot';
+            const destName = act.formatted_destination_location || formatLocationDisplay(act.destination_location);
+            
+            let statusText = '';
+            if (isCompleted) {
+                statusText = `Berhasil mengantar <strong class="text-gray-700">${act.item_name}</strong> ke <strong class="text-gray-700">${destName}</strong>`;
+            } else if (act.status === 'In Progress') {
+                statusText = `Sedang mengantar <strong class="text-gray-700">${act.item_name}</strong> ke <strong class="text-gray-700">${destName}</strong>`;
+            } else if (act.status === 'Pending') {
+                statusText = `Menunggu antaran <strong class="text-gray-700">${act.item_name}</strong> ke <strong class="text-gray-700">${destName}</strong>`;
+            } else {
+                statusText = `Gagal mengantar <strong class="text-gray-700">${act.item_name}</strong>`;
+            }
+
             const div = document.createElement('div');
             div.className = 'relative pl-6 border-l border-gray-200';
             div.innerHTML = `
                 <span class="absolute left-[-4.5px] top-1.5 w-2.5 h-2.5 rounded-full ${dotColor}"></span>
                 <span class="text-[10px] text-gray-400 font-semibold block">${timeStr}</span>
-                <p class="text-xs font-bold text-gray-800 mt-0.5">${act.robot.name}</p>
-                <p class="text-[11px] text-gray-500 mt-0.5">
-                    ${isCompleted 
-                        ? `Berhasil mengantar <strong class="text-gray-700">${act.item_name}</strong> ke <strong class="text-gray-700">${formatLocationDisplay(act.destination_location)}</strong>`
-                        : `Sedang mengantar <strong class="text-gray-700">${act.item_name}</strong> ke <strong class="text-gray-700">${formatLocationDisplay(act.destination_location)}</strong>`
-                    }
-                </p>
+                <p class="text-xs font-bold text-gray-800 mt-0.5">${robotName}</p>
+                <p class="text-[11px] text-gray-500 mt-0.5">${statusText}</p>
             `;
             container.appendChild(div);
         });
@@ -2315,10 +213,20 @@
 
     function updateActiveMissionsTable() {
         const tbody = document.getElementById('active-deliveries-table-body');
+        const countText = document.getElementById('active-count-text');
+        if (!tbody) return;
+
+        if (countText) {
+            countText.textContent = `${activeDeliveries.length} Aktif`;
+        }
+
         if (activeDeliveries.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="py-8 text-center text-gray-400 text-xs">Tidak ada misi pengantaran aktif saat ini.</td>
+                    <td colspan="5" class="py-12 text-center text-gray-400 text-xs">
+                        <i class="fa-solid fa-circle-check text-2xl mb-2 text-gray-300 block"></i>
+                        Tidak ada misi pengantaran aktif saat ini.
+                    </td>
                 </tr>
             `;
             return;
@@ -2326,37 +234,36 @@
         
         tbody.innerHTML = '';
         activeDeliveries.forEach(delivery => {
-            const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
-            if (!robot) return;
+            const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id)) || delivery.robot || { name: 'Robot' };
             
-            const mission = getDeliveryMission(delivery, robot);
-            const totalDurationMs = mission?.totalDurationMs || 30000;
-            const startedTime = parseServerDate(delivery.started_at);
+            const totalDurationMs = 30000; // standard estimated mission duration for UI progression
+            const startedTime = parseServerDate(delivery.started_at || delivery.created_at);
             const now = new Date(new Date().getTime() + serverClientOffset);
             const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
-            const ratio = Math.min(elapsedMs / totalDurationMs, 1.0);
-            const pct = Math.round(ratio * 100);
-            const startName = formatLocationDisplay(delivery.start_location);
-            const destName = formatLocationDisplay(delivery.destination_location);
+            const ratio = Math.min(elapsedMs / totalDurationMs, 0.95);
+            const pct = Math.max(10, Math.round(ratio * 100));
+
+            const startName = delivery.formatted_start_location || formatLocationDisplay(delivery.start_location);
+            const destName = delivery.formatted_destination_location || formatLocationDisplay(delivery.destination_location);
 
             const tr = document.createElement('tr');
-            tr.className = 'border-b border-gray-200/50 hover:bg-gray-50/50 text-xs';
+            tr.className = 'border-b border-gray-100 hover:bg-gray-50/70 transition text-xs';
             tr.innerHTML = `
-                <td class="py-3.5 font-bold text-gray-700">
+                <td class="py-3.5 px-2 font-bold text-gray-700">
                     <div class="flex items-center gap-2">
-                        <span class="w-1.5 h-1.5 rounded-full bg-brand-blue"></span>
-                        ${robot.name}
+                        <span class="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
+                        <span>${robot.name}</span>
                     </div>
                 </td>
-                <td class="text-gray-500 font-semibold">${delivery.item_name}</td>
-                <td class="text-gray-500 font-semibold">${startName}</td>
-                <td class="text-gray-700 font-semibold">${destName}</td>
-                <td>
+                <td class="py-3.5 px-2 text-gray-600 font-semibold">${delivery.item_name}</td>
+                <td class="py-3.5 px-2 text-gray-500 font-medium">${startName}</td>
+                <td class="py-3.5 px-2 text-gray-800 font-semibold">${destName}</td>
+                <td class="py-3.5 px-2">
                     <div class="flex items-center gap-3">
-                        <div class="w-20 bg-gray-100 rounded-full h-1.5">
-                            <div class="bg-brand-blue h-1.5 rounded-full" style="width: ${pct}%"></div>
+                        <div class="w-28 bg-gray-100 rounded-full h-2 overflow-hidden border border-gray-200">
+                            <div class="bg-brand-blue h-2 rounded-full transition-all duration-300" style="width: ${pct}%"></div>
                         </div>
-                        <span class="font-bold text-brand-blue font-mono">${pct}%</span>
+                        <span class="font-bold text-brand-blue font-mono text-xs">${pct}%</span>
                     </div>
                 </td>
             `;
@@ -2364,41 +271,9 @@
         });
     }
 
-    window.addEventListener('resize', () => {
-        drawRobotPaths();
-    });
-
-    document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) {
-            const activeV = (Number(liveCurrentFloor) === 1) ? threeDelivF1 : threeDeliv;
-            if (activeV && typeof activeV.resize === 'function') {
-                activeV.resize();
-            }
-            drawRobotPaths();
-        }
-    });
-
     document.addEventListener('DOMContentLoaded', () => {
         fetchData();
-        reloadPageDropdowns();
-        
-        switchLiveFloor(1);
-        
-        simulationInterval = setInterval(runSimulationStep, 50);
-        
-        syncInterval = setInterval(() => {
-            syncTelemetry();
-            fetchData();
-        }, 2000);
-
-        // Preload model lantai 2 di background ke CacheStorage agar switch instan
-        const preloadOther = () => {
-            try {
-                fetchGLBBufferWithCache(floor2ModelUrl, null).catch(() => {});
-            } catch (e) {}
-        };
-        if ('requestIdleCallback' in window) requestIdleCallback(preloadOther, { timeout: 8000 });
-        else setTimeout(preloadOther, 4000);
+        setInterval(fetchData, 2000);
     });
 </script>
 @endsection
