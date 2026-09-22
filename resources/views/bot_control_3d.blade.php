@@ -3679,19 +3679,21 @@
         fleetRobots.forEach(robot => {
             const delivery = fleetDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending'));
             const alert = fleetAlerts.find(a => Number(a.robot_id) === Number(robot.id) && a.status === 'Active');
-            const hasIssue = !!alert || robot.status === 'Maintenance' || (delivery && delivery.status === 'Pending');
+            const isMaintenance = robot.status === 'Maintenance';
+            const hasPendingReport = !!alert && !isMaintenance;
+            const hasIssue = isMaintenance || (delivery && delivery.status === 'Pending');
 
             const batLevel = Math.max(0, Math.min(100, Number(robot.battery_level) || 0));
             const batColor = batLevel > 50 ? 'bg-emerald-500' : (batLevel > 20 ? 'bg-amber-500' : 'bg-rose-500');
             const batTextCol = batLevel <= 20 ? 'text-rose-600 font-bold' : 'text-gray-700';
 
             html += `
-            <div class="border ${hasIssue ? 'border-rose-300 bg-rose-50/70 shadow-md' : 'border-gray-200 bg-gray-50/70 hover:shadow-md'} p-4 rounded-2xl space-y-3 transition">
+            <div class="border ${isMaintenance ? 'border-rose-300 bg-rose-50/70 shadow-md' : (hasPendingReport ? 'border-amber-300 bg-amber-50/60 shadow-md' : 'border-gray-200 bg-gray-50/70 hover:shadow-md')} p-4 rounded-2xl space-y-3 transition">
                 <!-- Header: Robot Info & Status Selector -->
                 <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-2.5 min-w-0">
-                        <div class="w-8 h-8 rounded-xl ${hasIssue ? 'bg-rose-500 text-white animate-bounce' : 'bg-[#3b4cb8] text-white'} flex items-center justify-center text-xs font-bold shadow-sm shrink-0">
-                            <i class="fa-solid ${hasIssue ? 'fa-triangle-exclamation' : 'fa-robot'}"></i>
+                        <div class="w-8 h-8 rounded-xl ${isMaintenance ? 'bg-rose-500 text-white animate-bounce' : (hasPendingReport ? 'bg-amber-500 text-white animate-pulse' : 'bg-[#3b4cb8] text-white')} flex items-center justify-center text-xs font-bold shadow-sm shrink-0">
+                            <i class="fa-solid ${isMaintenance ? 'fa-wrench' : (hasPendingReport ? 'fa-triangle-exclamation' : 'fa-robot')}"></i>
                         </div>
                         <div class="truncate">
                             <span class="font-black text-gray-800 text-xs block leading-tight truncate">${robot.name}</span>
@@ -3700,18 +3702,35 @@
                     </div>
                     <div class="shrink-0 flex items-center gap-1.5">
                         <select onchange="changeRobotStatus(${robot.id}, this.value)" title="Ubah Status Robot" class="text-[10px] font-bold py-1 px-2 rounded-lg border shadow-xs transition cursor-pointer ${
-                            hasIssue ? 'bg-rose-100 text-rose-700 border-rose-300' :
-                            robot.status === 'Charging' ? 'bg-amber-100 text-amber-700 border-amber-300' :
-                            robot.status === 'Delivering' ? 'bg-blue-100 text-blue-700 border-blue-300' :
-                            'bg-emerald-100 text-emerald-700 border-emerald-300'
+                            isMaintenance ? 'bg-rose-100 text-rose-700 border-rose-300' :
+                            (hasPendingReport ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                            (robot.status === 'Charging' ? 'bg-amber-100 text-amber-700 border-amber-300' :
+                            (robot.status === 'Delivering' ? 'bg-blue-100 text-blue-700 border-blue-300' :
+                            'bg-emerald-100 text-emerald-700 border-emerald-300')))
                         }">
-                            <option value="Idle" ${robot.status === 'Idle' && !hasIssue ? 'selected' : ''}>Siaga</option>
+                            <option value="Idle" ${robot.status === 'Idle' ? 'selected' : ''}>Siaga</option>
                             <option value="Delivering" ${robot.status === 'Delivering' ? 'selected' : ''}>Mengantar</option>
                             <option value="Charging" ${robot.status === 'Charging' ? 'selected' : ''}>Mengisi Daya</option>
-                            <option value="Maintenance" ${robot.status === 'Maintenance' || hasIssue ? 'selected' : ''}>Perbaikan</option>
+                            <option value="Maintenance" ${robot.status === 'Maintenance' ? 'selected' : ''}>Perbaikan</option>
                         </select>
                     </div>
                 </div>
+
+                <!-- Banner Notifikasi Laporan Masalah (Jika ada laporan masuk tapi belum diubah ke Maintenance) -->
+                ${hasPendingReport ? `
+                    <div class="bg-amber-100/90 border border-amber-300 p-2.5 rounded-xl flex items-center justify-between gap-2 shadow-xs">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-600 text-sm shrink-0 animate-bounce"></i>
+                            <div class="truncate">
+                                <span class="text-[11px] font-bold text-amber-900 block leading-tight truncate">Laporan Kendala: ${alert.issue_type}</span>
+                                <span class="text-[10px] text-amber-700 block truncate">${alert.description || 'Laporan kendala baru dari sistem'}</span>
+                            </div>
+                        </div>
+                        <button type="button" onclick="changeRobotStatus(${robot.id}, 'Maintenance')" class="shrink-0 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-lg shadow-sm transition active:scale-95 flex items-center gap-1" title="Ubah status robot menjadi Perbaikan">
+                            <i class="fa-solid fa-wrench text-[9px]"></i> Ubah ke Perbaikan
+                        </button>
+                    </div>
+                ` : ''}
 
                 <!-- Battery Bar & Edit Battery -->
                 <div class="bg-white p-2.5 rounded-xl border border-gray-200/80 space-y-1.5">
@@ -3848,7 +3867,9 @@
             return;
         }
         if (newStatus === 'Maintenance') {
-            simulateUnitIssue(robotId, 'Maintenance');
+            const existingAlert = fleetAlerts.find(a => Number(a.robot_id) === Number(robotId) && a.status === 'Active');
+            const issueType = existingAlert ? existingAlert.issue_type : 'Maintenance';
+            simulateUnitIssue(robotId, issueType);
             return;
         }
 
