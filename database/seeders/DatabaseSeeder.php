@@ -47,38 +47,5 @@ class DatabaseSeeder extends Seeder
         if (config('database.default') === 'pgsql') {
             \DB::statement("SELECT setval('robots_id_seq', (SELECT MAX(id) FROM robots))");
         }
-
-        // 2. Seed Delivery History (Completed deliveries for Robot Alpha)
-        Delivery::create([
-            'robot_id' => $alpha->id,
-            'item_name' => 'Handuk',
-            'origin_location' => '1_Markas Robot',
-            'start_location' => '1_Resepsionis',
-            'destination_location' => '1_Ruang Meeting 1',
-            'status' => 'Completed',
-            'started_at' => Carbon::now()->subMinutes(60),
-            'completed_at' => Carbon::now()->subMinutes(52),
-        ]);
-
-        Delivery::create([
-            'robot_id' => $alpha->id,
-            'item_name' => 'Makanan',
-            'origin_location' => '1_Markas Robot',
-            'start_location' => '1_Kasir',
-            'destination_location' => '1_Office',
-            'status' => 'Completed',
-            'started_at' => Carbon::now()->subMinutes(45),
-            'completed_at' => Carbon::now()->subMinutes(38),
-        ]);
-
-        // 3. Seed Incident Reports (All resolved initially)
-        Report::create([
-            'robot_id' => $alpha->id,
-            'issue_type' => 'Collision',
-            'description' => 'Sensor mendeteksi halangan di koridor tengah',
-            'status' => 'Resolved',
-            'created_at' => Carbon::now()->subHours(2),
-            'updated_at' => Carbon::now()->subHours(1),
-        ]);
     }
 }

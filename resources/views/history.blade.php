@@ -46,10 +46,10 @@
                         {{ $delivery->item_name }}
                     </td>
                     <td class="px-6 py-4 text-gray-600 text-xs">
-                        {{ $delivery->start_location }}
+                        {{ $delivery->formatted_start_location }}
                     </td>
                     <td class="px-6 py-4 text-gray-800 font-semibold text-xs">
-                        {{ $delivery->destination_location }}
+                        {{ $delivery->formatted_destination_location }}
                     </td>
                     <td class="px-6 py-4 text-center">
                         <span class="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider {{ $delivery->status === 'Completed' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-rose-100 text-rose-700 border border-rose-200' }}">
