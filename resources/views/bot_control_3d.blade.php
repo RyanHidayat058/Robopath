@@ -920,7 +920,7 @@
 
         let cleanText = String(text).replace(/^[12]_/, '');
         if (cleanText.length > 20) cleanText = cleanText.substring(0, 18) + '...';
-        ctx.fillText((isMarkas ? '🏠 ' : '') + cleanText, 52, canvas.height / 2);
+        ctx.fillText(cleanText, 52, canvas.height / 2);
 
         const texture = new THREE.CanvasTexture(canvas);
         const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false });
