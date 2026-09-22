@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Login - Robopath Tracking System</title>
+    <title>Masuk - Sistem Pelacakan Robopath</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -34,7 +34,7 @@
                 <i class="fa-solid fa-robot text-3xl"></i>
             </div>
             <h1 class="text-2xl font-black tracking-wider text-gray-900">ROBOPATH</h1>
-            <p class="text-xs text-gray-500 font-semibold tracking-wide uppercase mt-0.5">Multi-Floor AGV Tracking &amp; Dispatch</p>
+            <p class="text-xs text-gray-500 font-semibold tracking-wide uppercase mt-0.5">Pelacakan &amp; Pengiriman AGV Multi-Lantai</p>
         </div>
 
         <!-- Session Message / Errors -->
@@ -56,7 +56,7 @@
         <form action="{{ route('login') }}" method="POST" class="space-y-4" id="login-form">
             @csrf
             <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Email Address</label>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Alamat Email</label>
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400">
                         <i class="fa-solid fa-envelope text-sm"></i>
@@ -68,7 +68,7 @@
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Password</label>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Kata Sandi</label>
                 <div class="relative">
                     <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400">
                         <i class="fa-solid fa-lock text-sm"></i>

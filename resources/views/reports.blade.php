@@ -1,8 +1,8 @@
 @extends('layouts.layout')
 
-@section('title', 'ROBOPATH - Faults & Maintenance Reports')
-@section('page_title', 'Incident Reports & Hardware Logs')
-@section('page_subtitle', 'Monitor active hardware alerts, report new incidents, and upload issue evidence')
+@section('title', 'ROBOPATH - Laporan Insiden & Log Gangguan')
+@section('page_title', 'Laporan Insiden & Log Gangguan')
+@section('page_subtitle', 'Pantau peringatan perangkat keras aktif, laporkan insiden baru, dan unggah foto bukti kendala')
 
 @section('content')
 <div class="space-y-8">
@@ -12,9 +12,9 @@
         <div class="flex items-center justify-between pb-4 mb-6 border-b border-gray-100">
             <div>
                 <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <i class="fa-solid fa-triangle-exclamation text-amber-500"></i> Log Manual Incident
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500"></i> Catat Insiden Manual
                 </h3>
-                <p class="text-xs text-gray-500 mt-0.5">Manually report an obstacle or hardware issue with evidence attachment (Max 1MB)</p>
+                <p class="text-xs text-gray-500 mt-0.5">Laporkan kendala rintangan fisik atau kerusakan robot secara manual dengan lampiran bukti (Maks. 1MB)</p>
             </div>
         </div>
 
@@ -22,12 +22,12 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Select Robot -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Select Affected Robot</label>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Pilih Robot Terdampak</label>
                     <select id="incident-robot" required class="w-full bg-gray-50 border border-gray-300 text-gray-800 text-sm rounded-xl p-3 focus:outline-none focus:border-[#3b4cb8] transition">
-                        <option value="" disabled selected>Choose a robot...</option>
+                        <option value="" disabled selected>Pilih robot...</option>
                         @foreach($robots as $robot)
                         <option value="{{ $robot->id }}">
-                            {{ $robot->name }} ({{ $robot->status }} - Bat: {{ $robot->battery_level }}%)
+                            {{ $robot->name }} ({{ $robot->status === 'Idle' ? 'Siaga' : ($robot->status === 'Charging' ? 'Mengisi Daya' : ($robot->status === 'Delivering' ? 'Mengantar' : 'Perbaikan')) }} - Baterai: {{ $robot->battery_level }}%)
                         </option>
                         @endforeach
                     </select>
@@ -35,28 +35,28 @@
 
                 <!-- Select Incident Type -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Incident / Fault Type</label>
+                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Jenis Insiden / Kendala</label>
                     <select id="incident-type" required class="w-full bg-gray-50 border border-gray-300 text-gray-800 text-sm rounded-xl p-3 focus:outline-none focus:border-[#3b4cb8] transition">
-                        <option value="Collision">Collision / Physical Obstacle</option>
-                        <option value="Sensor Error">Sensor / LiDAR Fault</option>
-                        <option value="Low Battery">Critical Low Battery</option>
+                        <option value="Collision">Tabrakan / Rintangan Fisik</option>
+                        <option value="Sensor Error">Kerusakan Sensor / LiDAR</option>
+                        <option value="Low Battery">Baterai Kritis / Lemah</option>
                     </select>
                 </div>
 
                 <!-- Evidence Photo Upload (Max 1MB) -->
                 <div>
                     <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
-                        Evidence Photo <span class="text-gray-400 font-normal lowercase">(optional, max 1MB)</span>
+                        Foto Bukti <span class="text-gray-400 font-normal lowercase">(opsional, maks. 1MB)</span>
                     </label>
                     <input type="file" id="incident-image" accept="image/*" onchange="validateImageSize(this)" class="w-full text-xs text-gray-600 bg-gray-50 border border-gray-300 rounded-xl file:mr-4 file:py-2.5 file:px-4 file:rounded-l-xl file:border-0 file:text-xs file:font-bold file:bg-[#3b4cb8] file:text-white hover:file:bg-blue-800 transition">
-                    <p id="image-size-error" class="text-[11px] text-rose-500 font-semibold mt-1 hidden">File size exceeds 1MB! Please choose a smaller image.</p>
+                    <p id="image-size-error" class="text-[11px] text-rose-500 font-semibold mt-1 hidden">Ukuran file melebihi 1MB! Silakan pilih gambar yang lebih kecil.</p>
                 </div>
             </div>
 
             <!-- Description -->
             <div>
-                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Detailed Incident Notes</label>
-                <textarea id="incident-desc" rows="2" required placeholder="e.g. Unit collided with storage cabinet in central corridor..." class="w-full bg-gray-50 border border-gray-300 text-gray-800 text-sm rounded-xl p-3 focus:outline-none focus:border-[#3b4cb8] transition placeholder:text-gray-400"></textarea>
+                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Catatan Rinci Insiden</label>
+                <textarea id="incident-desc" rows="2" required placeholder="Contoh: Unit menabrak lemari penyimpanan di lorong tengah lantai 1..." class="w-full bg-gray-50 border border-gray-300 text-gray-800 text-sm rounded-xl p-3 focus:outline-none focus:border-[#3b4cb8] transition placeholder:text-gray-400"></textarea>
             </div>
 
             <div id="simulate-error" class="hidden text-xs text-rose-600 font-bold bg-rose-50 border border-rose-200 p-3 rounded-xl"></div>
@@ -64,7 +64,7 @@
 
             <div class="flex justify-end">
                 <button type="submit" class="bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 px-6 rounded-xl text-sm transition duration-200 shadow-md hover:shadow-lg flex items-center gap-2">
-                    <i class="fa-solid fa-bug"></i> Submit Incident Report
+                    <i class="fa-solid fa-bug"></i> Kirim Laporan Insiden
                 </button>
             </div>
         </form>
@@ -76,13 +76,13 @@
         <div class="p-6 bg-[#3b4cb8] text-white flex items-center justify-between shadow-sm">
             <div>
                 <h3 class="text-base font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-triangle-exclamation"></i> System Warnings & Alerts Log
+                    <i class="fa-solid fa-triangle-exclamation"></i> Log Peringatan & Gangguan Sistem
                 </h3>
-                <p class="text-xs text-blue-100/90 font-medium mt-1">Track and resolve current active hardware faults (Total {{ $reports->total() }} records)</p>
+                <p class="text-xs text-blue-100/90 font-medium mt-1">Pantau dan selesaikan kendala perangkat keras aktif (Total {{ $reports->total() }} data)</p>
             </div>
             <div>
                 <button onclick="confirmReset()" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md transition duration-200">
-                    <i class="fa-solid fa-trash-can"></i> Clear All Logs
+                    <i class="fa-solid fa-trash-can"></i> Bersihkan Semua Log
                 </button>
             </div>
         </div>
@@ -91,13 +91,13 @@
             <table class="w-full text-left text-sm text-gray-700">
                 <thead>
                     <tr class="bg-blue-50/70 border-b border-gray-200 text-[#3b4cb8] text-xs font-bold uppercase tracking-wider">
-                        <th class="px-6 py-4">Time Logged</th>
+                        <th class="px-6 py-4">Waktu Dicatat</th>
                         <th class="px-6 py-4">Robot</th>
-                        <th class="px-6 py-4">Issue Type</th>
-                        <th class="px-6 py-4">Details</th>
-                        <th class="px-6 py-4 text-center">Photo Evidence</th>
+                        <th class="px-6 py-4">Jenis Kendala</th>
+                        <th class="px-6 py-4">Keterangan</th>
+                        <th class="px-6 py-4 text-center">Foto Bukti</th>
                         <th class="px-6 py-4 text-center">Status</th>
-                        <th class="px-6 py-4 text-right">Actions</th>
+                        <th class="px-6 py-4 text-right">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -107,12 +107,12 @@
                             {{ $report->created_at->format('d M, H:i') }}
                         </td>
                         <td class="px-6 py-4 font-bold text-gray-800">
-                            {{ $report->robot?->name ?? 'Robot Unknown' }}
+                            {{ $report->robot?->name ?? 'Robot Tidak Diketahui' }}
                         </td>
                         <td class="px-6 py-4">
                             <span class="text-xs font-bold flex items-center gap-1.5 {{ $report->issue_type === 'Collision' || $report->issue_type === 'Sensor Error' ? 'text-rose-600' : 'text-amber-600' }}">
                                 <i class="fa-solid @if($report->issue_type === 'Collision') fa-burst @elseif($report->issue_type === 'Low Battery') fa-battery-empty @else fa-microchip-exclamation @endif"></i>
-                                {{ $report->issue_type }}
+                                {{ $report->issue_type === 'Collision' ? 'Tabrakan' : ($report->issue_type === 'Low Battery' ? 'Baterai Lemah' : ($report->issue_type === 'Sensor Error' ? 'Kerusakan Sensor' : $report->issue_type)) }}
                             </span>
                         </td>
                         <td class="px-6 py-4 text-gray-600 text-xs max-w-[200px] truncate" title="{{ $report->description }}">
@@ -121,7 +121,7 @@
                         <td class="px-6 py-4 text-center">
                             @if($report->image_path)
                             <button onclick="previewImage('{{ asset($report->image_path) }}')" class="inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-[#3b4cb8] font-bold text-xs px-2.5 py-1 rounded-lg border border-blue-200 transition">
-                                <i class="fa-solid fa-image"></i> View
+                                <i class="fa-solid fa-image"></i> Lihat
                             </button>
                             @else
                             <span class="text-gray-400 text-xs font-semibold">-</span>
@@ -129,23 +129,23 @@
                         </td>
                         <td class="px-6 py-4 text-center">
                             <span class="text-[9px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider {{ $report->status === 'Active' ? 'bg-rose-100 text-rose-700 border border-rose-200 animate-pulse' : 'bg-gray-100 text-gray-500' }}">
-                                {{ $report->status }}
+                                {{ $report->status === 'Active' ? 'Aktif' : 'Selesai' }}
                             </span>
                         </td>
                         <td class="px-6 py-4 text-right">
                             @if($report->status === 'Active')
                             <button onclick="resolveIncident({{ $report->id }})" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow transition duration-150">
-                                <i class="fa-solid fa-check mr-1"></i> Fix Unit
+                                <i class="fa-solid fa-check mr-1"></i> Perbaiki Unit
                             </button>
                             @else
-                            <span class="text-gray-400 text-xs font-semibold"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i> Cleared</span>
+                            <span class="text-gray-400 text-xs font-semibold"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i> Terselesaikan</span>
                             @endif
                         </td>
                     </tr>
                     @empty
                     <tr>
                         <td colspan="7" class="py-12 text-center text-gray-400 text-xs">
-                            No warnings logged. All units operating within ideal boundaries.
+                            Tidak ada peringatan tercatat. Semua unit beroperasi dalam kondisi ideal.
                         </td>
                     </tr>
                     @endforelse
@@ -156,7 +156,7 @@
         <!-- Custom Blue-White Pagination -->
         <div class="p-4 border-t border-gray-200 bg-gray-50/60 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div class="text-xs text-gray-500 font-medium">
-                Showing <span class="font-bold text-gray-700">{{ $reports->firstItem() ?? 0 }}</span> to <span class="font-bold text-gray-700">{{ $reports->lastItem() ?? 0 }}</span> of <span class="font-bold text-gray-700">{{ $reports->total() }}</span> records
+                Menampilkan <span class="font-bold text-gray-700">{{ $reports->firstItem() ?? 0 }}</span> sampai <span class="font-bold text-gray-700">{{ $reports->lastItem() ?? 0 }}</span> dari <span class="font-bold text-gray-700">{{ $reports->total() }}</span> data
             </div>
             <div>
                 {{ $reports->links() }}
@@ -172,9 +172,9 @@
             <i class="fa-solid fa-xmark"></i>
         </button>
         <h4 class="font-bold text-sm text-gray-800 mb-3 flex items-center gap-2">
-            <i class="fa-solid fa-image text-[#3b4cb8]"></i> Evidence Photo
+            <i class="fa-solid fa-image text-[#3b4cb8]"></i> Foto Bukti Kendala
         </h4>
-        <img id="modal-img-element" src="" alt="Evidence Preview" class="w-full h-auto max-h-[70vh] object-contain rounded-xl border border-gray-200">
+        <img id="modal-img-element" src="" alt="Bukti Kendala" class="w-full h-auto max-h-[70vh] object-contain rounded-xl border border-gray-200">
     </div>
 </div>
 @endsection
@@ -235,7 +235,7 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                succDiv.textContent = `Incident triggered successfully! ${data.robot.name} status updated to ${data.robot.status}.`;
+                succDiv.textContent = `Insiden berhasil dilaporkan! Status ${data.robot.name} diperbarui menjadi ${data.robot.status}.`;
                 succDiv.classList.remove('hidden');
                 document.getElementById('incident-form').reset();
                 
@@ -243,13 +243,13 @@
                     window.location.reload();
                 }, 1000);
             } else {
-                errDiv.textContent = data.message || 'Failed to trigger incident.';
+                errDiv.textContent = data.message || 'Gagal melaporkan insiden.';
                 errDiv.classList.remove('hidden');
             }
         })
         .catch(err => {
             console.error('Error simulating incident:', err);
-            errDiv.textContent = 'A network error occurred. Please try again.';
+            errDiv.textContent = 'Terjadi kesalahan jaringan. Silakan coba lagi.';
             errDiv.classList.remove('hidden');
         });
     }
@@ -275,7 +275,7 @@
     async function confirmReset() {
         const confirmed = await window.showConfirmDialog({
             title: 'Hapus Log Masalah & Reset Robot?',
-            text: 'Semua riwayat laporan masalah/insiden akan dibersihkan dan armada robot dikembalikan ke Base Station (1_N7). Tindakan ini permanen.',
+            text: 'Semua riwayat laporan masalah/insiden akan dibersihkan dan armada robot dikembalikan ke Base Station (Markas Robot). Tindakan ini permanen.',
             confirmText: '<i class="fa-solid fa-trash-can mr-1.5"></i> Ya, Bersihkan Log',
             cancelText: 'Batal',
             icon: 'warning',

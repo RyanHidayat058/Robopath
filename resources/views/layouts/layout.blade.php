@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -304,7 +304,7 @@
                 </div>
                 <div>
                     <h1 class="text-xl font-bold tracking-wide text-white">ROBOPATH</h1>
-                    <span class="text-xs text-white/80 font-medium block">Tracking System</span>
+                    <span class="text-xs text-white/80 font-medium block">Sistem Pelacakan</span>
                 </div>
             </div>
 
@@ -320,25 +320,25 @@
                 <a href="{{ route('deliveries') }}" 
                    class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('deliveries') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-route text-lg {{ Route::is('deliveries') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
-                    <span class="text-sm">Deliveries</span>
+                    <span class="text-sm">Pengiriman</span>
                 </a>
 
                 <a href="{{ route('reports') }}" 
                    class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('reports') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-triangle-exclamation text-lg {{ Route::is('reports') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
-                    <span class="text-sm">Alerts</span>
+                    <span class="text-sm">Peringatan</span>
                 </a>
 
                 <a href="{{ route('history') }}" 
                    class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('history') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-clock-rotate-left text-lg {{ Route::is('history') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
-                    <span class="text-sm">History</span>
+                    <span class="text-sm">Riwayat</span>
                 </a>
 
                 <a href="{{ route('bot-control') }}" 
                    class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('bot-control') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-sliders text-lg {{ Route::is('bot-control') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
-                    <span class="text-sm">Control</span>
+                    <span class="text-sm">Kontrol Bot</span>
                 </a>
                 @endif
             </nav>
@@ -364,10 +364,10 @@
                 
                 <div class="flex items-center gap-3 shrink-0">
                     <div class="text-right hidden md:block">
-                        <p class="text-sm font-semibold text-gray-800 leading-tight">{{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin' : (auth()->user()->name ?? 'User') }}</p>
+                        <p class="text-sm font-semibold text-gray-800 leading-tight">{{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin' : (auth()->user()->name ?? 'Pengguna') }}</p>
                         <div class="flex items-center justify-end gap-1.5 mt-0.5">
                             <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider {{ (auth()->check() && auth()->user()->isAdmin()) ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-emerald-100 text-emerald-700 border border-emerald-200' }}">
-                                {{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin' : 'Karyawan Staff' }}
+                                {{ (auth()->check() && auth()->user()->isAdmin()) ? 'Admin' : 'Staf Karyawan' }}
                             </span>
                         </div>
                     </div>
@@ -376,7 +376,7 @@
                     </div>
                     <form id="logout-form" action="{{ route('logout') }}" method="POST" class="inline">
                         @csrf
-                        <button type="button" title="Logout" 
+                        <button type="button" title="Keluar" 
                                 class="w-9 h-9 rounded-xl bg-gray-100 hover:bg-rose-50 text-gray-500 hover:text-rose-600 border border-gray-200 hover:border-rose-200 flex items-center justify-center transition"
                                 onclick="confirmLogout()">
                             <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
@@ -506,9 +506,9 @@
 
         async function confirmLogout() {
             const confirmed = await window.showConfirmDialog({
-                title: 'Konfirmasi Logout',
+                title: 'Konfirmasi Keluar',
                 text: 'Apakah Anda yakin ingin keluar dari sesi Robopath?',
-                confirmText: '<i class="fa-solid fa-arrow-right-from-bracket mr-1.5"></i> Logout',
+                confirmText: '<i class="fa-solid fa-arrow-right-from-bracket mr-1.5"></i> Keluar',
                 cancelText: 'Batal',
                 icon: 'question',
                 isDanger: true

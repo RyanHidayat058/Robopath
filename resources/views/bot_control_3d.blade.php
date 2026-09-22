@@ -1,7 +1,7 @@
 @extends('layouts.layout')
 
-@section('title', 'ROBOPATH - Control')
-@section('page_title', 'Control')
+@section('title', 'ROBOPATH - Kontrol Bot')
+@section('page_title', 'Kontrol Bot')
 @section('page_subtitle', 'Pusat kendali robot, perbaikan, dan editor jalur robot')
 
 @section('topbar_actions')
@@ -138,7 +138,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <span class="text-xs font-mono bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full border border-emerald-200 flex items-center gap-1.5 font-bold shadow-xs">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistem Aktif (Live)
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistem Aktif
                 </span>
             </div>
         </div>
@@ -153,7 +153,7 @@
         <!-- Emergency Reset All Button -->
         <div class="pt-4 border-t border-gray-100 flex justify-end">
             <button onclick="resetSystem()" class="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold px-6 py-2.5 rounded-xl text-xs transition duration-200 shadow-sm flex items-center justify-center gap-2 active:scale-95">
-                <i class="fa-solid fa-rotate-left text-rose-500"></i> Reset Semua Unit ke Pangkalan
+                <i class="fa-solid fa-rotate-left text-rose-500"></i> Reset Unit
             </button>
         </div>
     </div>
@@ -190,20 +190,20 @@
                     <div id="fullmap-node-contextual" class="hidden flex items-center gap-2">
                         <!-- Node Tool Actions -->
                         <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
-                            <button type="button" onclick="setEditorTool('hand')" id="fullmap-tool-hand" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Free Hand: Geser kanvas / navigasi bebas 3D">
-                                <i class="fa-solid fa-hand"></i> <span>Free Hand</span>
+                            <button type="button" onclick="setEditorTool('hand')" id="fullmap-tool-hand" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Navigasi Bebas: Geser kanvas / navigasi bebas 3D">
+                                <i class="fa-solid fa-hand"></i> <span>Navigasi Bebas</span>
                             </button>
                             <button type="button" onclick="setEditorTool('move')" id="fullmap-tool-move" class="px-3 py-1.5 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Geser posisi node">
-                                <i class="fa-solid fa-up-down-left-right"></i> <span>Move Node</span>
+                                <i class="fa-solid fa-up-down-left-right"></i> <span>Geser Node</span>
                             </button>
                             <button type="button" onclick="setEditorTool('add')" id="fullmap-tool-add" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Tambah titik node baru">
-                                <i class="fa-solid fa-plus-circle"></i> <span>Add</span>
+                                <i class="fa-solid fa-plus-circle"></i> <span>Tambah</span>
                             </button>
                             <button type="button" onclick="setEditorTool('connect')" id="fullmap-tool-connect" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Hubungkan rute jalur antar node">
-                                <i class="fa-solid fa-diagram-project"></i> <span>Connect</span>
+                                <i class="fa-solid fa-diagram-project"></i> <span>Hubungkan</span>
                             </button>
                             <button type="button" onclick="setEditorTool('delete')" id="fullmap-tool-delete" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Hapus node">
-                                <i class="fa-solid fa-trash-can"></i> <span>Delete</span>
+                                <i class="fa-solid fa-trash-can"></i> <span>Hapus</span>
                             </button>
                         </div>
 
@@ -229,11 +229,11 @@
                     <div id="fullmap-robot-contextual" class="flex items-center gap-2">
                         <!-- Robot Actions Group -->
                         <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
-                            <button type="button" onclick="setEditorTool('hand')" id="fullmap-tool-robot-hand" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Free Hand: Navigasi bebas 3D (Pan &amp; Orbit)">
-                                <i class="fa-solid fa-hand"></i> <span>Free Hand</span>
+                            <button type="button" onclick="setEditorTool('hand')" id="fullmap-tool-robot-hand" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Navigasi Bebas: Navigasi bebas 3D (Pan &amp; Orbit)">
+                                <i class="fa-solid fa-hand"></i> <span>Navigasi Bebas</span>
                             </button>
-                            <button type="button" onclick="setEditorTool('move')" id="fullmap-tool-robot-move" class="px-3 py-1.5 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Move Robot: Geser posisi robot di kanvas 3D">
-                                <i class="fa-solid fa-arrows-up-down-left-right"></i> <span>Move Robot</span>
+                            <button type="button" onclick="setEditorTool('move')" id="fullmap-tool-robot-move" class="px-3 py-1.5 rounded-lg bg-white shadow text-[#3b4cb8] flex items-center gap-1.5 transition" title="Geser Robot: Geser posisi robot di kanvas 3D">
+                                <i class="fa-solid fa-arrows-up-down-left-right"></i> <span>Geser Robot</span>
                             </button>
                             <button type="button" onclick="focusOnActiveSelection()" class="px-3 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 transition" title="Pusatkan kamera ke posisi robot aktif">
                                 <i class="fa-solid fa-crosshairs text-amber-400"></i> <span>Fokus</span>
@@ -258,7 +258,7 @@
                         </button>
 
                         <!-- Exit Full Map Button -->
-                        <button type="button" onclick="toggleFullMap(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition" title="Keluar dari Full Map (Esc)">
+                        <button type="button" onclick="toggleFullMap(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition" title="Keluar dari Layar Penuh (Esc)">
                             <i class="fa-solid fa-compress"></i> <span>Keluar</span>
                         </button>
                     </div>
@@ -267,12 +267,12 @@
                 <div class="flex items-center justify-between mb-4" id="editor-header-bar">
                     <div>
                         <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                            <i class="fa-solid fa-map-location-dot text-[#3b4cb8]"></i> Visual Map Node Editor
+                            <i class="fa-solid fa-map-location-dot text-[#3b4cb8]"></i> Editor Visual Node &amp; Denah
                         </h3>
-                        <p class="text-xs text-gray-500" id="editor-hint">Tool: Drag nodes to position them. Click a node to rename or configure pickup/hidden flags.</p>
+                        <p class="text-xs text-gray-500" id="editor-hint">Petunjuk: Tarik titik node untuk mengatur posisi. Klik titik untuk mengubah nama, titik jemput, atau titik tersembunyi.</p>
                     </div>
                     <span class="text-xs font-bold text-[#3b4cb8] bg-blue-50 px-3 py-1 rounded-full border border-blue-200" id="floor-badge">
-                        Showing Floor 1
+                        Menampilkan Lantai 1
                     </span>
                 </div>
 
@@ -328,12 +328,12 @@
                                 <i class="fa-solid fa-circle-dot text-base"></i>
                             </div>
                             <div>
-                                <h3 class="text-base font-bold text-gray-800" id="inspector-title-text">Node Properties Inspector</h3>
+                                <h3 class="text-base font-bold text-gray-800" id="inspector-title-text">Inspektur Properti Node</h3>
                                 <p class="text-[11px] text-gray-400">Atur rute, nama ruangan, titik transit, dan elevasi lantai.</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
-                            <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200" id="inspector-mode-tag">NODE EDIT</span>
+                            <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200" id="inspector-mode-tag">EDIT NODE</span>
                             <!-- Close Button -->
                             <button type="button" onclick="toggleInspectorPanel(false)" id="btn-close-inspector" class="text-gray-400 hover:text-gray-700 w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-sm font-bold transition" title="Tutup Panel">
                                 <i class="fa-solid fa-xmark"></i>
@@ -344,13 +344,13 @@
                 <!-- Node Properties Inspector Body -->
                 <div id="inspector-node-body" class="space-y-4 flex-1 text-xs text-gray-700">
                     <div>
-                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Node Name / Room Title <span class="text-gray-400 font-normal lowercase">(contoh: Hall, Lobby, R.Meeting)</span></label>
+                        <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1">Nama Node / Ruangan <span class="text-gray-400 font-normal lowercase">(contoh: Lobi, Ruang Rapat, Koridor)</span></label>
                         <input type="text" id="inspect-node-name" onchange="handleRenameNode(this.value)" placeholder="Pilih / klik sebuah titik node untuk edit..." class="w-full bg-gray-50 border border-gray-300 rounded-xl px-3.5 py-2.5 text-sm font-bold text-gray-800 focus:bg-white focus:border-[#3b4cb8] focus:outline-none transition">
                     </div>
 
                     <div class="grid grid-cols-4 gap-2.5">
                         <div>
-                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1 text-[10px]">Floor</label>
+                            <label class="block font-bold text-gray-500 uppercase tracking-wider mb-1 text-[10px]">Lantai</label>
                             <select id="inspect-floor" onchange="handleFloorChange(this.value)" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-2 py-2 font-bold text-gray-800 focus:outline-none text-xs">
                                 <option value="1">Lantai 1</option>
                                 <option value="2">Lantai 2</option>
@@ -375,14 +375,14 @@
                         <label class="flex items-start gap-2.5 cursor-pointer">
                             <input type="checkbox" id="inspect-is-destination" onchange="handleIsDestinationChange(this.checked)" class="mt-0.5 rounded border-gray-300 text-[#3b4cb8] focus:ring-[#3b4cb8]">
                             <div>
-                                <span class="font-bold text-gray-800 block">Use as Destination Room</span>
+                                <span class="font-bold text-gray-800 block">Jadikan Ruangan Tujuan</span>
                                 <span class="text-[10px] text-gray-500 block">Tampil di menu tujuan pengiriman</span>
                             </div>
                         </label>
                         <label class="flex items-start gap-2.5 cursor-pointer">
                             <input type="checkbox" id="inspect-hidden" onchange="handleHiddenChange(this.checked)" class="mt-0.5 rounded border-gray-300 text-[#3b4cb8] focus:ring-[#3b4cb8]">
                             <div>
-                                <span class="font-bold text-gray-800 block">Hide Marker on Map</span>
+                                <span class="font-bold text-gray-800 block">Sembunyikan Titik di Denah</span>
                                 <span class="text-[10px] text-gray-500 block">Hanya untuk rute perantara (transit)</span>
                             </div>
                         </label>
@@ -396,11 +396,11 @@
                     <!-- Connected Neighbors (Edges) Manager -->
                     <div>
                         <div class="flex items-center justify-between mb-1.5">
-                            <label class="font-bold text-gray-500 uppercase tracking-wider text-[10px]">Connected Edges / Jalur Terhubung</label>
-                            <span class="text-[10px] text-gray-400 font-semibold" id="neighbors-count-badge">0 edges</span>
+                            <label class="font-bold text-gray-500 uppercase tracking-wider text-[10px]">Jalur Terhubung (Edges)</label>
+                            <span class="text-[10px] text-gray-400 font-semibold" id="neighbors-count-badge">0 jalur</span>
                         </div>
                         <div id="inspect-neighbors" class="bg-gray-50 border border-gray-200 rounded-xl p-3 min-h-[60px] max-h-[140px] overflow-y-auto space-y-1.5">
-                            <span class="text-gray-400 italic">No node selected</span>
+                            <span class="text-gray-400 italic">Tidak ada node dipilih</span>
                         </div>
                     </div>
 
@@ -446,7 +446,7 @@
                             <input type="hidden" id="inspect-robot-selector">
                             <div class="flex items-center justify-between mt-1.5 px-0.5">
                                 <span id="robot-active-name" class="font-bold text-gray-800 text-xs truncate max-w-[120px]">-</span>
-                                <span id="robot-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300">Online</span>
+                                <span id="robot-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300">Aktif</span>
                             </div>
                         </div>
 
@@ -2440,7 +2440,7 @@
         editorContainer.style.backgroundImage = 'none';
         editorContainer.style.backgroundColor = '#0f172a';
         if (floorNum === 1) {
-            document.getElementById('floor-badge').textContent = 'Showing Floor 1 (3D)';
+            document.getElementById('floor-badge').textContent = 'Menampilkan Lantai 1 (3D)';
             if (canvas3D) canvas3D.classList.add('hidden');
             if (canvas3DF1) {
                 canvas3DF1.classList.remove('hidden');
@@ -2467,7 +2467,7 @@
             const panel3D = document.getElementById('panel-3d-controls');
             if (panel3D) panel3D.classList.remove('hidden');
         } else {
-            document.getElementById('floor-badge').textContent = 'Showing Floor 2 (3D)';
+            document.getElementById('floor-badge').textContent = 'Menampilkan Lantai 2 (3D)';
             if (canvas3DF1) canvas3DF1.classList.add('hidden');
             if (canvas3D) {
                 canvas3D.classList.remove('hidden');
@@ -2568,11 +2568,11 @@
 
         const hint = document.getElementById('editor-hint');
         if (hint) {
-            if (tool === 'hand') hint.textContent = "Tool Free Hand: Klik KIRI geser (pan), Klik KANAN putar (rotate) sudut pandang tanpa menyentuh node.";
-            if (tool === 'move') hint.textContent = "Tool Move: Klik & drag node/robot di canvas 3D untuk pindah posisi. Gunakan D-pad di panel kontrol untuk presisi.";
-            if (tool === 'add') hint.textContent = "Tool Add: Klik area kosong di canvas 3D untuk tambah node ruangan baru.";
-            if (tool === 'connect') hint.textContent = "Tool Connect: Klik node A lalu node B di canvas 3D untuk hubungkan jalur.";
-            if (tool === 'delete') hint.textContent = "Tool Delete: Klik node di canvas 3D untuk hapus.";
+            if (tool === 'hand') hint.textContent = "Alat Navigasi Bebas: Klik KIRI geser (pan), Klik KANAN putar (rotate) sudut pandang tanpa menyentuh node.";
+            if (tool === 'move') hint.textContent = "Alat Geser Node: Klik & drag node/robot di kanvas 3D untuk pindah posisi. Gunakan tombol arah di panel kontrol untuk presisi.";
+            if (tool === 'add') hint.textContent = "Alat Tambah Node: Klik area kosong di kanvas 3D untuk tambah node ruangan baru.";
+            if (tool === 'connect') hint.textContent = "Alat Hubungkan Node: Klik node A lalu node B di kanvas 3D untuk hubungkan jalur.";
+            if (tool === 'delete') hint.textContent = "Alat Hapus Node: Klik node di kanvas 3D untuk hapus.";
         }
         
         connectStartNodeId = null;
@@ -3121,11 +3121,11 @@
 
         const neighbors = adjData[nodeId] || [];
         const badge = document.getElementById('neighbors-count-badge');
-        if (badge) badge.textContent = `${neighbors.length} edge(s)`;
+        if (badge) badge.textContent = `${neighbors.length} jalur`;
 
         const nbrsContainer = document.getElementById('inspect-neighbors');
         if (neighbors.length === 0) {
-            nbrsContainer.innerHTML = '<span class="text-gray-400 italic">No neighbors connected</span>';
+            nbrsContainer.innerHTML = '<span class="text-gray-400 italic">Tidak ada jalur terhubung</span>';
         } else {
             nbrsContainer.innerHTML = neighbors.map(nbr => {
                 const nbrLoc = locationsData[nbr];
@@ -3161,9 +3161,9 @@
         const objSel = document.getElementById('inspect-object');
         if (objSel) objSel.innerHTML = '<option value="">— Manual (x/y) —</option>';
         refreshObjectStatus();
-        document.getElementById('inspect-neighbors').innerHTML = '<span class="text-gray-400 italic">No node selected</span>';
+        document.getElementById('inspect-neighbors').innerHTML = '<span class="text-gray-400 italic">Tidak ada node dipilih</span>';
         const badge = document.getElementById('neighbors-count-badge');
-        if (badge) badge.textContent = `0 edges`;
+        if (badge) badge.textContent = `0 jalur`;
         syncFullMapControls();
     }
 
@@ -3638,14 +3638,14 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                alert(`Graph Map saved successfully! Total ${data.total_nodes} nodes updated.`);
+                alert(`✓ Peta Graf berhasil disimpan! Total ${data.total_nodes} node diperbarui.`);
             } else {
-                alert('Failed to save graph map.');
+                alert('Gagal menyimpan peta graf.');
             }
         })
         .catch(err => {
             console.error('Error saving graph:', err);
-            alert('A network error occurred while saving the graph map.');
+            alert('Terjadi kesalahan jaringan saat menyimpan peta graf.');
         });
     }
 
@@ -3705,10 +3705,10 @@
                             robot.status === 'Delivering' ? 'bg-blue-100 text-blue-700 border-blue-300' :
                             'bg-emerald-100 text-emerald-700 border-emerald-300'
                         }">
-                            <option value="Idle" ${robot.status === 'Idle' && !hasIssue ? 'selected' : ''}>Idle</option>
-                            <option value="Delivering" ${robot.status === 'Delivering' ? 'selected' : ''}>Delivering</option>
-                            <option value="Charging" ${robot.status === 'Charging' ? 'selected' : ''}>Charging</option>
-                            <option value="Maintenance" ${robot.status === 'Maintenance' || hasIssue ? 'selected' : ''}>Maintenance</option>
+                            <option value="Idle" ${robot.status === 'Idle' && !hasIssue ? 'selected' : ''}>Siaga</option>
+                            <option value="Delivering" ${robot.status === 'Delivering' ? 'selected' : ''}>Mengantar</option>
+                            <option value="Charging" ${robot.status === 'Charging' ? 'selected' : ''}>Mengisi Daya</option>
+                            <option value="Maintenance" ${robot.status === 'Maintenance' || hasIssue ? 'selected' : ''}>Perbaikan</option>
                         </select>
                     </div>
                 </div>
@@ -3738,7 +3738,7 @@
                         <span class="text-gray-400 block text-[9px] uppercase font-bold tracking-wider">Tugas Misi:</span>
                         <div class="text-gray-800 flex items-center justify-between gap-1">
                             <span class="truncate"><i class="fa-solid fa-box text-blue-500 mr-1"></i> ${delivery.item_name} ke <strong>${delivery.destination_location}</strong></span>
-                            <span class="font-bold text-[10px] px-1.5 py-0.5 rounded ${delivery.status === 'Pending' ? 'bg-rose-100 text-rose-700 animate-pulse' : 'bg-blue-100 text-blue-700'}">[${delivery.status}]</span>
+                            <span class="font-bold text-[10px] px-1.5 py-0.5 rounded ${delivery.status === 'Pending' ? 'bg-rose-100 text-rose-700 animate-pulse' : 'bg-blue-100 text-blue-700'}">[${delivery.status === 'In Progress' ? 'Berlangsung' : (delivery.status === 'Pending' ? 'Tertunda' : (delivery.status === 'Completed' ? 'Selesai' : (delivery.status === 'Failed' ? 'Gagal' : delivery.status)))}]</span>
                         </div>
                     </div>
                 ` : ''}
@@ -3747,29 +3747,29 @@
                 ${hasIssue ? `
                     <div class="space-y-1.5 pt-1">
                         <button type="button" onclick="fixRobotUnit(${robot.id}, 'resume')" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black py-2.5 px-3 rounded-xl text-xs shadow-md flex items-center justify-center gap-2 transition duration-150">
-                            <i class="fa-solid fa-wrench"></i> Benerin Robot (Fix &amp; Lanjut Tugas)
+                            <i class="fa-solid fa-wrench"></i> Perbaiki Robot (Lanjut Tugas)
                         </button>
                         <button type="button" onclick="fixRobotUnit(${robot.id}, 'idle')" class="w-full bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black py-2 px-3 rounded-xl text-xs shadow-sm flex items-center justify-center gap-2 transition duration-150">
-                            <i class="fa-solid fa-power-off"></i> Ubah Jadi Idle (Batalkan Tugas)
+                            <i class="fa-solid fa-power-off"></i> Ubah Jadi Siaga (Batalkan Tugas)
                         </button>
                     </div>
                 ` : `
                     <div class="pt-1">
                         <button type="button" onclick="fixRobotUnit(${robot.id}, 'idle')" class="w-full text-center text-xs font-semibold py-1.5 rounded-lg text-gray-600 hover:text-indigo-600 hover:bg-white border border-transparent hover:border-gray-200 transition">
-                            <i class="fa-solid fa-arrows-rotate text-gray-400 mr-1"></i> Setel Status: Idle
+                            <i class="fa-solid fa-arrows-rotate text-gray-400 mr-1"></i> Setel Status: Siaga
                         </button>
                     </div>
                 `}
 
                 <!-- Simulation Tools (Tabrak Dinding & Batre Habis) -->
                 <div class="flex items-center justify-between pt-2 border-t border-gray-200/80 text-[10px]">
-                    <span class="text-gray-400 font-semibold"><i class="fa-solid fa-flask text-indigo-400 mr-1"></i>Simulasi:</span>
+                    <span class="text-gray-400 font-semibold"></i>Simulasi:</span>
                     <div class="flex items-center gap-2">
                         <button type="button" onclick="simulateUnitIssue(${robot.id}, 'Collision')" class="text-rose-600 hover:text-rose-800 font-bold bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded border border-rose-200 transition active:scale-95">
-                            <i class="fa-solid fa-burst mr-0.5"></i> Tabrak Dinding
+                            </i> Tabrak Dinding
                         </button>
                         <button type="button" onclick="simulateUnitIssue(${robot.id}, 'Low Battery')" class="text-amber-600 hover:text-amber-800 font-bold bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 transition active:scale-95">
-                            <i class="fa-solid fa-battery-empty mr-0.5"></i> Batre Habis
+                            </i> Batre Habis
                         </button>
                     </div>
                 </div>
@@ -3864,7 +3864,13 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                if (window.showToast) window.showToast(`Status robot diubah ke ${newStatus}!`, 'success');
+                const statusIndo = {
+                    'Idle': 'Siaga',
+                    'Delivering': 'Mengantar',
+                    'Charging': 'Mengisi Daya',
+                    'Maintenance': 'Perbaikan'
+                }[newStatus] || newStatus;
+                if (window.showToast) window.showToast(`Status robot diubah ke ${statusIndo}!`, 'success');
                 fetchFleetTelemetry();
             } else {
                 if (window.showErrorAlert) window.showErrorAlert('Gagal Mengubah Status', data.message || 'Terjadi kesalahan.');
@@ -3941,7 +3947,12 @@
         .then(data => {
             if (data.success) {
                 fetchFleetTelemetry();
-                if (window.showToast) window.showToast(`Simulasi masalah (${issueType}) aktif!`, 'warning');
+                const issueName = {
+                    'Collision': 'Tabrakan',
+                    'Low Battery': 'Baterai Rendah',
+                    'Maintenance': 'Perbaikan'
+                }[issueType] || issueType;
+                if (window.showToast) window.showToast(`Simulasi masalah (${issueName}) aktif!`, 'warning');
             }
         })
         .catch(err => console.error('Error simulating issue:', err));
