@@ -168,9 +168,9 @@
                     </p>
                     <p class="text-[11px] text-gray-500 mt-0.5">
                         @if($act->status === 'Completed')
-                        Berhasil mengantar <strong class="text-gray-700">{{ $act->item_name }}</strong> ke <strong class="text-gray-700">{{ $act->destination_location }}</strong>
+                        Berhasil mengantar <strong class="text-gray-700">{{ $act->item_name }}</strong> ke <strong class="text-gray-700">{{ $act->formatted_destination_location }}</strong>
                         @elseif($act->status === 'In Progress')
-                        Sedang mengantar <strong class="text-gray-700">{{ $act->item_name }}</strong> ke <strong class="text-gray-700">{{ $act->destination_location }}</strong>
+                        Sedang mengantar <strong class="text-gray-700">{{ $act->item_name }}</strong> ke <strong class="text-gray-700">{{ $act->formatted_destination_location }}</strong>
                         @else
                         Gagal mengantar <strong class="text-gray-700">{{ $act->item_name }}</strong>
                         @endif
@@ -2279,8 +2279,8 @@
                 <p class="text-xs font-bold text-gray-800 mt-0.5">${act.robot.name}</p>
                 <p class="text-[11px] text-gray-500 mt-0.5">
                     ${isCompleted 
-                        ? `Berhasil mengantar <strong class="text-gray-700">${act.item_name}</strong> ke <strong class="text-gray-700">${act.destination_location}</strong>`
-                        : `Sedang mengantar <strong class="text-gray-700">${act.item_name}</strong> ke <strong class="text-gray-700">${act.destination_location}</strong>`
+                        ? `Berhasil mengantar <strong class="text-gray-700">${act.item_name}</strong> ke <strong class="text-gray-700">${formatLocationDisplay(act.destination_location)}</strong>`
+                        : `Sedang mengantar <strong class="text-gray-700">${act.item_name}</strong> ke <strong class="text-gray-700">${formatLocationDisplay(act.destination_location)}</strong>`
                     }
                 </p>
             `;
@@ -2311,8 +2311,8 @@
             const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
             const ratio = Math.min(elapsedMs / totalDurationMs, 1.0);
             const pct = Math.round(ratio * 100);
-            const startName = locations[delivery.start_location]?.name || delivery.start_location;
-            const destName = locations[delivery.destination_location]?.name || delivery.destination_location;
+            const startName = formatLocationDisplay(delivery.start_location);
+            const destName = formatLocationDisplay(delivery.destination_location);
 
             const tr = document.createElement('tr');
             tr.className = 'border-b border-gray-200/50 hover:bg-gray-50/50 text-xs';

@@ -3666,6 +3666,15 @@
             .catch(err => console.error('Error fetching fleet telemetry:', err));
     }
 
+    function formatLocationDisplay(locStr) {
+        if (!locStr) return '-';
+        const match = String(locStr).match(/^(\d+)_(.+)$/);
+        if (match) {
+            return `${match[2]} (Lantai ${match[1]})`;
+        }
+        return locStr;
+    }
+
     function renderFleetList() {
         const container = document.getElementById('fleet-control-list');
         if (!container) return;
@@ -3756,7 +3765,7 @@
                     <div class="text-[11px] bg-white p-2.5 rounded-xl border border-gray-200 font-medium space-y-0.5">
                         <span class="text-gray-400 block text-[9px] uppercase font-bold tracking-wider">Tugas Misi:</span>
                         <div class="text-gray-800 flex items-center justify-between gap-1">
-                            <span class="truncate"><i class="fa-solid fa-box text-blue-500 mr-1"></i> ${delivery.item_name} ke <strong>${delivery.destination_location}</strong></span>
+                            <span class="truncate"><i class="fa-solid fa-box text-blue-500 mr-1"></i> ${delivery.item_name} ke <strong>${formatLocationDisplay(delivery.destination_location)}</strong></span>
                             <span class="font-bold text-[10px] px-1.5 py-0.5 rounded ${delivery.status === 'Pending' ? 'bg-rose-100 text-rose-700 animate-pulse' : 'bg-blue-100 text-blue-700'}">[${delivery.status === 'In Progress' ? 'Berlangsung' : (delivery.status === 'Pending' ? 'Tertunda' : (delivery.status === 'Completed' ? 'Selesai' : (delivery.status === 'Failed' ? 'Gagal' : delivery.status)))}]</span>
                         </div>
                     </div>
