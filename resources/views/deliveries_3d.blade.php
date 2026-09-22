@@ -1,8 +1,8 @@
 @extends('layouts.layout')
 
-@section('title', 'ROBOPATH - Delivery Dispatch & Live Tracking')
-@section('page_title', 'Deliveries Management')
-@section('page_subtitle', 'Dispatch tasks, monitor active deliveries, and trace active units')
+@section('title', 'ROBOPATH - Pengiriman & Pelacakan Langsung')
+@section('page_title', 'Manajemen Pengiriman')
+@section('page_subtitle', 'Tugaskan pengiriman baru, pantau misi aktif, dan lacak posisi unit robot')
 
 @section('styles')
 <style>
@@ -46,28 +46,40 @@
         <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
             <h3 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <i class="fa-solid fa-paper-plane text-brand-blue"></i>
-                Assign New Delivery
+                Tugaskan Pengiriman Baru
             </h3>
             
             <div id="dispatch-error" class="hidden bg-red-100 border border-red-200 text-red-500 text-xs p-3 rounded-xl mb-4">
-                Error message here
+                Pesan kesalahan
             </div>
             
             <form id="dispatch-form" onsubmit="dispatchDelivery(event)" class="space-y-4">
                 <!-- Select Robot -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Select Available Robot</label>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Pilih Robot Tersedia</label>
                     <select id="dispatch-robot" onchange="updateStartLocation()" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
-                        <option value="" disabled selected>Choose a robot...</option>
+                        <option value="" disabled selected>Pilih robot...</option>
+                        @php
+                            $statusIndoMap = [
+                                'Idle' => 'Siaga',
+                                'Delivering' => 'Mengantar',
+                                'Charging' => 'Mengisi Daya',
+                                'Maintenance' => 'Perbaikan',
+                                'Returning' => 'Kembali'
+                            ];
+                        @endphp
                         @foreach($robots as $robot)
+                        @php
+                            $rStatusText = $statusIndoMap[$robot->status] ?? $robot->status;
+                        @endphp
                         <option value="{{ $robot->id }}" 
                                 data-status="{{ $robot->status }}" 
                                 data-battery="{{ $robot->battery_level }}" 
                                 data-x="{{ $robot->current_x }}" 
                                 data-y="{{ $robot->current_y }}"
                                 @if($robot->status !== 'Idle' || $robot->battery_level <= 20) disabled @endif>
-                            {{ $robot->name }} ({{ $robot->status }} - Bat: {{ $robot->battery_level }}%) 
-                            @if($robot->status !== 'Idle') [Busy] @elseif($robot->battery_level <= 20) [Low Battery] @endif
+                            {{ $robot->name }} ({{ $rStatusText }} - Bat: {{ $robot->battery_level }}%) 
+                            @if($robot->status !== 'Idle') [{{ $rStatusText }}] @elseif($robot->battery_level <= 20) [Baterai Rendah] @endif
                         </option>
                         @endforeach
                     </select>
@@ -75,32 +87,32 @@
 
                 <!-- Select Item -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Item to Deliver</label>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Barang yang Diantar</label>
                     <select id="dispatch-item" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
-                        <option value="" disabled selected>Choose an item...</option>
-                        <option value="Handuk">Handuk (Towels)</option>
-                        <option value="Makanan">Makanan (Food / Meals)</option>
-                        <option value="Dokumen">Dokumen (Documents)</option>
-                        <option value="Kopi">Kopi (Coffee / Beverage)</option>
-                        <option value="Paket">Paket (Postal Package)</option>
-                        <option value="Botol Air">Botol Air (Water Bottle)</option>
-                        <option value="Sparepart">Sparepart (Replacement Parts)</option>
+                        <option value="" disabled selected>Pilih jenis barang...</option>
+                        <option value="Handuk">Handuk</option>
+                        <option value="Makanan">Makanan</option>
+                        <option value="Dokumen">Dokumen</option>
+                        <option value="Kopi">Kopi</option>
+                        <option value="Paket">Paket</option>
+                        <option value="Botol Air">Botol Air</option>
+                        <option value="Sparepart">Suku Cadang (Sparepart)</option>
                     </select>
                 </div>
 
                 <!-- Starting Location (Titik Jemput) -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Titik Jemput (Pick-up Location)</label>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Titik Jemput (Lokasi Ambil)</label>
                     <select id="dispatch-start" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
                         <option value="" disabled selected>Pilih titik jemput barang...</option>
-                        <optgroup label="Lantai 1 (Ground Floor)">
+                        <optgroup label="Lantai 1">
                             @foreach($locations as $id => $coords)
                             @if(($coords['floor'] ?? 1) == 1 && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
                             <option value="{{ $id }}">{{ $coords['name'] }} (Lantai 1)</option>
                             @endif
                             @endforeach
                         </optgroup>
-                        <optgroup label="Lantai 2 (Second Floor)">
+                        <optgroup label="Lantai 2">
                             @foreach($locations as $id => $coords)
                             @if(($coords['floor'] ?? 1) == 2 && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
                             <option value="{{ $id }}">{{ $coords['name'] }} (Lantai 2)</option>
@@ -112,17 +124,17 @@
 
                 <!-- Destination Location -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Destination Room</label>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Ruangan Tujuan (Lokasi Antar)</label>
                     <select id="dispatch-dest" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
-                        <option value="" disabled selected>Choose destination...</option>
-                        <optgroup label="Lantai 1 (Ground Floor)">
+                        <option value="" disabled selected>Pilih ruangan tujuan...</option>
+                        <optgroup label="Lantai 1">
                             @foreach($locations as $id => $coords)
                             @if(($coords['floor'] ?? 1) == 1 && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
                             <option value="{{ $id }}">{{ $coords['name'] }} (Lantai 1)</option>
                             @endif
                             @endforeach
                         </optgroup>
-                        <optgroup label="Lantai 2 (Second Floor)">
+                        <optgroup label="Lantai 2">
                             @foreach($locations as $id => $coords)
                             @if(($coords['floor'] ?? 1) == 2 && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
                             <option value="{{ $id }}">{{ $coords['name'] }} (Lantai 2)</option>
@@ -133,7 +145,7 @@
                 </div>
 
                 <button type="submit" class="w-full bg-sky-500 hover:bg-brand-blue text-slate-900/50  font-bold py-3 rounded-xl  hover:shadow-sky-500/50 transition duration-200 text-sm">
-                    <i class="fa-solid fa-truck-flatbed mr-1.5"></i> Dispatch Robot
+                    <i class="fa-solid fa-truck-flatbed mr-1.5"></i> Tugaskan Robot
                 </button>
             </form>
         </div>
@@ -142,7 +154,7 @@
         <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col">
             <h3 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2 pb-3 border-b border-gray-200">
                 <i class="fa-solid fa-list-check text-brand-blue"></i>
-                Recent Activity Timeline
+                Riwayat Aktivitas Terbaru
             </h3>
             <div class="space-y-4 overflow-y-auto max-h-[300px] pr-2" id="timeline-container">
                 @foreach($recentActivity->take(6) as $act)
@@ -156,11 +168,11 @@
                     </p>
                     <p class="text-[11px] text-gray-500 mt-0.5">
                         @if($act->status === 'Completed')
-                        Delivered <strong class="text-gray-700">{{ $act->item_name }}</strong> to <strong class="text-gray-700">{{ $act->destination_location }}</strong>
+                        Berhasil mengantar <strong class="text-gray-700">{{ $act->item_name }}</strong> ke <strong class="text-gray-700">{{ $act->destination_location }}</strong>
                         @elseif($act->status === 'In Progress')
-                        Dispatched carrying <strong class="text-gray-700">{{ $act->item_name }}</strong> to <strong class="text-gray-700">{{ $act->destination_location }}</strong>
+                        Sedang mengantar <strong class="text-gray-700">{{ $act->item_name }}</strong> ke <strong class="text-gray-700">{{ $act->destination_location }}</strong>
                         @else
-                        Failed to deliver <strong class="text-gray-700">{{ $act->item_name }}</strong>
+                        Gagal mengantar <strong class="text-gray-700">{{ $act->item_name }}</strong>
                         @endif
                     </p>
                 </div>
@@ -176,9 +188,9 @@
             <div class="flex items-center justify-between mb-4">
                 <div>
                     <h3 class="text-base font-bold text-gray-800" id="live-map-title">
-                        <i class="fa-solid fa-layer-group text-[#3b4cb8] mr-1"></i> Live Active Tracking - Lantai 1
+                        <i class="fa-solid fa-layer-group text-[#3b4cb8] mr-1"></i> Pelacakan Langsung - Lantai 1
                     </h3>
-                    <p class="text-xs text-gray-500" id="live-map-subtitle">Lantai 1 (Ground Floor - Lobby, Office & Receptionist)</p>
+                    <p class="text-xs text-gray-500" id="live-map-subtitle">Lantai 1 (Lobi, Kantor & Resepsionis)</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="focusOnRobotOrBase()" class="px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold border border-white/10 shadow flex items-center gap-1.5 transition" title="Fokuskan kamera ke Robot / Markas">
@@ -187,7 +199,7 @@
                     </button>
                     <button onclick="toggle3DRoomLabels()" id="btn-toggle-deliv-labels" class="px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold border border-white/10 shadow flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Nama Ruangan">
                         <i class="fa-solid fa-tag text-emerald-400" id="icon-deliv-labels"></i>
-                        <span id="text-deliv-labels">Label: ON</span>
+                        <span id="text-deliv-labels">Label: AKTIF</span>
                     </button>
                     <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
                         <button onclick="switchLiveFloor(1)" id="btn-deliv-f1" class="px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition">
@@ -231,22 +243,22 @@
 
         <!-- Current Deliveries List -->
         <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl">
-            <h3 class="text-base font-bold text-gray-800 mb-4 border-b border-gray-200 pb-3">Active Missions</h3>
+            <h3 class="text-base font-bold text-gray-800 mb-4 border-b border-gray-200 pb-3">Misi Pengantaran Berjalan</h3>
             
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm text-gray-700">
                     <thead>
                         <tr class="text-gray-400 text-xs font-bold uppercase border-b border-gray-200">
                             <th class="py-2.5">Robot</th>
-                            <th>Cargo</th>
-                            <th>Start Point</th>
-                            <th>Destination</th>
-                            <th>Progress</th>
+                            <th>Muatan</th>
+                            <th>Titik Jemput</th>
+                            <th>Tujuan</th>
+                            <th>Progres</th>
                         </tr>
                     </thead>
                     <tbody id="active-deliveries-table-body">
                         <tr>
-                            <td colspan="5" class="py-8 text-center text-gray-400 text-xs">No active missions running at the moment.</td>
+                            <td colspan="5" class="py-8 text-center text-gray-400 text-xs">Tidak ada misi pengantaran aktif saat ini.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -352,11 +364,11 @@
         const btn = document.getElementById('btn-toggle-deliv-labels');
         if (showRoomLabels) {
             if (icon) icon.className = 'fa-solid fa-tag text-emerald-400';
-            if (text) text.textContent = 'Label: ON';
+            if (text) text.textContent = 'Label: AKTIF';
             if (btn) btn.className = 'px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold border border-white/10 shadow flex items-center gap-1.5 transition';
         } else {
             if (icon) icon.className = 'fa-solid fa-tag text-gray-500';
-            if (text) text.textContent = 'Label: OFF';
+            if (text) text.textContent = 'Label: NONAKTIF';
             if (btn) btn.className = 'px-2.5 py-1.5 rounded-xl bg-slate-900/40 hover:bg-slate-900/80 text-gray-400 text-xs font-bold border border-white/5 shadow flex items-center gap-1.5 transition';
         }
     }
@@ -1045,8 +1057,8 @@
         if (floorNum === 1) {
             btnF1.className = "px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition";
             btnF2.className = "px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
-            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-emerald-400 mr-1"></i> Live Active Tracking - Lantai 1 <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/30 ml-1">3D</span>';
-            if (subtitle) subtitle.textContent = 'Lantai 1 (Ground Floor - Lobby, Office & Receptionist) [3D Mode]';
+            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-emerald-400 mr-1"></i> Pelacakan Langsung - Lantai 1 <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/30 ml-1">3D</span>';
+            if (subtitle) subtitle.textContent = 'Lantai 1 (Lobi, Kantor & Resepsionis) [Mode 3D]';
             if (canvas3D) canvas3D.classList.add('hidden');
             if (canvas3DF1) {
                 canvas3DF1.classList.remove('hidden');
@@ -1104,8 +1116,8 @@
                     }
                 }, 50);
             }
-            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-sky-400 mr-1"></i> Live Active Tracking - Lantai 2 <span class="text-[10px] bg-sky-500/20 text-sky-400 px-1.5 py-0.5 rounded-full border border-sky-500/30 ml-1">3D</span>';
-            if (subtitle) subtitle.textContent = 'Lantai 2 (Upper Floor - Direksi, Lounge & Meeting Rooms)';
+            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-sky-400 mr-1"></i> Pelacakan Langsung - Lantai 2 <span class="text-[10px] bg-sky-500/20 text-sky-400 px-1.5 py-0.5 rounded-full border border-sky-500/30 ml-1">3D</span>';
+            if (subtitle) subtitle.textContent = 'Lantai 2 (Ruang Direksi, Lounge & Ruang Rapat)';
         }
         drawRobotPaths();
         runSimulationStep();
@@ -1199,7 +1211,7 @@
         errDiv.classList.add('hidden');
         
         if (start === dest) {
-            errDiv.textContent = 'Destination must be different from the starting location!';
+            errDiv.textContent = 'Titik tujuan tidak boleh sama dengan titik jemput!';
             errDiv.classList.remove('hidden');
             return;
         }
@@ -1235,13 +1247,13 @@
                 fetchData();
                 reloadPageDropdowns();
             } else {
-                errDiv.textContent = data.message || 'Failed to dispatch robot.';
+                errDiv.textContent = data.message || 'Gagal menugaskan robot.';
                 errDiv.classList.remove('hidden');
             }
         })
         .catch(err => {
             console.error('Error dispatching:', err);
-            errDiv.textContent = 'A network error occurred. Please try again.';
+            errDiv.textContent = 'Terjadi kesalahan jaringan. Silakan coba lagi.';
             errDiv.classList.remove('hidden');
         });
     }
@@ -1698,7 +1710,7 @@
                             coords = destLoc;
                             floorNum = destLoc.floor || 1;
                         }
-                        taskText = `Delivered ${delivery.item_name} to ${locations[mission.destId]?.name || delivery.destination_location}`;
+                        taskText = `Selesai mengantar ${delivery.item_name} ke ${locations[mission.destId]?.name || delivery.destination_location}`;
                         completeDeliveryAPI(delivery.id, coords.x, coords.y, floorNum);
                     } else {
                         let activeStage = null;
@@ -1719,7 +1731,7 @@
                             floorNum = isSecondHalf ? activeStage.toFloor : activeStage.fromFloor;
                             const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
                             coords = locations[currentNodeId] || coords;
-                            taskText = `Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...`;
+                            taskText = `Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec} dtk)...`;
                             statusColor = 'bg-amber-500';
                         } else if (activeStage.type === 'pickup') {
                             const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
@@ -1728,7 +1740,7 @@
                                 coords = locNode;
                                 floorNum = locNode.floor || 1;
                             }
-                            taskText = `Mengambil ${delivery.item_name} di ${locations[mission.startId]?.name || delivery.start_location} (${remainingSec}s)...`;
+                            taskText = `Mengambil ${delivery.item_name} di ${locations[mission.startId]?.name || delivery.start_location} (${remainingSec} dtk)...`;
                             statusColor = 'bg-blue-500';
                             robot.currentSegIdx = 0;
                         } else if (activeStage.type === 'dropoff') {
@@ -1738,7 +1750,7 @@
                                 coords = locNode;
                                 floorNum = locNode.floor || 1;
                             }
-                            taskText = `Menyerahkan ${delivery.item_name} di ${locations[mission.destId]?.name || delivery.destination_location} (${remainingSec}s)...`;
+                            taskText = `Menyerahkan ${delivery.item_name} di ${locations[mission.destId]?.name || delivery.destination_location} (${remainingSec} dtk)...`;
                             statusColor = 'bg-emerald-500';
                             robot.currentSegIdx = 0;
                         } else {
@@ -1798,7 +1810,7 @@
                     robot.returnMission = null;
                     robot.isReturning = false;
                     robot.status = 'Idle';
-                    taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
+                    taskText = `Siaga di ${baseLoc.name || 'Markas Pangkalan'}`;
                     syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
                 } else if (robot.returnMission) {
                     robot.isReturning = true;
@@ -1809,7 +1821,7 @@
                     let angle = 0;
 
                     if (elapsedMs < 0) {
-                        taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-box-open mr-1"></i> Selesai antar, persiapan balik ke ${baseLoc.name || 'Base'}...</span>`;
+                        taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-box-open mr-1"></i> Selesai antar, persiapan kembali ke ${baseLoc.name || 'Markas'}...</span>`;
                         coords = { x: robot.current_x, y: robot.current_y };
                         floorNum = robot.floor || 1;
                     } else if (elapsedMs >= mission.totalDurationMs) {
@@ -1821,7 +1833,7 @@
                         robot.returnMission = null;
                         robot.isReturning = false;
                         robot.status = 'Idle';
-                        taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
+                        taskText = `Siaga di ${baseLoc.name || 'Markas Pangkalan'}`;
                         syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
                     } else {
                         let activeStage = null;
@@ -1842,7 +1854,7 @@
                             floorNum = isSecondHalf ? activeStage.toFloor : activeStage.fromFloor;
                             const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
                             coords = locations[currentNodeId] || coords;
-                            taskText = `Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...`;
+                            taskText = `Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec} dtk)...`;
                             statusColor = 'bg-amber-500';
                             robot.returnSegIdx = 0;
                         } else {
@@ -1854,7 +1866,7 @@
                                 angle = along.angle;
                                 robot.returnSegIdx = along.segIdx;
                             }
-                            taskText = `Kembali ke ${baseLoc.name || 'Base Station'}...`;
+                            taskText = `Kembali ke ${baseLoc.name || 'Markas Pangkalan'}...`;
                         }
 
                         robot.current_x = coords.x;
@@ -1988,7 +2000,14 @@
         const select = document.getElementById('dispatch-robot');
         if (!select) return;
         const currentValue = select.value;
-        select.innerHTML = '<option value="" disabled>Choose a robot...</option>';
+        select.innerHTML = '<option value="" disabled>Pilih robot...</option>';
+        const statusIndoMap = {
+            'Idle': 'Siaga',
+            'Delivering': 'Mengantar',
+            'Charging': 'Mengisi Daya',
+            'Maintenance': 'Perbaikan',
+            'Returning': 'Kembali'
+        };
         robots.forEach(robot => {
             const isBusy = robot.status !== 'Idle' || robot.battery_level <= 20 || robot.isReturning;
             const option = document.createElement('option');
@@ -1996,7 +2015,16 @@
             option.setAttribute('data-x', robot.current_x ?? 0);
             option.setAttribute('data-y', robot.current_y ?? 0);
             option.setAttribute('data-floor', robot.floor ?? 1);
-            option.textContent = `${robot.name} (${robot.isReturning ? 'Returning' : robot.status} - Bat: ${robot.battery_level}%) ${isBusy ? (robot.isReturning ? '[Returning to Base]' : (robot.status !== 'Idle' ? '[Busy]' : '[Low Battery]')) : ''}`;
+            const rStatusText = robot.isReturning ? 'Kembali' : (statusIndoMap[robot.status] || robot.status);
+            let badgeText = '';
+            if (robot.isReturning) {
+                badgeText = ' [Kembali ke Markas]';
+            } else if (robot.status !== 'Idle') {
+                badgeText = ` [${rStatusText}]`;
+            } else if (robot.battery_level <= 20) {
+                badgeText = ' [Baterai Rendah]';
+            }
+            option.textContent = `${robot.name} (${rStatusText} - Bat: ${robot.battery_level}%)${badgeText}`;
             if (isBusy) option.disabled = true;
             if (robot.id.toString() === currentValue) option.selected = true;
             select.appendChild(option);
@@ -2233,7 +2261,7 @@
         const container = document.getElementById('timeline-container');
         if (!container) return;
         if (!recentDeliveries || recentDeliveries.length === 0) {
-            container.innerHTML = `<div class="text-xs text-gray-400 font-medium text-center py-6">No recent activity logged yet.</div>`;
+            container.innerHTML = `<div class="text-xs text-gray-400 font-medium text-center py-6">Belum ada riwayat aktivitas.</div>`;
             return;
         }
         
@@ -2251,8 +2279,8 @@
                 <p class="text-xs font-bold text-gray-800 mt-0.5">${act.robot.name}</p>
                 <p class="text-[11px] text-gray-500 mt-0.5">
                     ${isCompleted 
-                        ? `Delivered <strong class="text-gray-700">${act.item_name}</strong> to <strong class="text-gray-700">${act.destination_location}</strong>`
-                        : `Dispatched carrying <strong class="text-gray-700">${act.item_name}</strong> to <strong class="text-gray-700">${act.destination_location}</strong>`
+                        ? `Berhasil mengantar <strong class="text-gray-700">${act.item_name}</strong> ke <strong class="text-gray-700">${act.destination_location}</strong>`
+                        : `Sedang mengantar <strong class="text-gray-700">${act.item_name}</strong> ke <strong class="text-gray-700">${act.destination_location}</strong>`
                     }
                 </p>
             `;
@@ -2265,7 +2293,7 @@
         if (activeDeliveries.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="py-8 text-center text-gray-400 text-xs">No active missions running at the moment.</td>
+                    <td colspan="5" class="py-8 text-center text-gray-400 text-xs">Tidak ada misi pengantaran aktif saat ini.</td>
                 </tr>
             `;
             return;

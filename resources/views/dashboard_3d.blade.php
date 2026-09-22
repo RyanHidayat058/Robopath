@@ -1,8 +1,8 @@
 @extends('layouts.layout')
 
-@section('title', 'ROBOPATH - Live Fleet Tracking')
-@section('page_title', 'System Overview')
-@section('page_subtitle', 'Real-time Multi-Floor Robot Tracking & System Metrics')
+@section('title', 'ROBOPATH - Pelacakan Robot Langsung')
+@section('page_title', 'Ringkasan Sistem')
+@section('page_subtitle', 'Pelacakan Robot Multi-Lantai & Metrik Sistem Waktu Nyata')
 
 @section('styles')
 <style>
@@ -169,10 +169,10 @@
         <!-- Chip 1: Active Units -->
         <div class="bg-white border border-gray-200 px-4 py-3 rounded-xl shadow-sm flex items-center justify-between gap-3">
             <div>
-                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Active Units</span>
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Unit Aktif</span>
                 <div class="flex items-baseline gap-1.5">
                     <span class="text-lg font-black text-gray-800">{{ $activeRobotsCount }}/{{ $totalRobotsCount }}</span>
-                    <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">Online</span>
+                    <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">Aktif</span>
                 </div>
             </div>
             <div class="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-[#3b4cb8] text-base shadow-sm shrink-0">
@@ -183,10 +183,10 @@
         <!-- Chip 2: Active Missions -->
         <div class="bg-white border border-gray-200 px-4 py-3 rounded-xl shadow-sm flex items-center justify-between gap-3">
             <div>
-                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Active Missions</span>
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Misi Berjalan</span>
                 <div class="flex items-baseline gap-1.5">
                     <span class="text-lg font-black text-gray-800">{{ $activeDeliveriesCount }}</span>
-                    <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">In Progress</span>
+                    <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">Berlangsung</span>
                 </div>
             </div>
             <div class="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 text-base shadow-sm shrink-0">
@@ -197,7 +197,7 @@
         <!-- Chip 3: Completed Today -->
         <div class="bg-white border border-gray-200 px-4 py-3 rounded-xl shadow-sm flex items-center justify-between gap-3">
             <div>
-                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Completed Today</span>
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Selesai Hari Ini</span>
                 <div class="flex items-baseline gap-1.5">
                     <span class="text-lg font-black text-gray-800">{{ $deliveriesTodayCount }}</span>
                     <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">{{ $successRate }}%</span>
@@ -211,7 +211,7 @@
         <!-- Chip 4: System Alerts -->
         <div class="bg-white border border-gray-200 px-4 py-3 rounded-xl shadow-sm flex items-center justify-between gap-3">
             <div>
-                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">System Alerts</span>
+                <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Peringatan Sistem</span>
                 <div class="flex items-baseline gap-1.5">
                     <span class="text-lg font-black {{ $activeAlertsCount > 0 ? 'text-rose-600' : 'text-gray-800' }}">{{ $activeAlertsCount }}</span>
                     <span class="text-[10px] font-bold {{ $activeAlertsCount > 0 ? 'text-rose-600 bg-rose-50 border-rose-200' : 'text-gray-500 bg-gray-100 border-gray-200' }} px-1.5 py-0.5 rounded-full border">
@@ -235,9 +235,9 @@
                 <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-3 border-b border-gray-100" id="std-header-bar">
                     <div>
                         <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                            <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> Live Floor Tracking
+                            <i class="fa-solid fa-layer-group text-[#3b4cb8]"></i> Pelacakan Lantai Langsung
                         </h3>
-                        <p class="text-xs text-gray-500">Real-time robot telemetry &amp; delivery route visualization</p>
+                        <p class="text-xs text-gray-500">Telemetri robot &amp; visualisasi rute pengiriman waktu nyata</p>
                     </div>
 
                     <!-- Floor Switcher & Actions -->
@@ -257,7 +257,7 @@
                         <button id="autopilot-btn" onclick="toggleAutopilot()" 
                                 class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300">
                             <i class="fa-solid fa-wand-magic-sparkles" id="autopilot-icon"></i>
-                            <span id="autopilot-text">Autopilot: OFF</span>
+                            <span id="autopilot-text">Autopilot: NONAKTIF</span>
                         </button>
 
                         <!-- Simulate Issue Dropdown (Admin Only) -->
@@ -284,7 +284,7 @@
 
                         <!-- Full View 2 Lantai Button -->
                         <button onclick="toggleFullView(true)" class="bg-[#3b4cb8] hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md hover:shadow-lg transition duration-200">
-                            <i class="fa-solid fa-expand"></i> Full View
+                            <i class="fa-solid fa-expand"></i> Layar Penuh
                         </button>
                     </div>
                 </div>
@@ -295,7 +295,7 @@
                         <i class="fa-solid fa-building-user"></i> Lantai 1 (Ground Floor - Lobby, Office &amp; Receptionist)
                     </span>
                     <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200" id="std-floor-badge">
-                        Showing Floor 1
+                        Menampilkan Lantai 1
                     </span>
                 </div>
 
@@ -312,14 +312,14 @@
                             </button>
                         </div>
                         <span class="text-[11px] bg-slate-900/90 text-sky-400 font-bold px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5 whitespace-nowrap">
-                            <i class="fa-solid fa-eye text-sky-400"></i> Free Hand View Mode
+                            <i class="fa-solid fa-eye text-sky-400"></i> Mode Navigasi Bebas
                         </span>
                     </div>
 
                     <!-- Center: Quick View Tools -->
                     <div class="hidden md:flex items-center gap-2">
                         <button type="button" onclick="toggle3DRoomLabels()" id="fullview-btn-labels" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Tampilkan / Sembunyikan Label Ruangan">
-                            <i class="fa-solid fa-tag text-emerald-400" id="fullview-icon-labels"></i> <span id="fullview-text-labels">Label: ON</span>
+                            <i class="fa-solid fa-tag text-emerald-400" id="fullview-icon-labels"></i> <span id="fullview-text-labels">Label: AKTIF</span>
                         </button>
                         @if(auth()->check() && auth()->user()->isAdmin())
                         <button type="button" onclick="toggle3DControlPanel('label-size')" id="fullview-btn-label-size" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Ukuran Label & Model 3D">
@@ -329,14 +329,14 @@
                             <i class="fa-solid fa-video text-sky-400"></i> <span>Kamera</span>
                         </button>
                         <button type="button" onclick="toggle3DControlPanel('light')" id="fullview-btn-light" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Pencahayaan, Shader & Bayangan Ruangan">
-                            <i class="fa-solid fa-sun text-amber-400"></i> <span>Cahaya & Shadow</span>
+                            <i class="fa-solid fa-sun text-amber-400"></i> <span>Cahaya & Bayangan</span>
                         </button>
                         @endif
                         <button type="button" onclick="toggleFollowMode()" id="fullview-btn-follow" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Kamera Mengikuti Robot Aktif">
-                            <i class="fa-solid fa-crosshairs text-sky-400" id="fullview-icon-follow"></i> <span id="fullview-text-follow">Follow: OFF</span>
+                            <i class="fa-solid fa-crosshairs text-sky-400" id="fullview-icon-follow"></i> <span id="fullview-text-follow">Ikuti: NONAKTIF</span>
                         </button>
                         <button type="button" onclick="reset3DCamera()" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Pusatkan Kembali Kamera">
-                            <i class="fa-solid fa-arrows-to-dot text-amber-400"></i> <span>Center</span>
+                            <i class="fa-solid fa-arrows-to-dot text-amber-400"></i> <span>Pusatkan</span>
                         </button>
 
                         @if(auth()->check() && auth()->user()->isAdmin())
@@ -344,7 +344,7 @@
                         <button type="button" id="fullview-autopilot-btn" onclick="toggleAutopilot()" 
                                 class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap">
                             <i class="fa-solid fa-wand-magic-sparkles text-amber-400" id="fullview-autopilot-icon"></i>
-                            <span id="fullview-autopilot-text">Autopilot: OFF</span>
+                            <span id="fullview-autopilot-text">Autopilot: NONAKTIF</span>
                         </button>
 
                         <!-- Manual Dispatch Inspector Button in Full View -->
@@ -361,12 +361,12 @@
                     <!-- Right: Status Legend & Exit Button -->
                     <div class="flex items-center gap-3 shrink-0">
                         <div class="hidden lg:flex items-center gap-3 text-[11px] font-semibold text-gray-300 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-white/10">
-                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Idle</span></div>
-                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500"></span><span>Delivering</span></div>
-                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-500"></span><span>Charging</span></div>
-                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Maintenance</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Siaga</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500"></span><span>Mengantar</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-500"></span><span>Mengisi Daya</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Perbaikan</span></div>
                         </div>
-                        <button type="button" onclick="toggleFullView(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition active:scale-95" title="Keluar Full View (Esc)">
+                        <button type="button" onclick="toggleFullView(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition active:scale-95" title="Keluar Layar Penuh (Esc)">
                             <i class="fa-solid fa-compress"></i> <span>Keluar</span>
                         </button>
                     </div>
@@ -403,14 +403,14 @@
                         </div>
                         <!-- Monitoring controls (berlaku ke lantai aktif) -->
                         <button id="btn-toggle-network" onclick="toggleNetworkLines()" class="bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition opacity-60" title="Garis ke semua ruangan (graph adj)">
-                            <i class="fa-solid fa-share-nodes text-violet-400"></i> <span id="text-network">Jaringan: OFF</span>
+                            <i class="fa-solid fa-share-nodes text-violet-400"></i> <span id="text-network">Jaringan: NONAKTIF</span>
                         </button>
                         <button id="btn-toggle-follow" onclick="toggleFollowMode()" class="bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition" title="Kamera ikut robot yang difokuskan">
-                            <i class="fa-solid fa-eye text-sky-400" id="icon-follow"></i> <span id="text-follow">Follow: OFF</span>
+                            <i class="fa-solid fa-eye text-sky-400" id="icon-follow"></i> <span id="text-follow">Ikuti: NONAKTIF</span>
                         </button>
                         <!-- Room Labels Toggle -->
                         <button id="btn-toggle-3d-labels" onclick="toggle3DRoomLabels()" class="bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition">
-                            <i class="fa-solid fa-tag text-emerald-400" id="icon-3d-labels"></i> <span id="text-3d-labels">Label: ON</span>
+                            <i class="fa-solid fa-tag text-emerald-400" id="icon-3d-labels"></i> <span id="text-3d-labels">Label: AKTIF</span>
                         </button>
                         @if(auth()->check() && auth()->user()->isAdmin())
                         <!-- Room Label Size Panel Button -->
@@ -442,19 +442,19 @@
                 <div class="flex flex-wrap gap-4 pt-4 mt-4 border-t border-gray-200 text-xs text-gray-600 font-semibold">
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span>
-                        <span>Idle / Standby</span>
+                        <span>Siaga / Standby</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-sky-500 shadow-sm"></span>
-                        <span>Delivering</span>
+                        <span>Mengantar</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-orange-500 shadow-sm"></span>
-                        <span>Charging</span>
+                        <span>Mengisi Daya</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-rose-500 shadow-sm"></span>
-                        <span>Maintenance</span>
+                        <span>Perbaikan</span>
                     </div>
                 </div>
             </div>
@@ -463,7 +463,7 @@
         <!-- Right Column: Active Robots Roster (1/3 width, Matches Left Height) -->
         <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col">
             <h3 class="text-base font-bold text-gray-800 mb-4 flex items-center gap-2 pb-3 border-b border-gray-200">
-                <i class="fa-solid fa-robot text-[#3b4cb8]"></i> Active Robot Roster
+                <i class="fa-solid fa-robot text-[#3b4cb8]"></i> Daftar Robot Aktif
             </h3>
 
             <div class="space-y-3.5 flex-1" id="robot-cards-container">
@@ -477,13 +477,13 @@
                             <span class="font-bold text-sm text-gray-800">{{ $robot->name }}</span>
                         </div>
                         <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" id="robot-status-badge-{{ $robot->id }}">
-                            {{ $robot->status }}
+                            {{ $robot->status === 'Idle' ? 'Siaga' : ($robot->status === 'Delivering' ? 'Mengantar' : ($robot->status === 'Charging' ? 'Mengisi Daya' : 'Perbaikan')) }}
                         </span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-2">
                         <div>
-                            <span class="text-[10px] text-gray-400 block uppercase font-bold">Battery</span>
+                            <span class="text-[10px] text-gray-400 block uppercase font-bold">Baterai</span>
                             <div class="flex items-center gap-1.5 mt-0.5">
                                 <div class="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
                                     <div class="h-1.5 rounded-full" id="robot-battery-bar-{{ $robot->id }}" style="width: {{ $robot->battery_level }}%"></div>
@@ -492,15 +492,15 @@
                             </div>
                         </div>
                         <div>
-                            <span class="text-[10px] text-gray-400 block uppercase font-bold">Location</span>
+                            <span class="text-[10px] text-gray-400 block uppercase font-bold">Lokasi</span>
                             <span class="font-semibold text-gray-700 text-[11px]" id="robot-location-text-{{ $robot->id }}">
-                                Blank Room 2 (Floor 1)
+                                Ruangan Kosong 2 (Lantai 1)
                             </span>
                         </div>
                     </div>
 
                     <div class="text-[11px] text-gray-500 pt-2 border-t border-gray-200/60" id="robot-task-text-{{ $robot->id }}">
-                        Standby at home base
+                        Siaga di markas pangkalan
                     </div>
                 </div>
                 @endforeach
@@ -807,7 +807,7 @@
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">DISPATCH</span>
+            <span class="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">PENGANTARAN</span>
             <button type="button" onclick="toggleFullViewDispatchPanel(false)" class="text-slate-400 hover:text-white w-7 h-7 rounded-lg hover:bg-white/10 flex items-center justify-center text-sm font-bold transition" title="Tutup Panel">
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -819,13 +819,13 @@
         <div class="flex items-center gap-2">
             <i class="fa-solid fa-robot text-emerald-400 text-sm" id="fv-dispatch-autopilot-icon"></i>
             <div>
-                <div class="font-bold text-slate-200 text-[11px]" id="fv-dispatch-autopilot-title">Mode Autopilot: OFF</div>
+                <div class="font-bold text-slate-200 text-[11px]" id="fv-dispatch-autopilot-title">Mode Autopilot: NONAKTIF</div>
                 <div class="text-[10px] text-slate-400">Tugas manual langsung diprioritaskan</div>
             </div>
         </div>
         @if(auth()->check() && auth()->user()->isAdmin())
         <button type="button" onclick="toggleAutopilot()" class="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600 transition shadow-sm">
-            Toggle
+            Ubah
         </button>
         @endif
     </div>
@@ -861,13 +861,13 @@
             <label class="block font-bold text-slate-300 text-[10px] uppercase tracking-wider mb-1">Barang / Muatan</label>
             <select id="fv-dispatch-item" class="w-full bg-slate-800/95 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium" required>
                 <option value="" disabled selected>Pilih barang yang diantar...</option>
-                <option value="Dokumen">📄 Dokumen (Documents)</option>
-                <option value="Makanan">🍱 Makanan (Food / Meals)</option>
-                <option value="Kopi">☕ Kopi (Coffee / Beverage)</option>
-                <option value="Paket">📦 Paket (Postal Package)</option>
-                <option value="Sparepart">⚙️ Sparepart (Replacement Parts)</option>
-                <option value="Handuk">🧺 Handuk (Towels)</option>
-                <option value="Botol Air">💧 Botol Air (Water Bottle)</option>
+                <option value="Dokumen">📄 Dokumen</option>
+                <option value="Makanan">🍱 Makanan</option>
+                <option value="Kopi">☕ Kopi</option>
+                <option value="Paket">📦 Paket</option>
+                <option value="Sparepart">⚙️ Suku Cadang (Sparepart)</option>
+                <option value="Handuk">🧺 Handuk</option>
+                <option value="Botol Air">💧 Botol Air</option>
             </select>
         </div>
 
@@ -1940,17 +1940,17 @@
 
         if (show3DRoomLabels) {
             if (icon) icon.className = 'fa-solid fa-tag text-emerald-400';
-            if (text) text.textContent = 'Label: ON';
+            if (text) text.textContent = 'Label: AKTIF';
             if (btn) btn.className = 'bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition';
             if (f_icon) f_icon.className = 'fa-solid fa-tag text-emerald-400';
-            if (f_text) f_text.textContent = 'Label: ON';
+            if (f_text) f_text.textContent = 'Label: AKTIF';
             if (f_btn) f_btn.className = 'bg-slate-900/90 hover:bg-slate-800 border border-emerald-500/30 text-emerald-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap';
         } else {
             if (icon) icon.className = 'fa-solid fa-tag text-gray-500';
-            if (text) text.textContent = 'Label: OFF';
+            if (text) text.textContent = 'Label: NONAKTIF';
             if (btn) btn.className = 'bg-slate-900/40 hover:bg-slate-900/80 backdrop-blur-md text-gray-400 px-3 py-1.5 rounded-xl text-xs font-bold border border-white/5 shadow-lg flex items-center gap-1.5 transition';
             if (f_icon) f_icon.className = 'fa-solid fa-tag text-gray-500';
-            if (f_text) f_text.textContent = 'Label: OFF';
+            if (f_text) f_text.textContent = 'Label: NONAKTIF';
             if (f_btn) f_btn.className = 'bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap';
         }
     }
@@ -2025,7 +2025,7 @@
         const t=document.getElementById('text-follow');
         const ic=document.getElementById('icon-follow');
         const btn=document.getElementById('btn-toggle-follow');
-        if(t) t.textContent = isFollowMode ? 'Follow: ON' : 'Follow: OFF';
+        if(t) t.textContent = isFollowMode ? 'Ikuti: AKTIF' : 'Ikuti: NONAKTIF';
         if(ic) ic.className = isFollowMode ? 'fa-solid fa-eye text-emerald-400 animate-pulse' : 'fa-solid fa-eye text-sky-400';
         if(btn) btn.classList.toggle('ring-2', isFollowMode);
         if(btn) btn.classList.toggle('ring-emerald-400', isFollowMode);
@@ -2033,7 +2033,7 @@
         const f_t = document.getElementById('fullview-text-follow');
         const f_ic = document.getElementById('fullview-icon-follow');
         const f_btn = document.getElementById('fullview-btn-follow');
-        if (f_t) f_t.textContent = isFollowMode ? 'Follow: ON' : 'Follow: OFF';
+        if (f_t) f_t.textContent = isFollowMode ? 'Ikuti: AKTIF' : 'Ikuti: NONAKTIF';
         if (f_ic) f_ic.className = isFollowMode ? 'fa-solid fa-crosshairs text-emerald-400 animate-pulse' : 'fa-solid fa-crosshairs text-sky-400';
         if (f_btn) {
             f_btn.classList.toggle('ring-2', isFollowMode);
@@ -2045,7 +2045,7 @@
     function updateNetworkButton(){
         const t=document.getElementById('text-network');
         const btn=document.getElementById('btn-toggle-network');
-        if(t) t.textContent = showNetworkLines ? 'Jaringan: ON' : 'Jaringan: OFF';
+        if(t) t.textContent = showNetworkLines ? 'Jaringan: AKTIF' : 'Jaringan: NONAKTIF';
         if(btn) btn.classList.toggle('opacity-60', !showNetworkLines);
     }
     function clearRobotFocus(){
@@ -2785,7 +2785,7 @@
             if (fvTabF1) fvTabF1.className = "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow";
             if (fvTabF2) fvTabF2.className = "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10";
             if (title) title.innerHTML = '<i class="fa-solid fa-cube text-emerald-400"></i> Lantai 1 (Ground Floor - Lobby, Office & Receptionist) <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 ml-1">3D</span>';
-            if (badge) badge.textContent = 'Showing Floor 1 (3D)';
+            if (badge) badge.textContent = 'Menampilkan Lantai 1 (3D)';
             if (canvasContainer3D) canvasContainer3D.classList.add('hidden');
             if (canvasContainer3DF1) {
                 canvasContainer3DF1.classList.remove('hidden');
@@ -2826,7 +2826,7 @@
             if (fvTabF2) fvTabF2.className = "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow";
             if (fvTabF1) fvTabF1.className = "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10";
             if (title) title.innerHTML = '<i class="fa-solid fa-cube text-sky-400"></i> Lantai 2 (Upper Floor - Direksi, Lounge & Meeting Rooms) <span class="text-[10px] bg-sky-500/20 text-sky-400 px-2 py-0.5 rounded-full border border-sky-500/30 ml-1">3D</span>';
-            if (badge) badge.textContent = 'Showing Floor 2 (3D)';
+            if (badge) badge.textContent = 'Menampilkan Lantai 2 (3D)';
             if (canvasContainer3DF1) canvasContainer3DF1.classList.add('hidden');
             if (canvasContainer3D) {
                 canvasContainer3D.classList.remove('hidden');
@@ -2947,7 +2947,7 @@
             const f_text = document.getElementById('fullview-text-labels');
             const f_btn = document.getElementById('fullview-btn-labels');
             if (f_icon) f_icon.className = show3DRoomLabels ? 'fa-solid fa-tag text-emerald-400' : 'fa-solid fa-tag text-gray-500';
-            if (f_text) f_text.textContent = show3DRoomLabels ? 'Label: ON' : 'Label: OFF';
+            if (f_text) f_text.textContent = show3DRoomLabels ? 'Label: AKTIF' : 'Label: NONAKTIF';
             if (f_btn) {
                 f_btn.className = show3DRoomLabels
                     ? 'bg-slate-900/90 hover:bg-slate-800 border border-emerald-500/30 text-emerald-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap'
@@ -3973,14 +3973,14 @@
                         if (robot.isLowBatteryReturning || robot.battery_level <= 20) {
                             robot.isLowBatteryReturning = false;
                             robot.status = 'Charging';
-                            taskText = `<span class="text-orange-500 font-bold"><i class="fa-solid fa-bolt mr-1"></i> Baterai Rendah! Charging di ${baseLoc.name || 'Base'}...</span>`;
+                            taskText = `<span class="text-orange-500 font-bold"><i class="fa-solid fa-bolt mr-1"></i> Baterai Rendah! Mengisi daya di ${baseLoc.name || 'Markas'}...</span>`;
                             syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Charging', robot.battery_level);
                         } else {
                             robot.status = 'Idle';
-                            taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
+                            taskText = `Siaga di ${baseLoc.name || 'Markas Pangkalan'}`;
                             syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Idle', robot.battery_level);
                         }
-                        currentLocName = baseLoc.name || 'Base Station';
+                        currentLocName = baseLoc.name || 'Markas Pangkalan';
                     } else {
                         let activeStage = null;
                         for (let st of mission.stages) {
@@ -4001,7 +4001,7 @@
                             const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
                             coords = locations[currentNodeId] || coords;
                             angle = 0;
-                            taskText = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-stairs animate-bounce mr-1"></i> Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...</span>`;
+                            taskText = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-stairs animate-bounce mr-1"></i> Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec} dtk)...</span>`;
                             robot.returnSegIdx = 0;
 
                             if (robot.floor !== floorNum) {
@@ -4018,9 +4018,9 @@
                                 robot.returnSegIdx = along.segIdx;
                             }
                             if (robot.isLowBatteryReturning) {
-                                taskText = `<span class="text-orange-600 font-bold animate-pulse"><i class="fa-solid fa-battery-quarter text-orange-500 mr-1"></i> Baterai Rendah (${robot.battery_level}%), Pulang ke Base...</span>`;
+                                taskText = `<span class="text-orange-600 font-bold animate-pulse"><i class="fa-solid fa-battery-quarter text-orange-500 mr-1"></i> Baterai Rendah (${robot.battery_level}%), Kembali ke Markas...</span>`;
                             } else {
-                                taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-arrow-rotate-left mr-1"></i> Kembali ke ${baseLoc.name || 'Base'}...</span>`;
+                                taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-arrow-rotate-left mr-1"></i> Kembali ke ${baseLoc.name || 'Markas'}...</span>`;
                             }
                         }
 
@@ -4055,8 +4055,8 @@
                             robot.isLowBatteryReturning = false;
                             robot.status = isChargingNeeded ? 'Charging' : 'Idle';
                             taskText = (robot.status === 'Charging') 
-                                ? `<span class="text-orange-500 font-bold"><i class="fa-solid fa-bolt mr-1"></i> Baterai Rendah! Charging di ${baseLoc.name || 'Base'}...</span>`
-                                : `Standby di ${baseLoc.name || 'Base Station'}`;
+                                ? `<span class="text-orange-500 font-bold"><i class="fa-solid fa-bolt mr-1"></i> Baterai Rendah! Mengisi daya di ${baseLoc.name || 'Markas'}...</span>`
+                                : `Siaga di ${baseLoc.name || 'Markas Pangkalan'}`;
                             syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, robot.status, robot.battery_level);
                         }
                     }
@@ -4073,7 +4073,7 @@
                     robot.current_x = coords.x;
                     robot.current_y = coords.y;
                     robot.floor = floorNum;
-                    taskText = isAtBase ? `Standby di ${baseLoc.name || 'Base Station'}` : `Standby di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
+                    taskText = isAtBase ? `Siaga di ${baseLoc.name || 'Markas Pangkalan'}` : `Siaga di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
                     currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
                 }
             }
@@ -4103,10 +4103,14 @@
                     badge.textContent = issueLabel;
                     badge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-300 animate-pulse';
                 } else if (robot.isReturning) {
-                    badge.textContent = 'Returning';
+                    badge.textContent = 'Kembali';
                     badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-indigo-100 text-indigo-700 border border-indigo-200';
                 } else {
-                    badge.textContent = robot.status;
+                    const statusIndo = robot.status === 'Idle' ? 'Siaga' :
+                        (robot.status === 'Delivering' ? 'Mengantar' :
+                        (robot.status === 'Charging' ? 'Mengisi Daya' :
+                        (robot.status === 'Returning' ? 'Kembali' : 'Perbaikan')));
+                    badge.textContent = statusIndo;
                     badge.className = `text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
                         robot.status === 'Delivering' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
                         (robot.status === 'Charging' ? 'bg-orange-100 text-orange-700 border border-orange-200' :
@@ -4120,7 +4124,7 @@
                 batBar.className = `h-1.5 rounded-full ${robot.battery_level <= 20 ? 'bg-rose-500' : 'bg-[#3b4cb8]'}`;
             }
             if (batText) batText.textContent = `${robot.battery_level}%`;
-            if (locText) locText.textContent = `${currentLocName} (Floor ${floorNum})`;
+            if (locText) locText.textContent = `${currentLocName} (Lantai ${floorNum})`;
             if (taskTextDiv) taskTextDiv.innerHTML = taskText;
         });
 
@@ -4321,7 +4325,7 @@
         if (btn && text) {
             if (isAutopilotEnabled) {
                 btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow transition duration-200 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/30";
-                text.innerHTML = '<span class="relative flex h-2 w-2 mr-1"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span></span> Autopilot: ON (SERENTAK)';
+                text.innerHTML = '<span class="relative flex h-2 w-2 mr-1"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span></span> Autopilot: AKTIF (Serentak)';
                 if (icon) icon.className = "fa-solid fa-robot animate-bounce";
             } else {
                 if (window.isAdmin) {
@@ -4329,7 +4333,7 @@
                 } else {
                     btn.className = "px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed";
                 }
-                text.textContent = 'Autopilot: OFF (MANUAL)';
+                text.textContent = 'Autopilot: NONAKTIF (Manual)';
                 if (icon) icon.className = "fa-solid fa-wand-magic-sparkles";
             }
         }
@@ -4341,12 +4345,12 @@
         if (fvBtn && fvText) {
             if (isAutopilotEnabled) {
                 fvBtn.className = "bg-emerald-600 hover:bg-emerald-500 border border-emerald-400/40 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shadow-lg shadow-emerald-600/30";
-                fvText.innerHTML = '<span class="relative flex h-2 w-2 mr-1"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span></span> Autopilot: ON';
+                fvText.innerHTML = '<span class="relative flex h-2 w-2 mr-1"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span></span> Autopilot: AKTIF';
                 if (fvIcon) fvIcon.className = "fa-solid fa-robot animate-bounce text-white";
             } else {
                 const isAdmin = window.isAdmin ?? false;
                 fvBtn.className = "bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" + (isAdmin ? "" : " cursor-not-allowed opacity-60");
-                fvText.textContent = 'Autopilot: OFF';
+                fvText.textContent = 'Autopilot: NONAKTIF';
                 if (fvIcon) fvIcon.className = "fa-solid fa-wand-magic-sparkles text-amber-400";
             }
         }
@@ -4356,11 +4360,11 @@
         const fvInspIcon = document.getElementById('fv-dispatch-autopilot-icon');
         if (fvTitle) {
             if (isAutopilotEnabled) {
-                fvTitle.textContent = "Mode Autopilot: ON (Serentak)";
+                fvTitle.textContent = "Mode Autopilot: AKTIF (Serentak)";
                 fvTitle.className = "font-bold text-emerald-400 text-[11px]";
                 if (fvInspIcon) fvInspIcon.className = "fa-solid fa-robot text-emerald-400 text-sm animate-pulse";
             } else {
-                fvTitle.textContent = "Mode Autopilot: OFF (Manual)";
+                fvTitle.textContent = "Mode Autopilot: NONAKTIF (Manual)";
                 fvTitle.className = "font-bold text-slate-200 text-[11px]";
                 if (fvInspIcon) fvInspIcon.className = "fa-solid fa-hand text-sky-400 text-sm";
             }
@@ -4405,9 +4409,17 @@
             const opt = document.createElement('option');
             opt.value = robot.id;
             
-            let label = `${robot.name} (${robot.status} - Bat: ${robot.battery_level}%)`;
+            const statusIndoMap = {
+                'Idle': 'Siaga',
+                'Delivering': 'Mengantar',
+                'Charging': 'Mengisi Daya',
+                'Maintenance': 'Perbaikan',
+                'Returning': 'Kembali'
+            };
+            const rStatusText = statusIndoMap[robot.status] || robot.status;
+            let label = `${robot.name} (${rStatusText} - Bat: ${robot.battery_level}%)`;
             if (robot.status !== 'Idle') {
-                label += ` [${robot.status}]`;
+                label += ` [${rStatusText}]`;
             } else if (robot.battery_level <= 20) {
                 label += ' [Baterai Rendah]';
             }
@@ -4631,7 +4643,7 @@
                             <i class="fa-solid fa-robot text-sky-400"></i> ${robotName}
                         </span>
                         <span class="text-[10px] px-1.5 py-0.5 rounded-md font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1 shrink-0">
-                            <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> ${delivery.status}
+                            <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> ${delivery.status === 'In Progress' ? 'Berlangsung' : (delivery.status === 'Pending' ? 'Tertunda' : (delivery.status === 'Completed' ? 'Selesai' : (delivery.status === 'Failed' ? 'Gagal' : delivery.status)))}
                         </span>
                     </div>
                     <div class="flex items-center gap-1 text-[11px] text-slate-300 font-medium mb-1">

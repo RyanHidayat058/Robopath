@@ -1,8 +1,8 @@
 @extends('layouts.layout')
 
-@section('title', 'ROBOPATH - Delivery History')
-@section('page_title', 'Delivery Logs')
-@section('page_subtitle', 'Comprehensive record of all past operations and deliveries')
+@section('title', 'ROBOPATH - Riwayat Pengiriman')
+@section('page_title', 'Catatan Pengiriman')
+@section('page_subtitle', 'Catatan lengkap mengenai semua operasi dan pengiriman yang telah dilakukan')
 
 @section('content')
 <div class="bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden flex flex-col">
@@ -10,14 +10,8 @@
     <div class="p-6 bg-[#3b4cb8] text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-sm">
         <div>
             <h3 class="text-lg font-extrabold text-white flex items-center gap-2">
-                <i class="fa-solid fa-clock-rotate-left"></i> Operation Records
+                <i class="fa-solid fa-clock-rotate-left"></i> Catatan Operasi
             </h3>
-            <p class="text-xs text-blue-100/90 font-medium mt-1">Total of {{ $deliveries->total() }} records found in the database</p>
-        </div>
-        <div>
-            <button onclick="confirmReset()" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md hover:shadow-lg transition duration-200">
-                <i class="fa-solid fa-trash-can"></i> Reset & Clear All Logs
-            </button>
         </div>
     </div>
 
@@ -26,14 +20,14 @@
         <table class="w-full text-left text-sm text-gray-700">
             <thead>
                 <tr class="bg-blue-50/70 border-b border-gray-200 text-[#3b4cb8] text-xs font-bold uppercase tracking-wider">
-                    <th class="px-6 py-4">Mission ID</th>
-                    <th class="px-6 py-4">Robot Unit</th>
-                    <th class="px-6 py-4">Item (Cargo)</th>
-                    <th class="px-6 py-4">From</th>
-                    <th class="px-6 py-4">To</th>
+                    <th class="px-6 py-4">ID Misi</th>
+                    <th class="px-6 py-4">Nama Robot</th>
+                    <th class="px-6 py-4">Nama Barang</th>
+                    <th class="px-6 py-4">Dari (Asal)</th>
+                    <th class="px-6 py-4">Tujuan</th>
                     <th class="px-6 py-4 text-center">Status</th>
-                    <th class="px-6 py-4">Completed At</th>
-                    <th class="px-6 py-4 text-right">Duration</th>
+                    <th class="px-6 py-4">Waktu Selesai</th>
+                    <th class="px-6 py-4 text-right">Durasi</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -45,7 +39,7 @@
                     <td class="px-6 py-4 font-bold text-gray-800">
                         <div class="flex items-center gap-2">
                             <i class="fa-solid fa-robot text-[#3b4cb8]"></i>
-                            {{ $delivery->robot?->name ?? 'Robot Unknown' }}
+                            {{ $delivery->robot?->name ?? 'Robot Tidak Diketahui' }}
                         </div>
                     </td>
                     <td class="px-6 py-4 font-semibold text-gray-700">
@@ -59,7 +53,7 @@
                     </td>
                     <td class="px-6 py-4 text-center">
                         <span class="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider {{ $delivery->status === 'Completed' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' : 'bg-rose-100 text-rose-700 border border-rose-200' }}">
-                            {{ $delivery->status }}
+                            {{ $delivery->status === 'Completed' ? 'Selesai' : ($delivery->status === 'Failed' ? 'Gagal' : ($delivery->status === 'In Progress' ? 'Berlangsung' : $delivery->status)) }}
                         </span>
                     </td>
                     <td class="px-6 py-4 text-gray-500 font-mono text-xs">
@@ -67,7 +61,7 @@
                     </td>
                     <td class="px-6 py-4 text-right font-mono text-gray-700 font-bold text-xs">
                         @if($delivery->completed_at && $delivery->started_at)
-                            {{ $delivery->completed_at->diff($delivery->started_at)->format('%i m, %s s') }}
+                            {{ $delivery->completed_at->diff($delivery->started_at)->format('%i m, %s dtk') }}
                         @else
                             -
                         @endif
@@ -76,7 +70,7 @@
                 @empty
                 <tr>
                     <td colspan="8" class="py-12 text-center text-gray-400 text-xs">
-                        No operations logs found in the archives.
+                        Tidak ditemukan catatan operasi di arsip riwayat.
                     </td>
                 </tr>
                 @endforelse
@@ -87,62 +81,11 @@
     <!-- Table Footer / Pagination -->
     <div class="p-4 border-t border-gray-200 bg-gray-50/60 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div class="text-xs text-gray-500 font-medium">
-            Showing <span class="font-bold text-gray-700">{{ $deliveries->firstItem() ?? 0 }}</span> to <span class="font-bold text-gray-700">{{ $deliveries->lastItem() ?? 0 }}</span> of <span class="font-bold text-gray-700">{{ $deliveries->total() }}</span> records
+            Menampilkan <span class="font-bold text-gray-700">{{ $deliveries->firstItem() ?? 0 }}</span> sampai <span class="font-bold text-gray-700">{{ $deliveries->lastItem() ?? 0 }}</span> dari <span class="font-bold text-gray-700">{{ $deliveries->total() }}</span> data
         </div>
         <div class="pagination-wrapper">
             {{ $deliveries->links() }}
         </div>
     </div>
 </div>
-@endsection
-
-@section('scripts')
-<script>
-    async function confirmReset() {
-        const confirmed = await window.showConfirmDialog({
-            title: 'Hapus Semua Riwayat & Reset Robot?',
-            text: 'Semua catatan riwayat pengantaran akan dibersihkan dan semua robot akan dikembalikan ke Base Station (1_N7). Tindakan ini permanen.',
-            confirmText: '<i class="fa-solid fa-trash-can mr-1.5"></i> Ya, Hapus & Reset',
-            cancelText: 'Batal',
-            icon: 'warning',
-            isDanger: true
-        });
-
-        if (!confirmed) return;
-
-        RobopathSwal.fire({
-            title: 'Mereset Riwayat & Armada...',
-            html: '<p class="text-xs text-gray-500 mt-1">Menghapus log riwayat dan menempatkan robot di markas...</p>',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-
-        try {
-            const res = await fetch('/api/system/reset', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                }
-            });
-            const data = await res.json();
-            if (data.success) {
-                await window.showSuccessAlert(
-                    'Riwayat Berhasil Direset!',
-                    'Semua catatan pengantaran telah dibersihkan dan unit robot telah dikembalikan ke base.'
-                );
-                window.location.reload();
-            } else {
-                window.showErrorAlert('Gagal Mereset Riwayat', data.message || 'Terjadi kendala saat mereset sistem.');
-            }
-        } catch (err) {
-            console.error('Error resetting:', err);
-            window.showErrorAlert('Kesalahan Jaringan', 'Terjadi kesalahan saat menghubungi server untuk mereset log.');
-        }
-    }
-</script>
 @endsection
