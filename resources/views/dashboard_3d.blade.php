@@ -78,9 +78,10 @@
     .dashboard-inspector-floating {
         position: fixed !important;
         top: 4.5rem !important;
-        right: 1.25rem !important;
+        right: 1rem !important;
         z-index: 10001 !important;
-        width: 25rem !important;
+        width: min(25rem, calc(100vw - 2rem)) !important;
+        max-width: calc(100vw - 2rem) !important;
         max-height: calc(100vh - 5.5rem) !important;
         overflow-y: auto !important;
         background: rgba(15, 23, 42, 0.95) !important;
@@ -127,6 +128,8 @@
     }
     .control-modal-panel-3d {
         z-index: 10005 !important;
+        max-width: calc(100vw - 2rem) !important;
+        right: 1rem !important;
     }
 </style>
 @endsection
@@ -855,13 +858,13 @@
             <label class="block font-bold text-slate-300 text-[10px] uppercase tracking-wider mb-1">Barang / Muatan</label>
             <select id="fv-dispatch-item" class="w-full bg-slate-800/95 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium" required>
                 <option value="" disabled selected>Pilih barang yang diantar...</option>
-                <option value="Dokumen">📄 Dokumen</option>
-                <option value="Makanan">🍱 Makanan</option>
-                <option value="Kopi">☕ Kopi</option>
-                <option value="Paket">📦 Paket</option>
-                <option value="Sparepart">⚙️ Suku Cadang (Sparepart)</option>
-                <option value="Handuk">🧺 Handuk</option>
-                <option value="Botol Air">💧 Botol Air</option>
+                <option value="Dokumen">Dokumen</option>
+                <option value="Makanan">Makanan</option>
+                <option value="Kopi">Kopi</option>
+                <option value="Paket">Paket</option>
+                <option value="Sparepart">Sparepart</option>
+                <option value="Handuk">Handuk</option>
+                <option value="Botol Air">Botol Air</option>
             </select>
         </div>
 

@@ -63,7 +63,7 @@
         {
             "id": "1_N104",
             "name": "N104",
-            "x": 20.25,
+            "x": 22.1,
             "y": 28.1,
             "y_elev": 0.019,
             "floor": 1,
@@ -73,8 +73,8 @@
         {
             "id": "1_Ruang Meeting 1",
             "name": "Ruang Meeting 1",
-            "x": 20.25,
-            "y": 15.38,
+            "x": 22.1,
+            "y": 25.5,
             "y_elev": 0.019,
             "floor": 1,
             "hidden": false,
@@ -83,7 +83,7 @@
         {
             "id": "1_N105",
             "name": "N105",
-            "x": 17.9,
+            "x": 16.7,
             "y": 28.1,
             "y_elev": 0.019,
             "floor": 1,
@@ -93,8 +93,8 @@
         {
             "id": "1_Kasir",
             "name": "Kasir",
-            "x": 17.9,
-            "y": 15.38,
+            "x": 16.7,
+            "y": 25.5,
             "y_elev": 0.019,
             "floor": 1,
             "hidden": false,
@@ -930,8 +930,7 @@
             "ambient": 0.8,
             "sun": 1.7,
             "exposure": 0.35,
-            "fill": 0.7,
-            "shadow": true
+            "fill": 0.7
         },
         "model_scale": 1,
         "robot_scale": 0.1,
