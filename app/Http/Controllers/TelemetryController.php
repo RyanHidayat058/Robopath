@@ -49,22 +49,29 @@ class TelemetryController extends Controller
             }
             $hasActiveDelivery = Delivery::where('robot_id', $robot->id)->whereIn('status', ['In Progress', 'Pending'])->exists();
             if (! $hasActiveDelivery) {
-                $baseLoc = ['x' => 76.23, 'y' => 64.42, 'floor' => 1];
-                $distToBase = ((int) ($robot->floor ?? 1) === 1)
-                    ? hypot((float) ($robot->current_x ?? $baseLoc['x']) - $baseLoc['x'], (float) ($robot->current_y ?? $baseLoc['y']) - $baseLoc['y'])
-                    : 999.0;
+                $baseLoc2D = ['x' => 76.23, 'y' => 64.42, 'floor' => 1];
+                $baseLoc3D = ['x' => 85.48, 'y' => 51.07, 'floor' => 1];
+
+                $curX = (float) ($robot->current_x ?? $baseLoc3D['x']);
+                $curY = (float) ($robot->current_y ?? $baseLoc3D['y']);
+                $isFloor1 = ((int) ($robot->floor ?? 1) === 1);
+
+                $distTo3DBase = $isFloor1 ? hypot($curX - $baseLoc3D['x'], $curY - $baseLoc3D['y']) : 999.0;
+                $distTo2DBase = $isFloor1 ? hypot($curX - $baseLoc2D['x'], $curY - $baseLoc2D['y']) : 999.0;
+                $isNearBase = ($distTo3DBase <= 3.5 || $distTo2DBase <= 3.5);
 
                 $lastCompleted = Delivery::where('robot_id', $robot->id)->where('status', 'Completed')->latest('completed_at')->first();
                 $secondsSince = ($lastCompleted && $lastCompleted->completed_at) ? Carbon::parse($lastCompleted->completed_at)->diffInSeconds(Carbon::now()) : null;
                 $isZombie = ($secondsSince !== null && $secondsSince >= 180) || ($robot->updated_at && $robot->updated_at->diffInSeconds(Carbon::now()) >= 180);
 
-                // Only normalize to Idle/Charging if robot has genuinely arrived at base (<= 1.5) or is an abandoned/zombie session (> 180s)
-                if (($distToBase <= 1.5 && (int) ($robot->floor ?? 1) === 1) || $isZombie) {
+                // Only normalize to Idle/Charging if robot has genuinely arrived at base (<= 3.5) or is an abandoned/zombie session (> 180s)
+                if (($isNearBase && $isFloor1) || $isZombie) {
                     $nextStatus = ($robot->battery_level <= 20 || $robot->status === 'Charging') ? 'Charging' : 'Idle';
+                    $chosenBase = ($distTo3DBase <= $distTo2DBase) ? $baseLoc3D : $baseLoc2D;
                     $robot->update([
                         'status' => $nextStatus,
-                        'current_x' => $baseLoc['x'],
-                        'current_y' => $baseLoc['y'],
+                        'current_x' => $isNearBase ? $curX : $chosenBase['x'],
+                        'current_y' => $isNearBase ? $curY : $chosenBase['y'],
                         'floor' => 1,
                     ]);
                 }
@@ -73,8 +80,8 @@ class TelemetryController extends Controller
 
         // Auto Sanity Check: If a robot has an active delivery in progress, its status MUST be 'Delivering'
         $inProgressDeliveries = Delivery::where('status', 'In Progress')->get();
-        foreach ($inProgressDeliveries as $deliv) {
-            $r = Robot::find($deliv->robot_id);
+        foreach ($inProgressDeliveries as $delivery) {
+            $r = $delivery->robot;
             if ($r) {
                 $hasActiveReport = Report::where('robot_id', $r->id)->where('status', 'Active')->exists();
                 if (! $hasActiveReport && ! in_array($r->status, ['Maintenance', 'Charging']) && $r->status !== 'Delivering') {
@@ -88,10 +95,13 @@ class TelemetryController extends Controller
         foreach ($deliveringRobots as $r) {
             $hasDeliv = Delivery::where('robot_id', $r->id)->whereIn('status', ['In Progress', 'Pending'])->exists();
             if (! $hasDeliv) {
-                $distToBase = ((int) ($r->floor ?? 1) === 1)
-                    ? hypot((float) ($r->current_x ?? 76.23) - 76.23, (float) ($r->current_y ?? 64.42) - 64.42)
-                    : 999.0;
-                $r->update(['status' => ($distToBase <= 1.5) ? 'Idle' : 'Returning']);
+                $isFloor1 = ((int) ($r->floor ?? 1) === 1);
+                $curX = (float) ($r->current_x ?? 85.48);
+                $curY = (float) ($r->current_y ?? 51.07);
+                $d3D = $isFloor1 ? hypot($curX - 85.48, $curY - 51.07) : 999.0;
+                $d2D = $isFloor1 ? hypot($curX - 76.23, $curY - 64.42) : 999.0;
+                $isNear = ($d3D <= 3.5 || $d2D <= 3.5);
+                $r->update(['status' => ($isNear && $isFloor1) ? 'Idle' : 'Returning']);
             }
         }
 
@@ -128,12 +138,17 @@ class TelemetryController extends Controller
         $activeRobotsCount = $robots->where('status', '!=', 'Maintenance')->count();
         $totalRobotsCount = $robots->count();
 
+        $graphPath = base_path('graph_3d.json');
+        $graph3d = file_exists($graphPath) ? json_decode(file_get_contents($graphPath), true) : [];
+        $settings3D = $graph3d['settings_3d'] ?? null;
+
         return response()->json([
             'robots' => $robots,
             'active_deliveries' => $activeDeliveries,
             'active_alerts' => $activeAlerts,
             'recent_deliveries' => $recentDeliveries,
             'autopilot_enabled' => $isAutopilot,
+            'settings_3d' => $settings3D,
             'server_time' => Carbon::now()->toIso8601String(),
             'stats' => [
                 'active_robots_count' => $activeRobotsCount,
@@ -221,7 +236,13 @@ class TelemetryController extends Controller
             'status' => 'Delivering',
         ]);
 
-        $originLoc = $request->origin_location ?: '1_N7';
+        $originLoc = $request->origin_location;
+        if (! $originLoc) {
+            $rx = (float) ($robot->current_x ?? 76.23);
+            $ry = (float) ($robot->current_y ?? 64.42);
+            $distTo3DBase = hypot($rx - 85.48, $ry - 51.07);
+            $originLoc = ($distTo3DBase < 4.0) ? '1_Markas Robot' : '1_N7';
+        }
 
         // Create new active delivery
         $delivery = Delivery::create([
@@ -564,14 +585,14 @@ class TelemetryController extends Controller
             ->where('issue_type', 'Low Battery')
             ->update(['status' => 'Resolved']);
 
-        // Base coordinates for 1_N7
-        $baseX = 76.23;
-        $baseY = 64.42;
-        $graphPath = base_path('graph.json');
+        // Base coordinates for 1_Markas Robot
+        $baseX = 85.48;
+        $baseY = 51.07;
+        $graphPath = base_path('graph_3d.json');
         if (file_exists($graphPath)) {
             $graphData = json_decode(file_get_contents($graphPath), true);
             foreach ($graphData['locations'] ?? [] as $loc) {
-                if ($loc['id'] === '1_N7') {
+                if ($loc['id'] === '1_Markas Robot') {
                     $baseX = (float) $loc['x'];
                     $baseY = (float) $loc['y'];
                     break;
@@ -586,7 +607,7 @@ class TelemetryController extends Controller
 
         if ($pendingDelivery) {
             $itemPickedUp = $request->boolean('item_picked_up', false);
-            $startLoc = $itemPickedUp ? '1_N7' : $pendingDelivery->start_location;
+            $startLoc = $itemPickedUp ? '1_Markas Robot' : $pendingDelivery->start_location;
 
             // Re-route from base station (1_N7) to destination location directly (no teleport)
             $pendingDelivery->update([
@@ -666,14 +687,14 @@ class TelemetryController extends Controller
             Report::query()->delete();
         }
 
-        // Reset robots to initial coordinates at N7 (Floor 1 Base Station)
-        $baseX = 76.23;
-        $baseY = 64.42;
-        $graphPath = base_path('graph.json');
+        // Reset robots to initial coordinates at Markas Robot (Floor 1 Base Station 3D)
+        $baseX = 85.48;
+        $baseY = 51.07;
+        $graphPath = base_path('graph_3d.json');
         if (file_exists($graphPath)) {
             $graphData = json_decode(file_get_contents($graphPath), true);
             foreach ($graphData['locations'] ?? [] as $loc) {
-                if ($loc['id'] === '1_N7') {
+                if ($loc['id'] === '1_Markas Robot') {
                     $baseX = (float) $loc['x'];
                     $baseY = (float) $loc['y'];
                     break;
@@ -681,7 +702,8 @@ class TelemetryController extends Controller
             }
         }
 
-        Robot::where('name', 'Robot Alpha')->update([
+        Robot::where('id', 1)->update([
+            'name' => 'Robot Alpha',
             'status' => 'Idle',
             'battery_level' => 100,
             'current_x' => $baseX,
@@ -689,21 +711,7 @@ class TelemetryController extends Controller
             'floor' => 1,
         ]);
 
-        Robot::where('name', 'Robot Beta')->update([
-            'status' => 'Idle',
-            'battery_level' => 100,
-            'current_x' => $baseX,
-            'current_y' => $baseY,
-            'floor' => 1,
-        ]);
-
-        Robot::where('name', 'Robot Gamma')->update([
-            'status' => 'Idle',
-            'battery_level' => 100,
-            'current_x' => $baseX,
-            'current_y' => $baseY,
-            'floor' => 1,
-        ]);
+        Robot::where('id', '>', 1)->delete();
 
         return response()->json([
             'success' => true,
@@ -718,8 +726,7 @@ class TelemetryController extends Controller
             'adj' => 'required|array',
         ]);
 
-        $is3D = $request->boolean('is_3d') || ($request->input('mode') === '3d');
-        $graphPath = $is3D ? base_path('graph_3d.json') : base_path('graph.json');
+        $graphPath = base_path('graph_3d.json');
 
         $existing = file_exists($graphPath) ? json_decode(file_get_contents($graphPath), true) : [];
         $data = [
@@ -780,14 +787,14 @@ class TelemetryController extends Controller
             $this->dispatchAutopilotDeliveries();
         } else {
             // User turned OFF autopilot!
-            // 1. Base station coordinates
-            $baseX = 76.23;
-            $baseY = 64.42;
-            $graphPath = base_path('graph.json');
+            // 1. Base station coordinates (3D Markas Robot)
+            $baseX = 85.48;
+            $baseY = 51.07;
+            $graphPath = base_path('graph_3d.json');
             if (file_exists($graphPath)) {
                 $graphData = json_decode(file_get_contents($graphPath), true);
                 foreach ($graphData['locations'] ?? [] as $loc) {
-                    if ($loc['id'] === '1_N7') {
+                    if ($loc['id'] === '1_Markas Robot') {
                         $baseX = (float) $loc['x'];
                         $baseY = (float) $loc['y'];
                         break;
@@ -848,7 +855,7 @@ class TelemetryController extends Controller
             return;
         }
 
-        $graphPath = base_path('graph.json');
+        $graphPath = base_path('graph_3d.json');
         if (! file_exists($graphPath)) {
             return;
         }
@@ -878,24 +885,47 @@ class TelemetryController extends Controller
 
         $items = ['Handuk', 'Makanan', 'Dokumen', 'Kopi', 'Paket', 'Botol Air', 'Sparepart'];
 
-        // Base station coordinates (Floor 1 Base Node 1_N7)
-        $baseLoc = ['x' => 76.23, 'y' => 64.42, 'floor' => 1];
-        if (! empty($graph['locations'])) {
-            foreach ($graph['locations'] as $loc) {
-                if ($loc['id'] === '1_N7') {
-                    $baseLoc['x'] = (float) $loc['x'];
-                    $baseLoc['y'] = (float) $loc['y'];
-                    $baseLoc['floor'] = (int) ($loc['floor'] ?? 1);
-                    break;
+        // Base station definitions for both 2D and 3D modes
+        $baseLoc2D = ['id' => '1_N7', 'x' => 76.23, 'y' => 64.42, 'floor' => 1];
+        $baseLoc3D = ['id' => '1_Markas Robot', 'x' => 85.48, 'y' => 51.07, 'floor' => 1];
+
+        // Check if graph_3d.json or graph.json defines explicit coordinates
+        $graph3dPath = base_path('graph_3d.json');
+        if (file_exists($graph3dPath)) {
+            $graph3d = json_decode(file_get_contents($graph3dPath), true);
+            if (! empty($graph3d['locations'])) {
+                foreach ($graph3d['locations'] as $loc) {
+                    if ($loc['id'] === '1_Markas Robot') {
+                        $baseLoc3D['x'] = (float) $loc['x'];
+                        $baseLoc3D['y'] = (float) $loc['y'];
+                        $baseLoc3D['floor'] = (int) ($loc['floor'] ?? 1);
+                        break;
+                    }
                 }
             }
         }
+
+        if (! empty($graph['locations'])) {
+            foreach ($graph['locations'] as $loc) {
+                if ($loc['id'] === '1_N7') {
+                    $baseLoc2D['x'] = (float) $loc['x'];
+                    $baseLoc2D['y'] = (float) $loc['y'];
+                    $baseLoc2D['floor'] = (int) ($loc['floor'] ?? 1);
+                } elseif ($loc['id'] === '1_Markas Robot') {
+                    $baseLoc3D['x'] = (float) $loc['x'];
+                    $baseLoc3D['y'] = (float) $loc['y'];
+                    $baseLoc3D['floor'] = (int) ($loc['floor'] ?? 1);
+                }
+            }
+        }
+
+        $baseIds = ['1_N7', '1_Markas Robot'];
 
         // Primary realistic pickup hubs (e.g. Resepsionis, Kasir, Office, Pintu Masuk, Ruang Meeting)
         $pickupHubs = ['1_Resepsionis', '1_Kasir', '1_Office', '1_Pintu Masuk/Keluar', '1_Ruang Meeting 1', '1_Ruang Meeting 3'];
         $validPickupPool = array_values(array_intersect($destinations, $pickupHubs));
         if (empty($validPickupPool)) {
-            $validPickupPool = array_values(array_diff($destinations, ['1_N7']));
+            $validPickupPool = array_values(array_diff($destinations, $baseIds));
         }
 
         // Collect active delivery destinations to avoid sending multiple robots to the same room
@@ -925,34 +955,42 @@ class TelemetryController extends Controller
                 continue;
             }
 
-            // ONLY robots genuinely idle and physically docked at the base station (Floor 1, distance <= 1.5) can receive a new task
-            $distToBase = ((int) ($robot->floor ?? 1) === (int) $baseLoc['floor'])
-                ? hypot((float) ($robot->current_x ?? $baseLoc['x']) - $baseLoc['x'], (float) ($robot->current_y ?? $baseLoc['y']) - $baseLoc['y'])
-                : 999.0;
+            // Check if robot is docked at either 2D base or 3D base
+            $rFloor = (int) ($robot->floor ?? 1);
+            $rx = (float) ($robot->current_x ?? $baseLoc2D['x']);
+            $ry = (float) ($robot->current_y ?? $baseLoc2D['y']);
 
-            if ($distToBase > 1.5) {
+            $distTo2D = ($rFloor === 1) ? hypot($rx - $baseLoc2D['x'], $ry - $baseLoc2D['y']) : 999.0;
+            $distTo3D = ($rFloor === 1) ? hypot($rx - $baseLoc3D['x'], $ry - $baseLoc3D['y']) : 999.0;
+
+            $isAt2D = ($distTo2D <= 2.5);
+            $isAt3D = ($distTo3D <= 3.5);
+
+            if (! $isAt2D && ! $isAt3D) {
                 continue; // Robot has not arrived back at base station yet
             }
 
-            // Guarantee a unique destination: not currently active, not given to another robot in this batch, not base 1_N7
-            $availableDest = array_values(array_diff($destinations, $busyDestinations, $batchDestinations, ['1_N7']));
+            $chosenOrigin = $isAt3D ? '1_Markas Robot' : '1_N7';
+
+            // Guarantee a unique destination: not currently active, not given to another robot in this batch, not base stations
+            $availableDest = array_values(array_diff($destinations, $busyDestinations, $batchDestinations, $baseIds));
             if (empty($availableDest)) {
-                $availableDest = array_values(array_diff($destinations, $batchDestinations, ['1_N7']));
+                $availableDest = array_values(array_diff($destinations, $batchDestinations, $baseIds));
             }
             if (empty($availableDest)) {
-                $availableDest = array_values(array_diff($destinations, ['1_N7']));
+                $availableDest = array_values(array_diff($destinations, $baseIds));
             }
 
             $destLoc = $availableDest[array_rand($availableDest)];
             $batchDestinations[] = $destLoc;
 
-            // Guarantee a realistic pickup location (start_location) that is DIFFERENT from destLoc and DIFFERENT from base 1_N7
-            $availablePickup = array_values(array_diff($validPickupPool, [$destLoc, '1_N7'], $batchStartLocations));
+            // Guarantee a realistic pickup location (start_location) that is DIFFERENT from destLoc and DIFFERENT from base stations
+            $availablePickup = array_values(array_diff($validPickupPool, [$destLoc], $baseIds, $batchStartLocations));
             if (empty($availablePickup)) {
-                $availablePickup = array_values(array_diff($destinations, [$destLoc, '1_N7'], $batchStartLocations));
+                $availablePickup = array_values(array_diff($destinations, [$destLoc], $baseIds, $batchStartLocations));
             }
             if (empty($availablePickup)) {
-                $availablePickup = array_values(array_diff($destinations, [$destLoc, '1_N7']));
+                $availablePickup = array_values(array_diff($destinations, [$destLoc], $baseIds));
             }
             $startLoc = $availablePickup[array_rand($availablePickup)];
             $batchStartLocations[] = $startLoc;
@@ -965,30 +1003,14 @@ class TelemetryController extends Controller
             $item = $availableItems[array_rand($availableItems)];
             $batchItems[] = $item;
 
-            $pickupLocData = null;
-            if (! empty($graph['locations'])) {
-                foreach ($graph['locations'] as $loc) {
-                    if ($loc['id'] === $startLoc) {
-                        $pickupLocData = $loc;
-                        break;
-                    }
-                }
-            }
-            if (! $pickupLocData) {
-                $pickupLocData = $baseLoc;
-            }
-
             $robot->update([
                 'status' => 'Delivering',
-                'current_x' => $baseLoc['x'],
-                'current_y' => $baseLoc['y'],
-                'floor' => 1,
             ]);
 
             Delivery::create([
                 'robot_id' => $robot->id,
                 'item_name' => $item,
-                'origin_location' => '1_N7',
+                'origin_location' => $chosenOrigin,
                 'start_location' => $startLoc,
                 'destination_location' => $destLoc,
                 'status' => 'In Progress',
