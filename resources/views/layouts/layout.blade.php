@@ -322,6 +322,7 @@
                     <i class="fa-solid fa-route text-lg {{ Route::is('deliveries') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
                     <span class="text-sm">Pengiriman</span>
                 </a>
+                @endif
 
                 <a href="{{ route('reports') }}" 
                    class="flex items-center justify-between px-4 py-3 rounded transition duration-200 group {{ Route::is('reports') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
@@ -332,6 +333,7 @@
                     <span id="sidebar-reports-count" class="hidden bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">0</span>
                 </a>
 
+                @if(auth()->check() && auth()->user()->isAdmin())
                 <a href="{{ route('history') }}" 
                    class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('history') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-clock-rotate-left text-lg {{ Route::is('history') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>

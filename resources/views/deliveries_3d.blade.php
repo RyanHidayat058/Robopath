@@ -11,7 +11,6 @@
         <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col h-full">
             <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
                 <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                    <i class="fa-solid fa-clock-rotate-left text-brand-blue"></i>
                     Riwayat Aktivitas Hari Ini
                 </h3>
                 <span class="text-[11px] font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full" id="timeline-count-badge">
@@ -58,7 +57,6 @@
         <div class="bg-white border border-gray-200 p-6 rounded-2xl shadow-xl flex flex-col h-full">
             <div class="flex items-center justify-between pb-3 border-b border-gray-200 mb-4">
                 <h3 class="text-base font-bold text-gray-800 flex items-center gap-2">
-                    <i class="fa-solid fa-truck-ramp-box text-[#3b4cb8]"></i>
                     Misi Pengantaran Berjalan
                 </h3>
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-50 text-sky-700 border border-sky-200">
