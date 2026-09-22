@@ -88,15 +88,14 @@
                     </select>
                 </div>
 
-                <!-- Starting Location -->
+                <!-- Starting Location (Titik Jemput) -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Starting Location</label>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Titik Jemput (Pick-up Location)</label>
                     <select id="dispatch-start" class="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:border-sky-500 transition" required>
-                        <option value="" disabled>Choose starting location...</option>
+                        <option value="" disabled selected>Pilih titik jemput barang...</option>
                         <optgroup label="Lantai 1 (Ground Floor)">
-                            <option value="1_N7" selected>Base Station (N7 - Lantai 1)</option>
                             @foreach($locations as $id => $coords)
-                            @if(($coords['floor'] ?? 1) == 1 && $id !== '1_N7' && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
+                            @if(($coords['floor'] ?? 1) == 1 && (($coords['is_destination'] ?? false) || !($coords['hidden'] ?? false)))
                             <option value="{{ $id }}">{{ $coords['name'] }} (Lantai 1)</option>
                             @endif
                             @endforeach
@@ -181,13 +180,23 @@
                     </h3>
                     <p class="text-xs text-gray-500" id="live-map-subtitle">Lantai 1 (Ground Floor - Lobby, Office & Receptionist)</p>
                 </div>
-                <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
-                    <button onclick="switchLiveFloor(1)" id="btn-deliv-f1" class="px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition">
-                        Lantai 1
+                <div class="flex items-center gap-2">
+                    <button onclick="focusOnRobotOrBase()" class="px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold border border-white/10 shadow flex items-center gap-1.5 transition" title="Fokuskan kamera ke Robot / Markas">
+                        <i class="fa-solid fa-crosshairs text-sky-400"></i>
+                        <span>Fokus Robot</span>
                     </button>
-                    <button onclick="switchLiveFloor(2)" id="btn-deliv-f2" class="px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">
-                        Lantai 2
+                    <button onclick="toggle3DRoomLabels()" id="btn-toggle-deliv-labels" class="px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold border border-white/10 shadow flex items-center gap-1.5 transition" title="Sembunyikan / Tampilkan Nama Ruangan">
+                        <i class="fa-solid fa-tag text-emerald-400" id="icon-deliv-labels"></i>
+                        <span id="text-deliv-labels">Label: ON</span>
                     </button>
+                    <div class="flex items-center gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 text-xs font-bold">
+                        <button onclick="switchLiveFloor(1)" id="btn-deliv-f1" class="px-3 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow transition">
+                            Lantai 1
+                        </button>
+                        <button onclick="switchLiveFloor(2)" id="btn-deliv-f2" class="px-3 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition">
+                            Lantai 2
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -249,6 +258,61 @@
 
 @section('scripts')
 <script>
+    const locations = {
+        @foreach($locations as $id => $loc)
+        '{{ $id }}': { 
+            id: '{{ $id }}',
+            name: '{{ addslashes($loc['name'] ?? $id) }}',
+            x: {{ $loc['x'] }}, 
+            y: {{ $loc['y'] }}, 
+            floor: {{ $loc['floor'] ?? 1 }},
+            hidden: {{ ($loc['hidden'] ?? false) ? 'true' : 'false' }},
+            is_destination: {{ ($loc['is_destination'] ?? false) ? 'true' : 'false' }},
+            objectName: {!! isset($loc['objectName']) && $loc['objectName'] ? ("'" . addslashes($loc['objectName']) . "'") : 'null' !!}
+        },
+        @endforeach
+    };
+
+    const adj = {
+        @foreach($adj as $node => $neighbors)
+        '{{ $node }}': [ @foreach($neighbors as $nbr) '{{ $nbr }}', @endforeach ],
+        @endforeach
+    };
+
+    // Auto-bridge isolated nodes like 1_Markas Robot to adjacent corridor nodes dynamically at runtime
+    (function bridgeGraphNodes() {
+        const baseId = '1_Markas Robot';
+        if (locations[baseId]) {
+            if (!adj[baseId] || adj[baseId].length === 0) {
+                const targetNode = locations['1_N114'] ? '1_N114' : '1_N110';
+                if (targetNode && locations[targetNode]) {
+                    adj[baseId] = [targetNode];
+                    if (!adj[targetNode]) adj[targetNode] = [];
+                    if (!adj[targetNode].includes(baseId)) adj[targetNode].push(baseId);
+                }
+            }
+        }
+    })();
+
+    // Parking slot calculation for Markas Robot so robots NEVER overlap
+    function getBaseParkingOffset(robotIndex) {
+        const i = Number(robotIndex) || 0;
+        const col = i % 3; // 0, 1, 2
+        const row = Math.floor(i / 3); // 0, 1
+        const dx = (col - 1) * 1.8; // -1.8%, 0%, +1.8%
+        const dy = (row - 0.5) * 1.6; // -0.8%, +0.8%
+        return { dx, dy };
+    }
+
+    let robots = @json($robots);
+    let activeDeliveries = @json($activeDeliveries);
+    let activeAlerts = [];
+    let serverClientOffset = 0;
+    let liveCurrentFloor = 1;
+    let simulationInterval = null;
+    let syncInterval = null;
+    let autopilotEnabled = {{ Illuminate\Support\Facades\Cache::get('autopilot_enabled', false) ? 'true' : 'false' }};
+
     const floor1ModelUrl = "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
     const floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
     const robotModelUrl = "{{ asset('models/robot.glb') }}";
@@ -262,76 +326,235 @@
         camera: { dist: parseFloat(settings3D?.camera?.dist ?? 5.0), fov: parseFloat(settings3D?.camera?.fov ?? 5.0), preset: settings3D?.camera?.preset ?? 'iso' },
         lighting: { ambient: parseFloat(settings3D?.lighting?.ambient ?? 1.4), sun: parseFloat(settings3D?.lighting?.sun ?? 1.8), exposure: parseFloat(settings3D?.lighting?.exposure ?? 1.0), fill: parseFloat(settings3D?.lighting?.fill ?? 0.8) },
         model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
-        robot_scale: parseFloat(settings3D?.robot_scale ?? 0.6)
+        robot_scale: parseFloat(settings3D?.robot_scale ?? 0.1),
+        robot_elevation_f1: parseFloat(settings3D?.robot_elevation_f1 ?? 0.059),
+        robot_elevation_f2: parseFloat(settings3D?.robot_elevation_f2 ?? 0.112)
     };
     // robot template shared (same as dashboard)
     let robotTemplate = null, robotTemplateReady = false, robotTemplateLoading = false, robotTemplateFailed = false;
     let robotTemplateCallbacks = [], robotTemplateTries = 0;
     function activeDelivViewer(){ return Number(liveCurrentFloor)===1 ? threeDelivF1 : threeDeliv; }
     function allDelivViewers(){ return [threeDeliv, threeDelivF1].filter(Boolean); }
-    function parkCoordsForFloor(f){ return f===1 ? {x:72.1,y:85.71} : {x:72.3,y:66.3}; }
     function viewerOfHolder(holder){
         if(!holder) return null;
         for(const v of allDelivViewers()){ if(v && v.robotMeshes && v.robotMeshes.has(Number(holder.userData?.robotId))) return v; }
         return activeDelivViewer();
     }
 
-    // Helper: Create room label sprite (compact & sleek)
+    let showRoomLabels = true;
+    function toggle3DRoomLabels() {
+        showRoomLabels = !showRoomLabels;
+        allDelivViewers().forEach(v => {
+            if (v && v.labelsGroup) v.labelsGroup.visible = showRoomLabels;
+        });
+        const icon = document.getElementById('icon-deliv-labels');
+        const text = document.getElementById('text-deliv-labels');
+        const btn = document.getElementById('btn-toggle-deliv-labels');
+        if (showRoomLabels) {
+            if (icon) icon.className = 'fa-solid fa-tag text-emerald-400';
+            if (text) text.textContent = 'Label: ON';
+            if (btn) btn.className = 'px-2.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-white text-xs font-bold border border-white/10 shadow flex items-center gap-1.5 transition';
+        } else {
+            if (icon) icon.className = 'fa-solid fa-tag text-gray-500';
+            if (text) text.textContent = 'Label: OFF';
+            if (btn) btn.className = 'px-2.5 py-1.5 rounded-xl bg-slate-900/40 hover:bg-slate-900/80 text-gray-400 text-xs font-bold border border-white/5 shadow flex items-center gap-1.5 transition';
+        }
+    }
+
+    function focusOnRobotOrBase() {
+        const viewer = activeDelivViewer();
+        if (!viewer || !viewer.controls || !viewer.camera) return;
+        const baseLoc = getBaseLocation();
+        const sz = viewer.getModelSize ? viewer.getModelSize() : null;
+        if (!sz || sz.x <= 0.1) return;
+
+        const activeRob = robots.find(r => Number(r.floor || 1) === Number(liveCurrentFloor)) || robots[0];
+        let targetPt = null;
+        if (activeRob && activeRob.current_x !== undefined) {
+            targetPt = worldPosForLoc({ x: activeRob.current_x, y: activeRob.current_y }, sz);
+        } else if (baseLoc && Number(liveCurrentFloor) === 1) {
+            targetPt = worldPosForLoc(baseLoc, sz);
+        }
+
+        if (targetPt) {
+            const elev = (Number(liveCurrentFloor) === 2)
+                ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+                : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+            
+            const targetPos = new THREE.Vector3(targetPt.x, elev, targetPt.z);
+            viewer.controls.target.copy(targetPos);
+            viewer.camera.position.set(targetPos.x + 2.5, elev + 3.8, targetPos.z + 4.2);
+            viewer.controls.update();
+        }
+    }
+
+    // Helper: Create sleek 2D-style robot icon sprite (white card + vector robot icon + colored border, compact)
+    function create2DRobotMarkerSprite(robotId, robotName, robotColor) {
+        const cPin = document.createElement('canvas');
+        cPin.width = 128;
+        cPin.height = 128;
+        const ctx = cPin.getContext('2d');
+
+        // White rounded card
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(14, 14, 100, 100, 22);
+        else ctx.rect(14, 14, 100, 100);
+        ctx.fill();
+        ctx.strokeStyle = robotColor;
+        ctx.lineWidth = 7;
+        ctx.stroke();
+
+        // Vector robot icon (FontAwesome fa-robot style)
+        ctx.fillStyle = robotColor;
+        // Antenna
+        ctx.beginPath();
+        ctx.arc(64, 30, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(62, 33, 4, 8);
+
+        // Robot Head
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(36, 41, 56, 46, 8);
+        else ctx.rect(36, 41, 56, 46);
+        ctx.fill();
+
+        // Ears
+        ctx.fillRect(28, 53, 8, 18);
+        ctx.fillRect(92, 53, 8, 18);
+
+        // Eye Visor / Eyes
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(44, 51, 40, 14, 4);
+        else ctx.rect(44, 51, 40, 14);
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(52, 58, 3.5, 0, Math.PI * 2);
+        ctx.arc(76, 58, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Mouth grill
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(48, 73, 32, 4);
+
+        const pinTex = new THREE.CanvasTexture(cPin);
+        pinTex.minFilter = THREE.LinearFilter;
+        const pinMat = new THREE.SpriteMaterial({ map: pinTex, transparent: true, depthTest: false, depthWrite: false });
+        const markerSprite = new THREE.Sprite(pinMat);
+        markerSprite.scale.set(0.075, 0.075, 1);
+        markerSprite.position.set(0, 0.13, 0);
+        markerSprite.renderOrder = 1002;
+        return markerSprite;
+    }
+
+    // Helper: Create compact, sleek robot name badge (not giant!)
+    function create2DRobotNameSprite(robotName, robotColor) {
+        const c = document.createElement('canvas');
+        c.width = 256;
+        c.height = 56;
+        const ctx = c.getContext('2d');
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(6, 6, 244, 44, 10);
+        else ctx.rect(6, 6, 244, 44);
+        ctx.fill();
+        ctx.strokeStyle = robotColor;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        let cleanName = String(robotName || 'Robot').replace(/^Robot\s*/i, '');
+        ctx.fillText(cleanName, 128, 28);
+
+        const tex = new THREE.CanvasTexture(c);
+        tex.minFilter = THREE.LinearFilter;
+        const sMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false });
+        const nameSprite = new THREE.Sprite(sMat);
+        nameSprite.scale.set(0.155, 0.034, 1);
+        nameSprite.position.set(0, 0.09, 0);
+        nameSprite.renderOrder = 1001;
+        nameSprite.userData = { canvas: c, texture: tex };
+        return nameSprite;
+    }
+
+    // Helper: Create room label sprite (compact, elegant & close to floor)
     function createRoomLabelSprite(text, isDest = true, isStairs = false) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = 384;
-        canvas.height = 96;
+        canvas.height = 80;
 
-        const bgFill = isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.90)' : 'rgba(30, 41, 59, 0.85)');
-        const borderColor = isStairs ? '#fbbf24' : (isDest ? '#38bdf8' : '#94a3b8');
+        const isMarkas = String(text).toLowerCase().includes('markas');
+        const bgFill = isMarkas 
+            ? 'rgba(16, 185, 129, 0.95)' 
+            : (isStairs ? 'rgba(217, 119, 6, 0.92)' : (isDest ? 'rgba(15, 23, 42, 0.88)' : 'rgba(30, 41, 59, 0.80)'));
+        const borderColor = isMarkas 
+            ? '#34d399' 
+            : (isStairs ? '#fbbf24' : (isDest ? '#38bdf8' : '#94a3b8'));
 
-        const radius = 18;
+        const radius = 16;
         ctx.fillStyle = bgFill;
         ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.roundRect(8, 8, canvas.width - 16, canvas.height - 16, radius);
+        ctx.roundRect(6, 6, canvas.width - 12, canvas.height - 12, radius);
         ctx.fill();
         ctx.stroke();
 
         ctx.fillStyle = borderColor;
         ctx.beginPath();
-        ctx.arc(32, canvas.height / 2, 7, 0, Math.PI * 2);
+        ctx.arc(28, canvas.height / 2, 6, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 26px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.font = 'bold 24px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
 
         let cleanText = String(text).replace(/^[12]_/, '');
-        if (cleanText.length > 20) cleanText = cleanText.substring(0, 18) + '...';
-        ctx.fillText(cleanText, 52, canvas.height / 2);
+        if (cleanText.length > 18) cleanText = cleanText.substring(0, 16) + '...';
+        ctx.fillText((isMarkas ? '🏠 ' : '') + cleanText, 46, canvas.height / 2);
 
         const texture = new THREE.CanvasTexture(canvas);
-        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, depthWrite: false });
+        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: true, depthWrite: false });
         const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(3.6 * labelScaleMultiplier, 0.9 * labelScaleMultiplier, 1);
-        sprite.renderOrder = 999;
+        // Skala proporsional & rapi (tidak raksasa)
+        const lw = 1.35 * labelScaleMultiplier;
+        const lh = 0.28 * labelScaleMultiplier;
+        sprite.scale.set(lw, lh, 1);
+        sprite.renderOrder = 900;
         return sprite;
     }
     function worldPosForLoc(loc, size){
-        const u=(loc._u ?? loc.x/100), v=(loc._v ?? loc.y/100);
-        return new THREE.Vector3((u-0.5)*(size.x*0.95),0,(v-0.5)*(size.z*0.95));
+        const u = (loc._u ?? loc.x/100), v = (loc._v ?? loc.y/100);
+        const yElev = (loc.y_elev !== undefined && loc.y_elev !== null) ? Number(loc.y_elev) : (loc._fy ?? 0);
+        return new THREE.Vector3((u-0.5)*(size.x*0.95), yElev, (v-0.5)*(size.z*0.95));
     }
 
-    // Helper: Cached GLB buffer loader (with progress cb)
+    // Helper: Unified Cached GLB loader leveraging window.RobopathGLBCache (Memory + IDB + CacheStorage)
     async function fetchGLBBufferWithCache(url, onProgress) {
+        if (window.RobopathGLBCache && typeof window.RobopathGLBCache.fetchWithProgress === 'function') {
+            return await window.RobopathGLBCache.fetchWithProgress(url, onProgress);
+        }
         if ('caches' in window) {
             try {
                 const cache = await caches.open(MODEL_CACHE_NAME);
                 const cachedResponse = await cache.match(url);
                 if (cachedResponse) {
-                    if (onProgress) onProgress(1,1,true);
+                    if (onProgress) {
+                        try { onProgress(1, 1, true); } catch (e) {}
+                    }
                     return await cachedResponse.arrayBuffer();
                 }
-            } catch (e) { console.warn('[Robopath Cache] read bypass', e); }
+            } catch (e) {}
         }
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -342,7 +565,9 @@
             const {done,value}=await reader.read();
             if(done) break;
             chunks.push(value); loadedBytes+=value.length;
-            if(onProgress) onProgress(loadedBytes,totalBytes,false);
+            if(onProgress) {
+                try { onProgress(loadedBytes, totalBytes, false); } catch (e) {}
+            }
         }
         const all=new Uint8Array(loadedBytes); let pos=0; for(const c of chunks){ all.set(c,pos); pos+=c.length; }
         const buffer=all.buffer;
@@ -356,6 +581,7 @@
         }
         return buffer;
     }
+
     function ensureRobotTemplate(cb){
         if(robotTemplateReady){ cb(robotTemplate); return; }
         if(robotTemplateFailed){ cb(null); return; }
@@ -428,7 +654,7 @@
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(width, height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
         renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = parseFloat(current3DSettings.lighting.exposure ?? 1.0);
@@ -441,8 +667,8 @@
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.maxPolarAngle = Math.PI / 2.05;
-        controls.minDistance = 2;
-        controls.maxDistance = 200;
+        controls.minDistance = 0.2;
+        controls.maxDistance = 120;
 
         const ambientLight = new THREE.AmbientLight(0xffffff, parseFloat(current3DSettings.lighting.ambient ?? 1.4));
         scene.add(ambientLight);
@@ -474,12 +700,21 @@
         let loadedModel = null;
         let modelSize = new THREE.Vector3();
 
-        function snapRobot3D(holder, worldPct, sz){
+        function snapRobot3D(holder, worldPct, sz, floorNum){
             const wp = worldPosForLoc(worldPct, sz);
-            holder.position.set(wp.x, 0.02, wp.z);
+            const f = Number(floorNum || 1);
+            const elev = (f === 2)
+                ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+                : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+            holder.position.set(wp.x, elev, wp.z);
             if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3();
             holder.userData.targetWp.copy(holder.position);
             return wp;
+        }
+        function hideRobot3DAvatar(viewer, robot) {
+            if (!viewer || !viewer.robotMeshes) return;
+            const holder = viewer.robotMeshes.get(Number(robot.id));
+            if (holder) holder.visible = false;
         }
         function smoothFaceTowards(holder, deg){
             const rad = -(deg||0)*Math.PI/180;
@@ -494,45 +729,82 @@
             else if(robot.status==='Delivering' && delivery){ label='▶ MENGANTAR → '+(destName||delivery.destination_location||''); bg='rgba(59,130,246,0.94)'; }
             else if(robot.status==='Charging'){ label='⚡ CHARGING'; bg='rgba(234,88,12,0.94)'; }
             else if(robot.status==='Maintenance'){ label='🔧 MAINTENANCE'; bg='rgba(225,29,72,0.94)'; }
-            else { label='● IDLE'; bg='rgba(16,185,129,0.94)'; }
-            ctx.font='bold 30px Segoe UI, sans-serif'; const pad=26, h=50, tw=Math.min(512-16, ctx.measureText(label).width+52), radius=h/2;
-            const x0=(512-tw)/2, y0=(72-h)/2;
-            ctx.fillStyle=bg; ctx.beginPath(); ctx.roundRect(x0,y0,tw,h,radius); ctx.fill();
-            ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=3; ctx.stroke();
-            ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,256,36);
+            else { label='● IDLE (Markas)'; bg='rgba(16,185,129,0.94)'; }
+            ctx.font='bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'; 
+            const pad=16, h=36, tw=Math.min(c.width-12, ctx.measureText(label).width+28), radius=h/2;
+            const x0=(c.width-tw)/2, y0=(c.height-h)/2;
+            ctx.fillStyle=bg; ctx.beginPath(); 
+            if(ctx.roundRect) ctx.roundRect(x0,y0,tw,h,radius); else ctx.rect(x0,y0,tw,h);
+            ctx.fill();
+            ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=2; ctx.stroke();
+            ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,c.width/2,c.height/2);
             tex.needsUpdate=true; spr.visible=true;
         }
         function getOrCreateRobotMesh(robot){
             const rid=Number(robot.id);
             if(robotMeshes.has(rid)) return robotMeshes.get(rid);
             const holder=new THREE.Group(); holder.userData.robotId=rid;
-            const rSc = parseFloat(current3DSettings.robot_scale ?? 0.6);
-            holder.scale.set(rSc, rSc, rSc);
+            const rSc = parseFloat(current3DSettings.robot_scale ?? 0.1);
+            
+            // Sub-group untuk model fisik robot (di-scale rSc agar fisik robot pas)
+            const modelHolder=new THREE.Group();
+            modelHolder.scale.set(rSc, rSc, rSc);
+            modelHolder.rotation.y = Math.PI;
+            holder.add(modelHolder);
+            holder.userData.modelHolder = modelHolder;
+
             const boxGeo=new THREE.BoxGeometry(0.5,0.5,0.5);
-            const boxMat=new THREE.MeshStandardMaterial({color:getRobotColor(rid)});
-            const box=new THREE.Mesh(boxGeo, boxMat); box.position.y=0.25; holder.add(box);
-            const c2=document.createElement('canvas'); c2.width=512; c2.height=96;
-            const sMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c2), transparent:true, depthTest:false, depthWrite:false});
-            const nameSprite=new THREE.Sprite(sMat); nameSprite.scale.set(1.4,0.26,1); nameSprite.position.set(0,1.35,0); nameSprite.renderOrder=999;
-            nameSprite.userData={canvas:c2, texture:sMat.map}; holder.add(nameSprite); holder.userData.nameSprite=nameSprite;
-            const c3=document.createElement('canvas'); c3.width=512; c3.height=72;
+            const boxMat=new THREE.MeshStandardMaterial({color:getRobotColor(rid), metalness:0.3, roughness:0.4});
+            const box=new THREE.Mesh(boxGeo, boxMat); box.position.y=0.25; 
+            modelHolder.add(box);
+            holder.userData.boxMesh=box;
+
+            // 2D Style Robot Marker Card Sprite (sleek white card with vector robot icon & robot border)
+            const markerSprite = create2DRobotMarkerSprite(rid, robot.name, getRobotColor(rid));
+            markerSprite.position.set(0, 0.13, 0);
+            holder.add(markerSprite);
+            holder.userData.markerSprite = markerSprite;
+
+            // Compact Badge Nama Robot (World space: proporsional, tajam & rapi)
+            const nameSprite = create2DRobotNameSprite(robot.name, getRobotColor(rid));
+            nameSprite.position.set(0, 0.09, 0);
+            holder.add(nameSprite); 
+            holder.userData.nameSprite=nameSprite;
+
+            // Compact Status Badge Sprite
+            const c3=document.createElement('canvas'); c3.width=384; c3.height=56;
             const stMat=new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c3), transparent:true, depthTest:false, depthWrite:false});
-            const stSpr=new THREE.Sprite(stMat); stSpr.scale.set(1.35,0.2,1); stSpr.position.set(0,1.78,0); stSpr.renderOrder=1000; stSpr.visible=false;
-            stSpr.userData={canvas:c3, texture:stMat.map}; holder.add(stSpr); holder.userData.statusSprite=stSpr;
-            holder.userData.boxMesh=box; holder.visible=false;
+            const stSpr=new THREE.Sprite(stMat); 
+            stSpr.scale.set(0.165, 0.026, 1); 
+            stSpr.position.set(0, 0.06, 0); 
+            stSpr.renderOrder=1000; 
+            stSpr.visible=false;
+            stSpr.userData={canvas:c3, texture:stMat.map}; 
+            holder.add(stSpr); 
+            holder.userData.statusSprite=stSpr;
+
+            holder.visible=false;
             const swap=(tpl)=>{
                 if(!tpl || !holder.userData.boxMesh) return;
-                try{ const clone=tpl.clone(true); clone.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; }}); holder.remove(holder.userData.boxMesh); holder.add(clone); holder.userData.glbClone=clone; }catch(e){}
+                try{ 
+                    const clone=tpl.clone(true); 
+                    clone.traverse(c=>{ if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; }}); 
+                    clone.position.set(0, 0, 0);
+                    modelHolder.remove(holder.userData.boxMesh); 
+                    modelHolder.add(clone); 
+                    holder.userData.glbClone=clone; 
+                }catch(e){}
             };
             if(robotTemplateReady) swap(robotTemplate); else try{ ensureRobotTemplate(swap);}catch(e){}
-            // update name sprite text
-            try{ const ctx=c2.getContext('2d'); ctx.clearRect(0,0,512,96); ctx.fillStyle='rgba(15,23,42,0.9)'; ctx.beginPath(); ctx.roundRect(8,8,496,80,18); ctx.fill(); ctx.strokeStyle='#38bdf8'; ctx.lineWidth=3; ctx.stroke(); ctx.fillStyle='#fff'; ctx.font='bold 28px Segoe UI'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(String(robot.name||('Robot '+rid)),256,48); sMat.map.needsUpdate=true; }catch(e){}
-            robotsGroup.add(holder); robotMeshes.set(rid, holder); return holder;
+            
+            robotsGroup.add(holder); 
+            robotMeshes.set(rid, holder); 
+            return holder;
         }
         function updateRobot3DAvatar(viewer, robot, coords, destName){
             if(!viewer || !viewer.getModelSize || !viewer.robotMeshes) return false;
             const sz=viewer.getModelSize(); if(!sz||sz.x<=0.1) return false;
-            const holder=viewer.getOrCreateRobotMesh(robot); snapRobot3D(holder, coords, sz); holder.visible=true; try{holder.rotation.y=-((robot.rotation||0)*Math.PI/180);}catch(e){}
+            const holder=viewer.getOrCreateRobotMesh(robot); snapRobot3D(holder, coords, sz, robot.floor || (viewer===threeDeliv ? 2 : 1)); holder.visible=true; try{holder.rotation.y=-((robot.rotation||0)*Math.PI/180);}catch(e){}
             const d=(robot.status==='Delivering') ? (robot._activeDelivery||null) : null;
             try{ updateRobotStatusSprite(holder, robot, d, !!robot.hasIssue, destName);}catch(e){}
             return true;
@@ -546,9 +818,20 @@
         if(loaderEl && !modelLoadedByFloor[floorNum]){
             loaderEl.classList.remove('hidden');
             if(loaderTitle) loaderTitle.textContent=`Memuat Model 3D Lantai ${floorNum}...`;
-            if(loaderStatus) loaderStatus.textContent=`Mengunduh aset GLB (${floorNum===1?'8':'14'} MB)...`;
+            if(loaderStatus) loaderStatus.textContent=`Memeriksa penyimpanan lokal...`;
             if(loaderBar) loaderBar.style.width='5%';
             if(loaderPct) loaderPct.textContent='5%';
+            if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                window.RobopathGLBCache.isCached(modelUrl).then(isCached => {
+                    if (isCached && loaderStatus) {
+                        loaderStatus.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                        if (loaderBar) loaderBar.style.width = '85%';
+                        if (loaderPct) loaderPct.textContent = '85%';
+                    } else if (loaderStatus) {
+                        loaderStatus.textContent = `Mengunduh aset GLB (${floorNum === 1 ? '8' : '14'} MB)...`;
+                    }
+                }).catch(() => {});
+            }
         }
 
         const gltfLoader = new THREE.GLTFLoader();
@@ -558,82 +841,145 @@
             gltfLoader.setDRACOLoader(dracoLoader);
         }
 
+        // Safety watchdog: loader overlay cannot be stuck permanently (max 10s auto-dismiss)
+        const watchdogTimer = setTimeout(() => {
+            if (loaderEl && !loaderEl.classList.contains('hidden') && Number(liveCurrentFloor) === floorNum) {
+                console.warn(`[Robopath Deliv 3D] Watchdog auto-dismiss loader for Floor ${floorNum}`);
+                if (loaderBar) loaderBar.style.width = '100%';
+                if (loaderPct) loaderPct.textContent = '100%';
+                loaderEl.classList.add('hidden');
+            }
+        }, 10000);
+
         let _delivModel = null;
         let _delivSize = new THREE.Vector3();
-        fetchGLBBufferWithCache(modelUrl, (loadedBytes,totalBytes,fromCache)=>{
-            if(!loaderEl || Number(currentDashboardFloor||liveCurrentFloor)===floorNum && modelLoadedByFloor[floorNum]) return;
-            if(fromCache){ if(loaderBar) loaderBar.style.width='90%'; if(loaderPct) loaderPct.textContent='90%'; if(loaderStatus) loaderStatus.textContent='Memuat dari Cache Lokal (Instan)...'; }
-            else { const pct=Math.min(Math.round((loadedBytes/totalBytes)*100),99); if(loaderBar) loaderBar.style.width=pct+'%'; if(loaderPct) loaderPct.textContent=pct+'%'; if(loaderStatus) loaderStatus.textContent=`Mengunduh: ${(loadedBytes/1048576).toFixed(1)} MB / ${(totalBytes/1048576).toFixed(1)} MB`; }
+        fetchGLBBufferWithCache(modelUrl, (loadedBytes, totalBytes, fromCache) => {
+            if (!loaderEl || (Number(liveCurrentFloor) === floorNum && modelLoadedByFloor[floorNum])) return;
+            if (fromCache) {
+                if (loaderBar) loaderBar.style.width = '95%';
+                if (loaderPct) loaderPct.textContent = '95%';
+                if (loaderStatus) loaderStatus.textContent = 'Memuat dari Cache Lokal (Instan)...';
+            } else {
+                const pct = Math.min(Math.round((loadedBytes / totalBytes) * 100), 99);
+                if (loaderBar) loaderBar.style.width = pct + '%';
+                if (loaderPct) loaderPct.textContent = pct + '%';
+                if (loaderStatus) loaderStatus.textContent = `Mengunduh: ${(loadedBytes / 1048576).toFixed(1)} MB / ${(totalBytes / 1048576).toFixed(1)} MB`;
+            }
         }).then(buffer => {
             gltfLoader.parse(buffer, '', (gltf) => {
-                const model = gltf.scene;
-                _delivModel = model; loadedModel=model;
-                const box = new THREE.Box3().setFromObject(model);
-                const center = box.getCenter(new THREE.Vector3());
-                const size = box.getSize(new THREE.Vector3());
-                _delivSize.copy(size); modelSize.copy(size);
+                clearTimeout(watchdogTimer);
+                try {
+                    const model = gltf.scene;
+                    _delivModel = model; loadedModel=model;
+                    const box = new THREE.Box3().setFromObject(model);
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3());
+                    _delivSize.copy(size); modelSize.copy(size);
 
-                model.position.x -= center.x;
-                model.position.y -= box.min.y;
-                model.position.z -= center.z;
-                const mScale = parseFloat(current3DSettings.model_scale ?? 1.0);
-                model.scale.set(mScale,mScale,mScale);
-                const scaledBox = new THREE.Box3().setFromObject(model);
-                const scaledSize = scaledBox.getSize(new THREE.Vector3());
-                if(scaledSize.x>0.1) { size.copy(scaledSize); _delivSize.copy(scaledSize); modelSize.copy(scaledSize); }
+                    model.position.x -= center.x;
+                    model.position.y -= box.min.y;
+                    model.position.z -= center.z;
+                    const mScale = parseFloat(current3DSettings.model_scale ?? 1.0);
+                    model.scale.set(mScale,mScale,mScale);
+                    const scaledBox = new THREE.Box3().setFromObject(model);
+                    const scaledSize = scaledBox.getSize(new THREE.Vector3());
+                    if(scaledSize.x>0.1) { size.copy(scaledSize); _delivSize.copy(scaledSize); modelSize.copy(scaledSize); }
 
-                model.traverse((child) => {
-                    if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
-                });
-                scene.add(model);
-                modelLoadedByFloor[floorNum]=true;
-                try { resolveAllObjectAnchors(locations, model, _delivSize, floorNum); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
-
-                labelsGroup.clear();
-                let labelIdx=0;
-                for (let id in locations) {
-                    const loc = locations[id];
-                    if (Number(loc.floor) !== floorNum) continue;
-                    const isStairs = id.includes('Stairs');
-                    if (!loc.is_destination && !isStairs) continue;
-                    const sprite = createRoomLabelSprite(loc.name || id, loc.is_destination, isStairs);
-                    const wp = worldPosForLoc(loc, _delivSize);
-                    sprite.position.set(wp.x, (_delivSize.y||0.22)+0.32+(labelIdx%5)*0.22, wp.z);
-                    labelIdx++; labelsGroup.add(sprite);
-                }
-
-                try{
-                    const park=parkCoordsForFloor(floorNum); const parkX=park.x, parkY=park.y;
-                    robots.forEach((r,idx)=>{
-                        const holder=getOrCreateRobotMesh(r);
-                        const offX=(idx-(robots.length-1)/2)*2.0;
-                        const wp=worldPosForLoc({x:parkX+offX,y:parkY}, _delivSize);
-                        holder.position.set(wp.x,0.02,wp.z);
-                        if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3();
-                        holder.userData.targetWp.copy(holder.position);
-                        holder.rotation.y=-((r.rotation||0)*Math.PI/180);
-                        holder.visible=true;
+                    model.traverse((child) => {
+                        if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
                     });
-                }catch(e){}
+                    scene.add(model);
+                    modelLoadedByFloor[floorNum]=true;
+                    try { resolveAllObjectAnchors(locations, model, _delivSize, floorNum); } catch (e) { console.warn('[Robopath] resolve anchors fail', e); }
 
-                const maxDim = Math.max(_delivSize.x, _delivSize.z);
-                try{
-                    const bbox=new THREE.Box3().setFromObject(model);
-                    if(!bbox.isEmpty()){ const c=bbox.getCenter(new THREE.Vector3()); defaultCamTarget.set(c.x,c.y*0.5,c.z); } else defaultCamTarget.set(0,_delivSize.y*0.15,0);
-                }catch(e){ defaultCamTarget.set(0,_delivSize.y*0.15,0); }
-                defaultCamPos.set(defaultCamTarget.x, defaultCamTarget.y+maxDim*0.45, defaultCamTarget.z+maxDim*0.55);
-                const savedDistVal = parseFloat(current3DSettings.camera.dist ?? 5.0);
-                const savedDist = 5 + (savedDistVal / 10) * 115;
-                const dir0 = defaultCamPos.clone().sub(defaultCamTarget).normalize();
-                camera.position.copy(defaultCamTarget).add(dir0.multiplyScalar(savedDist));
-                controls.target.copy(defaultCamTarget);
-                controls.update();
-                if(loaderEl && Number(liveCurrentFloor)===floorNum){
-                    if(loaderBar) loaderBar.style.width='100%'; if(loaderPct) loaderPct.textContent='100%'; if(loaderStatus) loaderStatus.textContent='Model siap!';
-                    setTimeout(()=>{ if(Number(liveCurrentFloor)===floorNum) loaderEl.classList.add('hidden'); },200);
+                    labelsGroup.clear();
+                    const floorElev = (floorNum === 2)
+                        ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+                        : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+
+                    let labelIdx = 0;
+                    for (let id in locations) {
+                        const loc = locations[id];
+                        if (Number(loc.floor) !== floorNum) continue;
+                        const isStairs = id.includes('Stairs') || id.includes('Tangga');
+                        if (!loc.is_destination && !isStairs) continue;
+                        const sprite = createRoomLabelSprite(loc.name || id, loc.is_destination, isStairs);
+                        const wp = worldPosForLoc(loc, _delivSize);
+                        // Posisikan tepat di atas lantai ruangan (bukan melayang di langit-langit!)
+                        sprite.position.set(wp.x, floorElev + 0.16 + (labelIdx % 3) * 0.03, wp.z);
+                        labelIdx++;
+                        labelsGroup.add(sprite);
+                    }
+                    labelsGroup.visible = showRoomLabels;
+
+                    try {
+                        const baseLoc = getBaseLocation();
+                        robots.forEach((r, idx) => {
+                            const holder = getOrCreateRobotMesh(r);
+                            const isIdleNearBase = (r.status === 'Idle' || !r.status || (Number(r.floor || 1) === 1 && Math.hypot((r.current_x || baseLoc.x) - baseLoc.x, (r.current_y || baseLoc.y) - baseLoc.y) < 3.0));
+                            const parkOffset = isIdleNearBase ? getBaseParkingOffset(idx) : { dx: 0, dy: 0 };
+                            const rx = (r.current_x !== undefined && r.current_x !== null && !isIdleNearBase) ? r.current_x : (baseLoc.x + parkOffset.dx);
+                            const ry = (r.current_y !== undefined && r.current_y !== null && !isIdleNearBase) ? r.current_y : (baseLoc.y + parkOffset.dy);
+                            const rf = Number(r.floor || 1);
+                            snapRobot3D(holder, { x: rx, y: ry }, _delivSize, rf);
+                            try { holder.rotation.y = -((r.rotation || 0) * Math.PI / 180); } catch(e) {}
+                            const d = (r.status === 'Delivering') ? (r._activeDelivery || null) : null;
+                            try { updateRobotStatusSprite(holder, r, d, !!r.hasIssue, null); } catch(e) {}
+                            holder.visible = (rf === floorNum);
+                        });
+                    } catch(e) {
+                        console.warn('[Robopath] Initial robot placement error:', e);
+                    }
+
+                    // Posisikan target kamera ke lantai (Markas Robot jika Lantai 1, atau tengah denah)
+                    let focusTarget = new THREE.Vector3(0, floorElev, 0);
+                    try {
+                        const baseLoc = getBaseLocation();
+                        if (floorNum === 1 && baseLoc) {
+                            const baseWp = worldPosForLoc(baseLoc, _delivSize);
+                            focusTarget.set(baseWp.x, floorElev, baseWp.z);
+                        } else {
+                            const bbox = new THREE.Box3().setFromObject(model);
+                            if (!bbox.isEmpty()) {
+                                const c = bbox.getCenter(new THREE.Vector3());
+                                focusTarget.set(c.x, floorElev, c.z);
+                            }
+                        }
+                    } catch(e) {}
+
+                    defaultCamTarget.copy(focusTarget);
+                    controls.target.copy(focusTarget);
+
+                    // Langsung zoom dekat ke lantai saat awal tampil (detail lantai dan robot langsung terlihat!)
+                    camera.position.set(
+                        focusTarget.x + 3.2,
+                        floorElev + 5.2,
+                        focusTarget.z + 6.2
+                    );
+                    camera.lookAt(focusTarget);
+                    controls.minDistance = 0.2;
+                    controls.maxDistance = 120;
+                    controls.update();
+                } catch(parseErr) {
+                    console.error('[Robopath Deliv 3D] Model setup error:', parseErr);
+                } finally {
+                    if(loaderEl && Number(liveCurrentFloor)===floorNum){
+                        if(loaderBar) loaderBar.style.width='100%'; if(loaderPct) loaderPct.textContent='100%'; if(loaderStatus) loaderStatus.textContent='Model siap!';
+                        setTimeout(()=>{ if(Number(liveCurrentFloor)===floorNum) loaderEl.classList.add('hidden'); },150);
+                    }
                 }
-            }, undefined, (err) => { console.error('Error parsing GLB model Lantai '+floorNum+':', err); if(loaderStatus) loaderStatus.textContent='Gagal memproses model 3D!'; });
-        }).catch(err => { console.error('Error fetching GLB:', err); if(loaderStatus) loaderStatus.textContent='Gagal mengunduh aset 3D!'; });
+            }, undefined, (err) => {
+                clearTimeout(watchdogTimer);
+                console.error('Error parsing GLB model Lantai '+floorNum+':', err);
+                if(loaderStatus) loaderStatus.textContent='Gagal memproses model 3D!';
+                setTimeout(() => { if (loaderEl) loaderEl.classList.add('hidden'); }, 1500);
+            });
+        }).catch(err => {
+            clearTimeout(watchdogTimer);
+            console.error('Error fetching GLB:', err);
+            if(loaderStatus) loaderStatus.textContent='Gagal mengunduh aset 3D!';
+            setTimeout(() => { if (loaderEl) loaderEl.classList.add('hidden'); }, 1500);
+        });
 
         const raycaster=new THREE.Raycaster(); const mouse=new THREE.Vector2();
         renderer.domElement.addEventListener('click',(e)=>{
@@ -654,7 +1000,16 @@
         let animationFrameId = null;
         function animate() {
             animationFrameId = requestAnimationFrame(animate);
-            robotMeshes.forEach(holder=>{ const tgt=holder.userData.targetWp; if(tgt) holder.position.lerp(tgt, 0.25); });
+            if (document.hidden) return;
+            if (!container || container.offsetParent === null) return;
+            robotMeshes.forEach(holder=>{ 
+                const tgt=holder.userData.targetWp; 
+                if(tgt) {
+                    holder.position.x += (tgt.x - holder.position.x) * 0.25;
+                    holder.position.z += (tgt.z - holder.position.z) * 0.25;
+                    holder.position.y = tgt.y;
+                }
+            });
             controls.update();
             renderer.render(scene, camera);
         }
@@ -670,39 +1025,8 @@
         }
         window.addEventListener('resize', onResize);
 
-        return { scene,camera,renderer,controls,labelsGroup,robotsGroup,activePathGroup,robotMeshes,getOrCreateRobotMesh,updateRobot3DAvatar,snapRobot3D,resize: onResize, getModelSize:()=>modelSize.clone(), getDefaultCamTarget:()=>defaultCamTarget.clone(), destroy: () => { if (animationFrameId) cancelAnimationFrame(animationFrameId); window.removeEventListener('resize', onResize); renderer.dispose(); } };
+        return { floor: floorNum, scene,camera,renderer,controls,labelsGroup,robotsGroup,activePathGroup,robotMeshes,getOrCreateRobotMesh,updateRobot3DAvatar,snapRobot3D,resize: onResize, getModelSize:()=>modelSize.clone(), getDefaultCamTarget:()=>defaultCamTarget.clone(), destroy: () => { if (animationFrameId) cancelAnimationFrame(animationFrameId); window.removeEventListener('resize', onResize); renderer.dispose(); } };
     }
-
-    const locations = {
-        @foreach($locations as $id => $loc)
-        '{{ $id }}': { 
-            id: '{{ $id }}',
-            name: '{{ addslashes($loc['name'] ?? $id) }}',
-            x: {{ $loc['x'] }}, 
-            y: {{ $loc['y'] }}, 
-            floor: {{ $loc['floor'] ?? 1 }},
-            hidden: {{ ($loc['hidden'] ?? false) ? 'true' : 'false' }},
-            is_destination: {{ ($loc['is_destination'] ?? false) ? 'true' : 'false' }},
-            objectName: {!! isset($loc['objectName']) && $loc['objectName'] ? ("'" . addslashes($loc['objectName']) . "'") : 'null' !!}
-        },
-        @endforeach
-    };
-
-    const adj = {
-        @foreach($adj as $node => $neighbors)
-        '{{ $node }}': [ @foreach($neighbors as $nbr) '{{ $nbr }}', @endforeach ],
-        @endforeach
-    };
-
-    let robots = @json($robots);
-    let activeDeliveries = @json($activeDeliveries);
-    let activeAlerts = [];
-    let serverClientOffset = 0;
-    let liveCurrentFloor = 1;
-    
-    let simulationInterval = null;
-    let syncInterval = null;
-    let autopilotEnabled = {{ Illuminate\Support\Facades\Cache::get('autopilot_enabled', false) ? 'true' : 'false' }};
 
     function switchLiveFloor(floorNum) {
         liveCurrentFloor = floorNum;
@@ -726,7 +1050,18 @@
             if (canvas3D) canvas3D.classList.add('hidden');
             if (canvas3DF1) {
                 canvas3DF1.classList.remove('hidden');
-                if (loaderEl && !modelLoadedByFloor[1]) { loaderEl.classList.remove('hidden'); const t=document.getElementById('deliv-3d-loader-title'); if(t) t.textContent='Memuat Model 3D Lantai 1...'; const s=document.getElementById('deliv-3d-loader-status'); if(s) s.textContent='Mengunduh aset GLB (8 MB)...'; }
+                if (loaderEl && !modelLoadedByFloor[1]) {
+                    loaderEl.classList.remove('hidden');
+                    const t = document.getElementById('deliv-3d-loader-title'); if (t) t.textContent = 'Memuat Model 3D Lantai 1...';
+                    const s = document.getElementById('deliv-3d-loader-status'); if (s) s.textContent = 'Memeriksa penyimpanan lokal...';
+                    if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                        window.RobopathGLBCache.isCached(floor1ModelUrl).then(isCached => {
+                            if (isCached && s) s.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                            else if (s) s.textContent = 'Mengunduh aset GLB (8 MB)...';
+                        }).catch(() => {});
+                    }
+                }
+                else if (loaderEl && modelLoadedByFloor[1]) { loaderEl.classList.add('hidden'); }
                 setTimeout(() => {
                     if (!threeDelivF1) {
                         threeDelivF1 = initThreeViewer('deliv-3d-canvas-f1', 1);
@@ -745,7 +1080,18 @@
             if (canvas3DF1) canvas3DF1.classList.add('hidden');
             if (canvas3D) {
                 canvas3D.classList.remove('hidden');
-                if (loaderEl && !modelLoadedByFloor[2]) { loaderEl.classList.remove('hidden'); const t=document.getElementById('deliv-3d-loader-title'); if(t) t.textContent='Memuat Model 3D Lantai 2...'; const s=document.getElementById('deliv-3d-loader-status'); if(s) s.textContent='Mengunduh aset GLB (14 MB)...'; }
+                if (loaderEl && !modelLoadedByFloor[2]) {
+                    loaderEl.classList.remove('hidden');
+                    const t = document.getElementById('deliv-3d-loader-title'); if (t) t.textContent = 'Memuat Model 3D Lantai 2...';
+                    const s = document.getElementById('deliv-3d-loader-status'); if (s) s.textContent = 'Memeriksa penyimpanan lokal...';
+                    if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                        window.RobopathGLBCache.isCached(floor2ModelUrl).then(isCached => {
+                            if (isCached && s) s.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                            else if (s) s.textContent = 'Mengunduh aset GLB (14 MB)...';
+                        }).catch(() => {});
+                    }
+                }
+                else if (loaderEl && modelLoadedByFloor[2]) { loaderEl.classList.add('hidden'); }
                 setTimeout(() => {
                     if (!threeDeliv) {
                         threeDeliv = initThreeViewer('deliv-3d-canvas-container', 2);
@@ -826,7 +1172,7 @@
                 closestId = id;
             }
         }
-        return closestId || (Number(floor) === 2 ? '2_Stairs' : '1_N7');
+        return closestId || (Number(floor) === 2 ? (locations['2_Tangga'] ? '2_Tangga' : '2_Stairs') : getBaseLocationId());
     }
 
     function resolveLocationName(x, y, floor = null) {
@@ -838,20 +1184,7 @@
     }
 
     function updateStartLocation() {
-        const select = document.getElementById('dispatch-robot');
-        if (!select || select.selectedIndex < 0) return;
-        const selectedOpt = select.options[select.selectedIndex];
-        if (!selectedOpt) return;
-        const rx = parseFloat(selectedOpt.getAttribute('data-x'));
-        const ry = parseFloat(selectedOpt.getAttribute('data-y'));
-        const startSelect = document.getElementById('dispatch-start');
-        if (!startSelect) return;
-        const closestNodeId = resolveLocationNodeId(rx, ry);
-        if (closestNodeId && startSelect.querySelector(`option[value="${closestNodeId}"]`)) {
-            startSelect.value = closestNodeId;
-        } else if (startSelect.querySelector('option[value="1_N7"]')) {
-            startSelect.value = '1_N7';
-        }
+        // Biarkan pengguna memilih titik jemput barang secara bebas tanpa ditimpa paksa ke posisi robot
     }
 
     function dispatchDelivery(e) {
@@ -871,11 +1204,11 @@
             return;
         }
 
-        const select = document.getElementById('dispatch-robot');
-        const selectedOpt = select.options[select.selectedIndex];
-        const rx = parseFloat(selectedOpt.getAttribute('data-x'));
-        const ry = parseFloat(selectedOpt.getAttribute('data-y'));
-        const origin = resolveLocationNodeId(rx, ry);
+        const robot = robots.find(r => Number(r.id) === Number(robotId));
+        const rFloor = Number(robot?.floor || 1);
+        const origin = (robot && robot.current_x != null && robot.current_y != null)
+            ? (resolveLocationNodeId(robot.current_x, robot.current_y, rFloor) || getBaseLocationId())
+            : getBaseLocationId();
 
         fetch('/api/deliveries', {
             method: 'POST',
@@ -929,6 +1262,108 @@
         };
     }
 
+    function getBaseLocationId() {
+        if (locations['1_Markas Robot']) return '1_Markas Robot';
+        if (locations['1_N7']) return '1_N7';
+        for (const [id, loc] of Object.entries(locations)) {
+            if (Number(loc.floor) === 1 && (loc.name?.toLowerCase().includes('markas') || loc.name?.toLowerCase().includes('base'))) {
+                return id;
+            }
+        }
+        for (const [id, loc] of Object.entries(locations)) {
+            if (Number(loc.floor) === 1) return id;
+        }
+        return '1_Markas Robot';
+    }
+
+    function getBaseLocation() {
+        const id = getBaseLocationId();
+        return locations[id] || { x: 85.48, y: 51.07, floor: 1, name: 'Markas Robot' };
+    }
+
+    function getStairsNodeId(floor) {
+        const f = Number(floor || 1);
+        if (f === 1) {
+            if (locations['1_Tangga']) return '1_Tangga';
+            if (locations['1_Stairs']) return '1_Stairs';
+        } else {
+            if (locations['2_Tangga']) return '2_Tangga';
+            if (locations['2_Stairs']) return '2_Stairs';
+        }
+        for (const [id, loc] of Object.entries(locations)) {
+            if (Number(loc.floor) === f && (loc.name?.toLowerCase().includes('tangga') || loc.name?.toLowerCase().includes('stairs'))) {
+                return id;
+            }
+        }
+        return f === 1 ? '1_Tangga' : '2_Tangga';
+    }
+
+    function calculatePathDistance(path) {
+        if (!path || path.length < 2) return 0;
+        let dist = 0;
+        for (let i = 0; i < path.length - 1; i++) {
+            const p1 = locations[path[i]];
+            const p2 = locations[path[i + 1]];
+            dist += (p1 && p2) ? Math.hypot(p2.x - p1.x, p2.y - p1.y) : 3.0;
+        }
+        return Math.max(1.0, dist);
+    }
+
+    function interpolateAlongPath(path, ratio) {
+        if (!path || path.length === 0) return null;
+        if (path.length === 1) {
+            const p = locations[path[0]] || { x: 0, y: 0 };
+            return { coords: { x: p.x, y: p.y }, angle: 0, segIdx: 0 };
+        }
+
+        const clampedRatio = Math.max(0, Math.min(1.0, ratio));
+        const segDistances = [];
+        let totalDistance = 0;
+
+        for (let i = 0; i < path.length - 1; i++) {
+            const p1 = locations[path[i]];
+            const p2 = locations[path[i + 1]];
+            const dist = (p1 && p2) ? Math.hypot(p2.x - p1.x, p2.y - p1.y) : 0.001;
+            segDistances.push(dist);
+            totalDistance += dist;
+        }
+
+        if (totalDistance <= 0.0001) {
+            const p = locations[path[0]] || { x: 0, y: 0 };
+            return { coords: { x: p.x, y: p.y }, angle: 0, segIdx: 0 };
+        }
+
+        const targetDist = clampedRatio * totalDistance;
+        let accumulated = 0;
+        let currentSegIdx = path.length - 2;
+        let ratioInSeg = 1.0;
+
+        for (let i = 0; i < segDistances.length; i++) {
+            const nextAcc = accumulated + segDistances[i];
+            if (targetDist <= nextAcc || i === segDistances.length - 1) {
+                currentSegIdx = i;
+                const segLen = segDistances[i];
+                ratioInSeg = segLen > 0 ? (targetDist - accumulated) / segLen : 0;
+                ratioInSeg = Math.max(0, Math.min(1.0, ratioInSeg));
+                break;
+            }
+            accumulated = nextAcc;
+        }
+
+        const p1 = locations[path[currentSegIdx]] || { x: 0, y: 0 };
+        const p2 = locations[path[currentSegIdx + 1]] || p1;
+        const coords = interpolate(p1, p2, ratioInSeg);
+
+        let angle = 0;
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        if (dx !== 0 || dy !== 0) {
+            angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+        }
+
+        return { coords, angle, segIdx: currentSegIdx };
+    }
+
     function planRouteBetween(fromId, toId) {
         if (!locations[fromId] || !locations[toId]) return [];
         const f1 = Number(locations[fromId].floor || 1);
@@ -938,8 +1373,8 @@
             const p = findShortestPath(fromId, toId);
             return [{ type: 'travel', floor: f1, path: p }];
         } else {
-            const stairsFrom = f1 === 1 ? '1_Stairs' : '2_Stairs';
-            const stairsTo = f2 === 1 ? '1_Stairs' : '2_Stairs';
+            const stairsFrom = getStairsNodeId(f1);
+            const stairsTo = getStairsNodeId(f2);
             const p1 = findShortestPath(fromId, stairsFrom);
             const p2 = findShortestPath(stairsTo, toId);
             return [
@@ -951,9 +1386,17 @@
     }
 
     function buildReturnMission(robot, now) {
-        const currentLocId = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1);
-        const targetId = '1_N7';
-        if (!currentLocId || currentLocId === targetId) return null;
+        const baseLoc = getBaseLocation();
+        const baseId = getBaseLocationId();
+        const robotFloor = Number(robot.floor || 1);
+        if (robotFloor === 1 && Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) < 1.5) {
+            robot.floor = 1;
+            return null;
+        }
+
+        const currentLocId = resolveLocationNodeId(robot.current_x, robot.current_y, robotFloor);
+        const targetId = baseId;
+        if (!currentLocId || (robotFloor === 1 && currentLocId === targetId)) return null;
 
         const rawStages = planRouteBetween(currentLocId, targetId);
         if (!rawStages || rawStages.length === 0) return null;
@@ -963,29 +1406,21 @@
             if (consolidatedStages.length > 0) {
                 const prev = consolidatedStages[consolidatedStages.length - 1];
                 if (prev.type === 'travel' && st.type === 'travel' && prev.floor === st.floor) {
-                    if (st.path && st.path.length > 0) {
-                        prev.path = [...prev.path, ...st.path.slice(1)];
-                    }
+                    if (st.path && st.path.length > 0) prev.path = [...prev.path, ...st.path.slice(1)];
                     continue;
                 }
             }
             consolidatedStages.push(st);
         }
 
-        let totalTravelSegments = 0;
-        consolidatedStages.forEach(st => {
-            if (st.type === 'travel') totalTravelSegments += Math.max(1, (st.path?.length || 1) - 1);
-        });
-
-        const baseTravelTimeMs = 24000;
         let accumulatedMs = 0;
         consolidatedStages.forEach(st => {
             st.startMs = accumulatedMs;
             if (st.type === 'stairs') {
-                st.durationMs = 5500;
+                st.durationMs = 5000;
             } else {
-                const segCount = Math.max(1, (st.path?.length || 1) - 1);
-                st.durationMs = Math.max(5000, Math.round(baseTravelTimeMs * (segCount / Math.max(1, totalTravelSegments))));
+                const dist = calculatePathDistance(st.path);
+                st.durationMs = Math.max(2500, Math.round(dist * 700));
             }
             accumulatedMs += st.durationMs;
         });
@@ -995,7 +1430,7 @@
             destId: targetId,
             stages: consolidatedStages,
             totalDurationMs: accumulatedMs,
-            startedAt: now.getTime() + 1500
+            startedAt: now.getTime() + 200
         };
     }
 
@@ -1021,27 +1456,36 @@
         const startNodeId = getNode(delivery.start_location);
         const destNodeId = getNode(delivery.destination_location);
         
-        let originNodeId = getNode(delivery.origin_location);
-        if (!originNodeId && robot && robot.current_x && robot.current_y) {
-            originNodeId = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1);
-        }
-        if (!originNodeId || !locations[originNodeId]) originNodeId = '1_N7';
+        const robotFloor = Number(robot?.floor || 1);
+        const baseLoc = getBaseLocation();
+        const baseId = getBaseLocationId();
 
-        const validStart = (startNodeId && locations[startNodeId]) ? startNodeId : '1_Waiting Room';
-        const validDest = (destNodeId && locations[destNodeId]) ? destNodeId : '2_Ruang Direktur';
+        let originNodeId = getNode(delivery.origin_location);
+        if (robot && robot.current_x && robot.current_y) {
+            const isAtBase = robotFloor === 1 && Math.hypot(robot.current_x - baseLoc.x, robot.current_y - baseLoc.y) < 2.0;
+            if (isAtBase) {
+                originNodeId = baseId;
+            } else {
+                originNodeId = resolveLocationNodeId(robot.current_x, robot.current_y, robotFloor) || baseId;
+            }
+        }
+        if (!originNodeId || !locations[originNodeId]) originNodeId = baseId;
+
+        const validStart = (startNodeId && locations[startNodeId]) ? startNodeId : Object.keys(locations)[0];
+        const validDest = (destNodeId && locations[destNodeId]) ? destNodeId : Object.keys(locations)[1];
 
         const pickupStage = {
             type: 'pickup',
             nodeId: validStart,
             floor: locations[validStart]?.floor || 1,
-            durationMs: 2500
+            durationMs: 3000
         };
 
         const dropoffStage = {
             type: 'dropoff',
             nodeId: validDest,
             floor: locations[validDest]?.floor || 1,
-            durationMs: 2500
+            durationMs: 3000
         };
 
         let rawStages = [];
@@ -1072,20 +1516,16 @@
             consolidatedStages.push(st);
         }
 
-        let totalTravelSegments = 0;
-        consolidatedStages.forEach(st => { if (st.type === 'travel') totalTravelSegments += Math.max(1, (st.path?.length || 1) - 1); });
-
-        const baseTravelTimeMs = 26000;
         let accumulatedMs = 0;
         consolidatedStages.forEach(st => {
             st.startMs = accumulatedMs;
             if (st.type === 'stairs') {
-                st.durationMs = 5500;
+                st.durationMs = 5000;
             } else if (st.type === 'pickup' || st.type === 'dropoff') {
-                st.durationMs = 2500;
+                st.durationMs = 3000;
             } else {
-                const segCount = Math.max(1, (st.path?.length || 1) - 1);
-                st.durationMs = Math.max(6000, Math.round(baseTravelTimeMs * (segCount / Math.max(1, totalTravelSegments))));
+                const dist = calculatePathDistance(st.path);
+                st.durationMs = Math.max(3000, Math.round(dist * 700));
             }
             accumulatedMs += st.durationMs;
         });
@@ -1113,28 +1553,38 @@
     function drawRobotPaths() {
         const viewers = allDelivViewers().filter(v=>v&&v.activePathGroup);
         viewers.forEach(v=>v.activePathGroup.clear());
-        function drawPath3D(pts, color, dashed){
-            if(pts.length<2) return;
+        function drawPath3D(pts, color, dashed, targetFloor){
+            if(!pts || pts.length<2) return;
             viewers.forEach(v=>{
                 const sz=v.getModelSize(); if(!sz||sz.x<=0.1) return;
-                const floorNum=v.floor||2;
-                const hasPt = pts.some(p=> Number((locations[p]||p).floor||floorNum)===floorNum);
-                if(!hasPt && pts[0] && typeof pts[0]==='object' && pts[0].x!=null){
-                    // pts includes robot current_x/y which may be on other floor - skip if floor mismatch
-                }
-                const vecs=pts.map(p=>{
+                const vFloor = Number(v.floor || 2);
+                if(targetFloor != null && Number(targetFloor) !== vFloor) return;
+                
+                const vecs = [];
+                for(let p of pts){
                     const loc = typeof p==='string' ? locations[p] : p;
-                    if(!loc) return null;
-                    // filter by viewer floor: if loc is node id, check floor
-                    if(loc.floor!=null && Number(loc.floor)!==floorNum) return null;
+                    if(!loc) continue;
+                    if(loc.floor!=null && Number(loc.floor)!==vFloor) continue;
                     const wp=worldPosForLoc(loc, sz);
-                    return new THREE.Vector3(wp.x, 0.06, wp.z);
-                }).filter(Boolean);
+                    vecs.push(new THREE.Vector3(wp.x, (wp.y || 0) + 0.012, wp.z));
+                }
                 if(vecs.length<2) return;
+
+                // Garis putus-putus khas 2D di kaki robot (depthTest: false agar tidak tenggelam)
                 const geo=new THREE.BufferGeometry().setFromPoints(vecs);
-                const mat=new THREE.LineDashedMaterial({color:color, linewidth:1, scale:1, dashSize: dashed?0.6:0, gapSize: dashed?0.4:0, transparent:true, opacity:0.9});
+                const mat=new THREE.LineDashedMaterial({
+                    color: new THREE.Color(color),
+                    linewidth: 1,
+                    dashSize: dashed ? 0.15 : 0.18,
+                    gapSize: dashed ? 0.15 : 0.12,
+                    transparent: true,
+                    opacity: dashed ? 0.65 : 0.95,
+                    depthTest: false,
+                    depthWrite: false
+                });
                 const line=new THREE.Line(geo, mat);
                 line.computeLineDistances();
+                line.renderOrder = 9999;
                 v.activePathGroup.add(line);
             });
         }
@@ -1151,22 +1601,27 @@
                 if (st.type !== 'travel' || !st.path || st.path.length < 2) return;
                 const stageEndMs = st.startMs + st.durationMs;
                 if (elapsedMs >= stageEndMs && delivery.status !== 'Pending') return;
-                const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs) || delivery.status === 'Pending';
-                const isFutureStage = (elapsedMs < st.startMs);
+                const isCurrentActive = delivery.status !== 'Pending' && (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
+                const isFutureStage = delivery.status === 'Pending' || (elapsedMs < st.startMs);
                 let remainingPts=[];
-                if (isCurrentActive) {
-                    remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: robot.floor });
+                const stageFloor = Number(st.floor || 1);
+                const robotFloor = Number(robot.floor || 1);
+
+                if (isCurrentActive && robotFloor === stageFloor) {
+                    remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: stageFloor, y_elev: locations[st.path[0]]?.y_elev });
                     const segIdx = robot.currentSegIdx || 0;
-                    for (let i = segIdx + 1; i < st.path.length; i++) if (locations[st.path[i]]) remainingPts.push(st.path[i]);
-                } else if (isFutureStage) {
+                    for (let i = segIdx + 1; i < st.path.length; i++) {
+                        if (locations[st.path[i]]) remainingPts.push(st.path[i]);
+                    }
+                } else if (isFutureStage || (isCurrentActive && robotFloor !== stageFloor)) {
                     st.path.forEach(nodeId => { if (locations[nodeId]) remainingPts.push(nodeId); });
                 } else return;
                 if (remainingPts.length < 2) return;
-                drawPath3D(remainingPts, robotColor, delivery.status==='Pending');
+                drawPath3D(remainingPts, robotColor, delivery.status==='Pending', stageFloor);
             });
         });
         robots.forEach(robot => {
-            if (robot.status === 'Idle' && robot.returnMission && robot.returnMission.stages) {
+            if ((robot.status === 'Idle' || robot.status === 'Returning' || robot.isReturning) && robot.returnMission && robot.returnMission.stages) {
                 const robotColor = getRobotColor(robot.id);
                 const elapsedMs = now.getTime() - robot.returnMission.startedAt;
                 robot.returnMission.stages.forEach(st => {
@@ -1176,15 +1631,20 @@
                     const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
                     const isFutureStage = (elapsedMs < st.startMs);
                     let remainingPts=[];
-                    if (isCurrentActive) {
-                        remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: robot.floor });
+                    const stageFloor = Number(st.floor || 1);
+                    const robotFloor = Number(robot.floor || 1);
+
+                    if (isCurrentActive && robotFloor === stageFloor) {
+                        remainingPts.push({ x: robot.current_x, y: robot.current_y, floor: stageFloor, y_elev: locations[st.path[0]]?.y_elev });
                         const segIdx = robot.returnSegIdx || 0;
-                        for (let i = segIdx + 1; i < st.path.length; i++) if (locations[st.path[i]]) remainingPts.push(st.path[i]);
-                    } else if (isFutureStage) {
+                        for (let i = segIdx + 1; i < st.path.length; i++) {
+                            if (locations[st.path[i]]) remainingPts.push(st.path[i]);
+                        }
+                    } else if (isFutureStage || (isCurrentActive && robotFloor !== stageFloor)) {
                         st.path.forEach(nodeId => { if (locations[nodeId]) remainingPts.push(nodeId); });
                     } else return;
                     if (remainingPts.length < 2) return;
-                    drawPath3D(remainingPts, robotColor, true);
+                    drawPath3D(remainingPts, robotColor, true, stageFloor);
                 });
             }
         });
@@ -1284,21 +1744,11 @@
                         } else {
                             floorNum = activeStage.floor || 1;
                             const path = activeStage.path || [];
-                            if (path.length >= 2) {
-                                const floatIdx = stageRatio * (path.length - 1);
-                                const currentSegIdx = Math.max(0, Math.min(Math.floor(floatIdx), path.length - 2));
-                                robot.currentSegIdx = currentSegIdx;
-                                const ratioInSegment = floatIdx - currentSegIdx;
-                                const p1 = locations[path[currentSegIdx]];
-                                const p2 = locations[path[currentSegIdx + 1]];
-                                if (p1 && p2) {
-                                    coords = interpolate(p1, p2, ratioInSegment);
-                                    const dx = p2.x - p1.x;
-                                    const dy = p2.y - p1.y;
-                                    if (dx !== 0 || dy !== 0) angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-                                }
-                            } else if (path.length === 1 && locations[path[0]]) {
-                                coords = locations[path[0]];
+                            const along = interpolateAlongPath(path, stageRatio);
+                            if (along) {
+                                coords = along.coords;
+                                angle = along.angle;
+                                robot.currentSegIdx = along.segIdx;
                             }
                             const isHeadingToPickup = mission.pickupStartMs && activeStage.startMs < mission.pickupStartMs;
                             if (isHeadingToPickup) {
@@ -1313,39 +1763,65 @@
                     robot.floor = floorNum;
                     robot.rotation = angle;
                 }
-            } else if (robot.status === 'Idle') {
-                const baseLoc = locations['1_N7'] || { x: 80.6, y: 68.48, floor: 1 };
+            } else if (robot.status === 'Idle' || robot.status === 'Returning') {
+                const baseLoc = getBaseLocation();
+                const rIdx = robots.findIndex(r => Number(r.id) === Number(robot.id));
+                const parkOff = getBaseParkingOffset(rIdx >= 0 ? rIdx : 0);
                 const distToBase = (Number(robot.floor || 1) === 1) 
                     ? Math.hypot((robot.current_x || baseLoc.x) - baseLoc.x, (robot.current_y || baseLoc.y) - baseLoc.y) 
                     : 999;
+                const isNearBase = Number(robot.floor || 1) === 1 && distToBase < 2.2;
 
-                const isAutopilot = autopilotEnabled || localStorage.getItem('autopilot_enabled') === 'true';
-                if (!isAutopilot && distToBase > 0.8) {
+                if (!isNearBase) {
                     if (!robot.returnMission) {
                         robot.returnMission = buildReturnMission(robot, now);
+                        if (!robot.returnMission) {
+                            // Fallback if no valid path: park safely at Markas Robot
+                            floorNum = 1;
+                            coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
+                            robot.current_x = coords.x;
+                            robot.current_y = coords.y;
+                            robot.floor = 1;
+                            robot.status = 'Idle';
+                            robot.isReturning = false;
+                            syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
+                        }
                     }
                 }
 
-                if (robot.returnMission) {
+                if (isNearBase && (robot.status === 'Returning' || robot.isReturning || robot.returnMission)) {
+                    coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
+                    floorNum = 1;
+                    robot.current_x = coords.x;
+                    robot.current_y = coords.y;
+                    robot.floor = 1;
+                    robot.returnMission = null;
+                    robot.isReturning = false;
+                    robot.status = 'Idle';
+                    taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
+                    syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
+                } else if (robot.returnMission) {
                     robot.isReturning = true;
+                    robot.status = 'Returning';
                     statusColor = 'bg-indigo-500';
                     const mission = robot.returnMission;
                     const elapsedMs = now.getTime() - mission.startedAt;
                     let angle = 0;
 
                     if (elapsedMs < 0) {
-                        taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-box-open mr-1"></i> Selesai antar, persiapan balik ke N7...</span>`;
+                        taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-box-open mr-1"></i> Selesai antar, persiapan balik ke ${baseLoc.name || 'Base'}...</span>`;
                         coords = { x: robot.current_x, y: robot.current_y };
                         floorNum = robot.floor || 1;
                     } else if (elapsedMs >= mission.totalDurationMs) {
-                        coords = { x: baseLoc.x, y: baseLoc.y };
+                        coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
                         floorNum = 1;
-                        robot.current_x = baseLoc.x;
-                        robot.current_y = baseLoc.y;
+                        robot.current_x = coords.x;
+                        robot.current_y = coords.y;
                         robot.floor = 1;
                         robot.returnMission = null;
                         robot.isReturning = false;
-                        taskText = 'Standby at base station (N7)';
+                        robot.status = 'Idle';
+                        taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
                         syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y);
                     } else {
                         let activeStage = null;
@@ -1368,26 +1844,17 @@
                             coords = locations[currentNodeId] || coords;
                             taskText = `Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...`;
                             statusColor = 'bg-amber-500';
+                            robot.returnSegIdx = 0;
                         } else {
                             floorNum = activeStage.floor || 1;
                             const path = activeStage.path || [];
-                            if (path.length >= 2) {
-                                const floatIdx = stageRatio * (path.length - 1);
-                                const currentSegIdx = Math.max(0, Math.min(Math.floor(floatIdx), path.length - 2));
-                                robot.returnSegIdx = currentSegIdx;
-                                const ratioInSegment = floatIdx - currentSegIdx;
-                                const p1 = locations[path[currentSegIdx]];
-                                const p2 = locations[path[currentSegIdx + 1]];
-                                if (p1 && p2) {
-                                    coords = interpolate(p1, p2, ratioInSegment);
-                                    const dx = p2.x - p1.x;
-                                    const dy = p2.y - p1.y;
-                                    if (dx !== 0 || dy !== 0) angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
-                                }
-                            } else if (path.length === 1 && locations[path[0]]) {
-                                coords = locations[path[0]];
+                            const along = interpolateAlongPath(path, stageRatio);
+                            if (along) {
+                                coords = along.coords;
+                                angle = along.angle;
+                                robot.returnSegIdx = along.segIdx;
                             }
-                            taskText = `Kembali ke Markas (N7)...`;
+                            taskText = `Kembali ke ${baseLoc.name || 'Base Station'}...`;
                         }
 
                         robot.current_x = coords.x;
@@ -1397,8 +1864,16 @@
                     }
                 } else {
                     robot.isReturning = false;
-                    coords = { x: robot.current_x || baseLoc.x, y: robot.current_y || baseLoc.y };
-                    floorNum = robot.floor || 1;
+                    if (isNearBase) {
+                        coords = { x: baseLoc.x + parkOff.dx, y: baseLoc.y + parkOff.dy };
+                        floorNum = 1;
+                    } else {
+                        coords = { x: robot.current_x || baseLoc.x, y: robot.current_y || baseLoc.y };
+                        floorNum = robot.floor || 1;
+                    }
+                    robot.current_x = coords.x;
+                    robot.current_y = coords.y;
+                    robot.floor = floorNum;
                 }
             }
             
@@ -1414,11 +1889,27 @@
                 const sz=viewer.getModelSize ? viewer.getModelSize() : null;
                 if(!sz || sz.x<=0.1) return;
                 const holder=viewer.getOrCreateRobotMesh(robot);
-                const wp=worldPosForLoc(coords, sz);
-                holder.position.set(wp.x, 0.02, wp.z);
-                if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3();
-                holder.userData.targetWp.copy(holder.position);
-                holder.rotation.y=-((robot.rotation||0)*Math.PI/180);
+                const wp = worldPosForLoc(coords, sz);
+                const elev = (_floorNum === 2)
+                    ? parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112)
+                    : parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
+                if(!holder.userData.targetWp) holder.userData.targetWp=new THREE.Vector3(wp.x, elev, wp.z);
+                holder.userData.targetWp.set(wp.x, elev, wp.z);
+                
+                // First initialization or large distance jump (e.g. floor change) -> snap directly
+                if(!holder.userData.hasInitialPos || holder.position.distanceTo(holder.userData.targetWp) > 4.0){
+                    holder.position.set(wp.x, elev, wp.z);
+                    holder.userData.hasInitialPos = true;
+                }
+
+                // Smooth rotation lerp
+                const targetRot = -((robot.rotation||0)*Math.PI/180);
+                if (holder.rotation) {
+                    let diff = targetRot - holder.rotation.y;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    holder.rotation.y += diff * 0.3;
+                }
                 holder.visible=true;
                 try{
                     if(holder.userData.statusSprite && holder.userData.statusSprite.userData.canvas){
@@ -1426,13 +1917,18 @@
                         let label='', bg='';
                         if(_knownIssue){ label='⚠ '+(robot._activeIssue||'ISSUE').toString().toUpperCase(); bg='rgba(225,29,72,0.94)'; }
                         else if(robot.status==='Delivering' && _activeDeliv){ label='▶ MENGANTAR → '+(destName||_activeDeliv.destination_location||''); bg='rgba(59,130,246,0.94)'; }
+                        else if(robot.status==='Returning' || robot.isReturning){ label='◀ RETURNING'; bg='rgba(99,102,241,0.94)'; }
                         else if(robot.status==='Charging'){ label='⚡ CHARGING'; bg='rgba(234,88,12,0.94)'; }
                         else if(robot.status==='Maintenance'){ label='🔧 MAINTENANCE'; bg='rgba(225,29,72,0.94)'; }
-                        else { label='● IDLE'; bg='rgba(16,185,129,0.94)'; }
-                        ctx.font='bold 30px Segoe UI, sans-serif'; const pad=26,h=50,tw=Math.min(512-16, ctx.measureText(label).width+52),r=h/2, x0=(512-tw)/2, y0=(72-h)/2;
-                        ctx.fillStyle=bg; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(x0,y0,tw,h,r); else { ctx.moveTo(x0+r,y0); ctx.arcTo(x0+tw,y0,x0+tw,y0+h,r); ctx.arcTo(x0+tw,y0+h,x0,y0+h,r); ctx.arcTo(x0,y0+h,x0,y0,r); ctx.arcTo(x0,y0,x0+tw,y0,r); } ctx.fill();
-                        ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=3; ctx.stroke();
-                        ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,256,36);
+                        else { label='● IDLE (Markas)'; bg='rgba(16,185,129,0.94)'; }
+                        ctx.font='bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'; 
+                        const pad=16, h=36, tw=Math.min(c.width-12, ctx.measureText(label).width+28), radius=h/2;
+                        const x0=(c.width-tw)/2, y0=(c.height-h)/2;
+                        ctx.fillStyle=bg; ctx.beginPath(); 
+                        if(ctx.roundRect) ctx.roundRect(x0,y0,tw,h,radius); else ctx.rect(x0,y0,tw,h);
+                        ctx.fill();
+                        ctx.strokeStyle='rgba(255,255,255,0.95)'; ctx.lineWidth=2; ctx.stroke();
+                        ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,c.width/2,c.height/2);
                         spr.material.map.needsUpdate=true; spr.visible=true;
                     }
                 }catch(e){}
@@ -1497,7 +1993,10 @@
             const isBusy = robot.status !== 'Idle' || robot.battery_level <= 20 || robot.isReturning;
             const option = document.createElement('option');
             option.value = robot.id;
-            option.textContent = `${robot.name} (${robot.isReturning ? 'Returning' : robot.status} - Bat: ${robot.battery_level}%) ${isBusy ? (robot.isReturning ? '[Returning to N7]' : (robot.status !== 'Idle' ? '[Busy]' : '[Low Battery]')) : ''}`;
+            option.setAttribute('data-x', robot.current_x ?? 0);
+            option.setAttribute('data-y', robot.current_y ?? 0);
+            option.setAttribute('data-floor', robot.floor ?? 1);
+            option.textContent = `${robot.name} (${robot.isReturning ? 'Returning' : robot.status} - Bat: ${robot.battery_level}%) ${isBusy ? (robot.isReturning ? '[Returning to Base]' : (robot.status !== 'Idle' ? '[Busy]' : '[Low Battery]')) : ''}`;
             if (isBusy) option.disabled = true;
             if (robot.id.toString() === currentValue) option.selected = true;
             select.appendChild(option);
@@ -1510,25 +2009,31 @@
         if (!isEnabled) return;
         
         const idleRobots = robots.filter(r => r.status === 'Idle' && r.battery_level > 20 && !r.isReturning);
-        idleRobots.forEach(robot => {
+        const baseId = getBaseLocationId();
+        let destinationNodeIds = Object.keys(locations).filter(id => locations[id].is_destination && id !== baseId && !id.includes('Tangga') && !id.includes('_Stairs'));
+        if (destinationNodeIds.length < 2) {
+            destinationNodeIds = Object.keys(locations).filter(id => !id.includes('_N') && !id.includes('Tangga') && !id.includes('_Stairs') && id !== baseId);
+        }
+        if (destinationNodeIds.length < 2) return;
+
+        const items = ['Handuk', 'Makanan', 'Dokumen', 'Kopi', 'Paket', 'Botol Air', 'Sparepart'];
+
+        idleRobots.forEach((robot, idx) => {
             if (robot.isDispatching || robot.isReturning) return;
             robot.isDispatching = true;
             
             setTimeout(() => {
                 if (robot.status !== 'Idle' || robot.isReturning) { robot.isDispatching = false; return; }
-                const items = ['Handuk', 'Makanan', 'Dokumen', 'Kopi', 'Paket', 'Botol Air', 'Sparepart'];
-                const destinationNodeIds = Object.keys(locations).filter(id => locations[id].is_destination);
+                const item = items[(idx + Math.floor(Math.random() * items.length)) % items.length];
+                let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || baseId;
                 
-                if (destinationNodeIds.length < 2) { robot.isDispatching = false; return; }
-                const item = items[Math.floor(Math.random() * items.length)];
-                let currentLoc = resolveLocationNodeId(robot.current_x, robot.current_y, robot.floor || 1) || '1_N7';
-                
-                let dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
-                let attempts = 0;
-                while (dest === currentLoc && attempts < 10) {
-                    dest = destinationNodeIds[Math.floor(Math.random() * destinationNodeIds.length)];
-                    attempts++;
-                }
+                // Pick a realistic pickup point (Titik Jemput) that is NOT base station
+                const availablePickups = destinationNodeIds.filter(id => id !== currentLoc);
+                const pickupLoc = availablePickups[Math.floor(Math.random() * availablePickups.length)] || availablePickups[0];
+
+                // Pick a destination (Titik Antar) that is DIFFERENT from pickup and DIFFERENT from current location
+                const availableDests = destinationNodeIds.filter(id => id !== pickupLoc && id !== currentLoc);
+                const dest = availableDests[Math.floor(Math.random() * availableDests.length)] || availableDests[0];
                 
                 fetch('/api/deliveries', {
                     method: 'POST',
@@ -1541,7 +2046,7 @@
                         robot_id: robot.id,
                         item_name: item,
                         origin_location: currentLoc,
-                        start_location: currentLoc,
+                        start_location: pickupLoc,
                         destination_location: dest
                     })
                 })
@@ -1648,11 +2153,13 @@
                 const clientTime = new Date();
                 serverClientOffset = serverTime.getTime() - clientTime.getTime();
             }
-            if (window.activeDeliveries && Array.isArray(window.activeDeliveries)) {
+            if (activeDeliveries && Array.isArray(activeDeliveries)) {
                 data.active_deliveries.forEach(newDeliv => {
-                    const existing = window.activeDeliveries.find(d => d.id === newDeliv.id);
-                    if (existing && existing._cachedPath) {
-                        newDeliv._cachedPath = existing._cachedPath;
+                    const existing = activeDeliveries.find(d => d.id === newDeliv.id);
+                    if (existing) {
+                        if (existing._cachedMission) newDeliv._cachedMission = existing._cachedMission;
+                        if (existing._cachedPath) newDeliv._cachedPath = existing._cachedPath;
+                        if (existing.isCompleting) newDeliv.isCompleting = existing.isCompleting;
                     }
                 });
             }
@@ -1666,17 +2173,50 @@
             data.robots.forEach(newRobot => {
                 const existing = robots.find(r => Number(r.id) === Number(newRobot.id));
                 if (existing) {
-                    if (existing.status !== newRobot.status) {
-                        existing.status = newRobot.status;
-                        if (!existing.isReturning) {
-                            existing.current_x = newRobot.current_x;
-                            existing.current_y = newRobot.current_y;
+                    const bLoc = getBaseLocation();
+                    const isClientAtBase = Number(existing.floor || 1) === 1 && Math.hypot((existing.current_x || bLoc.x) - bLoc.x, (existing.current_y || bLoc.y) - bLoc.y) < 2.0;
+                    const hasDeliveryInProgress = activeDeliveries.some(d => Number(d.robot_id) === Number(existing.id) && d.status === 'In Progress');
+
+                    if (existing.status === 'Delivering') {
+                        if (newRobot.status === 'Maintenance') {
+                            existing.status = 'Maintenance';
+                            existing.hasIssue = true;
+                        } else if (!hasDeliveryInProgress) {
+                            existing.status = newRobot.status;
+                            if (newRobot.status === 'Idle' && !isClientAtBase) {
+                                existing.returnMission = buildReturnMission(existing, new Date(new Date().getTime() + serverClientOffset));
+                                existing.isReturning = true;
+                            }
                         }
-                    } else if (!existing.isReturning && existing.status !== 'Delivering') {
+                    } else if (existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
+                        if (newRobot.status === 'Maintenance') {
+                            existing.status = 'Maintenance';
+                            existing.hasIssue = true;
+                        }
+                    } else if (existing.status === 'Idle') {
+                        if (hasDeliveryInProgress) {
+                            existing.status = 'Delivering';
+                        } else if (newRobot.status === 'Charging') {
+                            existing.status = 'Charging';
+                        } else if (newRobot.status === 'Returning' && !isClientAtBase) {
+                            existing.status = 'Returning';
+                        }
+                    } else {
+                        existing.status = newRobot.status;
+                    }
+
+                    // Coordinates & Floor Merge (Firmly lock Base/Charging and Client Navigation)
+                    if (existing.status === 'Charging' || (existing.status === 'Idle' && isClientAtBase)) {
+                        existing.floor = 1;
+                        existing.current_x = bLoc.x;
+                        existing.current_y = bLoc.y;
+                    } else if (existing.status === 'Delivering' || existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
+                        // Keep live client-side coordinates and floor along path - NEVER overwrite from server!
+                    } else if (newRobot.current_x != null && newRobot.current_y != null) {
+                        existing.floor = newRobot.floor || existing.floor || 1;
                         existing.current_x = newRobot.current_x;
                         existing.current_y = newRobot.current_y;
                     }
-                    existing.floor = newRobot.floor || existing.floor || 1;
                     existing.battery_level = newRobot.battery_level;
                 } else {
                     robots.push(newRobot);
@@ -1775,9 +2315,21 @@
         drawRobotPaths();
     });
 
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            const activeV = (Number(liveCurrentFloor) === 1) ? threeDelivF1 : threeDeliv;
+            if (activeV && typeof activeV.resize === 'function') {
+                activeV.resize();
+            }
+            drawRobotPaths();
+        }
+    });
+
     document.addEventListener('DOMContentLoaded', () => {
         fetchData();
         reloadPageDropdowns();
+        
+        switchLiveFloor(1);
         
         simulationInterval = setInterval(runSimulationStep, 50);
         
@@ -1785,10 +2337,15 @@
             syncTelemetry();
             fetchData();
         }, 2000);
+
+        // Preload model lantai 2 di background ke CacheStorage agar switch instan
+        const preloadOther = () => {
+            try {
+                fetchGLBBufferWithCache(floor2ModelUrl, null).catch(() => {});
+            } catch (e) {}
+        };
+        if ('requestIdleCallback' in window) requestIdleCallback(preloadOther, { timeout: 8000 });
+        else setTimeout(preloadOther, 4000);
     });
 </script>
 @endsection
-
-
-
-

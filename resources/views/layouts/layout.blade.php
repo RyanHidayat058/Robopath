@@ -18,13 +18,260 @@
         }
     </style>
 
-    @if(($viewMode ?? '2d') === '3d')
     <!-- Three.js 3D Rendering Engine & Draco Loaders (Served Locally for Instant Load) -->
     <script src="{{ asset('js/three.min.js') }}"></script>
     <script src="{{ asset('js/OrbitControls.js') }}"></script>
     <script src="{{ asset('js/GLTFLoader.js') }}"></script>
     <script src="{{ asset('js/DRACOLoader.js') }}"></script>
-    @endif
+
+    <!-- Global Persistent 3D Asset Cache & Service Worker Registration (Active on both 2D & 3D) -->
+    <script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register("{{ asset('sw.js') }}").catch(err => {
+                console.warn('[Robopath SW] Register bypass:', err);
+            });
+        });
+    }
+    // Unified Persistent GLB Cache System (Memory + CacheStorage + IndexedDB with In-Flight Deduplication)
+    (function() {
+        const DB_NAME = 'robopath-glb-db-v2';
+        const STORE_NAME = 'glb_models';
+        const CACHE_NAME = 'robopath-models-v1';
+        const memoryCache = window.__ROBOPATH_GLB_MEM__ || new Map();
+        window.__ROBOPATH_GLB_MEM__ = memoryCache;
+
+        // In-flight active download map to deduplicate parallel requests for the same URL
+        // Map<url, { promise: Promise<ArrayBuffer>, listeners: Set<Function> }>
+        const inFlightRequests = new Map();
+
+        // Safe IndexedDB with strict timeout so it can NEVER block the app
+        let dbPromise = null;
+        function getDB(timeoutMs = 400) {
+            if (!dbPromise) {
+                dbPromise = new Promise((resolve) => {
+                    if (!window.indexedDB) return resolve(null);
+                    const timer = setTimeout(() => resolve(null), timeoutMs);
+                    try {
+                        const req = indexedDB.open(DB_NAME, 1);
+                        req.onblocked = () => { clearTimeout(timer); resolve(null); };
+                        req.onupgradeneeded = (e) => {
+                            try {
+                                const db = e.target.result;
+                                if (!db.objectStoreNames.contains(STORE_NAME)) {
+                                    db.createObjectStore(STORE_NAME);
+                                }
+                            } catch (err) { clearTimeout(timer); resolve(null); }
+                        };
+                        req.onsuccess = () => { clearTimeout(timer); resolve(req.result); };
+                        req.onerror = () => { clearTimeout(timer); resolve(null); };
+                    } catch (e) {
+                        clearTimeout(timer);
+                        resolve(null);
+                    }
+                });
+            }
+            return dbPromise;
+        }
+
+        async function getFromIDB(key) {
+            try {
+                const db = await getDB();
+                if (!db) return null;
+                return new Promise((resolve) => {
+                    const timer = setTimeout(() => resolve(null), 300);
+                    try {
+                        const tx = db.transaction(STORE_NAME, 'readonly');
+                        const store = tx.objectStore(STORE_NAME);
+                        const req = store.get(key);
+                        req.onsuccess = () => { clearTimeout(timer); resolve(req.result || null); };
+                        req.onerror = () => { clearTimeout(timer); resolve(null); };
+                    } catch (err) {
+                        clearTimeout(timer);
+                        resolve(null);
+                    }
+                });
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function putToIDB(key, val) {
+            try {
+                const db = await getDB();
+                if (!db) return;
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                store.put(val, key);
+            } catch (e) {}
+        }
+
+        async function getFromCacheStorage(url) {
+            if (!('caches' in window)) return null;
+            try {
+                const cache = await caches.open(CACHE_NAME);
+                const res = await cache.match(url);
+                if (res) return await res.arrayBuffer();
+            } catch (e) {}
+            return null;
+        }
+
+        async function putToCacheStorage(url, buffer) {
+            if (!('caches' in window)) return;
+            try {
+                const cache = await caches.open(CACHE_NAME);
+                const headers = new Headers();
+                headers.append('Content-Type', 'model/gltf-binary');
+                headers.append('Content-Length', String(buffer.byteLength));
+                await cache.put(url, new Response(buffer.slice(0), { headers }));
+            } catch (e) {}
+        }
+
+        window.RobopathGLBCache = {
+            // Fast multi-layer read: Memory (0ms) -> CacheStorage (<10ms) -> IndexedDB (<300ms)
+            async get(url) {
+                if (memoryCache.has(url)) return memoryCache.get(url);
+                const csBuf = await getFromCacheStorage(url);
+                if (csBuf) {
+                    memoryCache.set(url, csBuf);
+                    putToIDB(url, csBuf); // async background backup
+                    return csBuf;
+                }
+                const idbBuf = await getFromIDB(url);
+                if (idbBuf) {
+                    memoryCache.set(url, idbBuf);
+                    putToCacheStorage(url, idbBuf); // sync to cacheStorage
+                    return idbBuf;
+                }
+                return null;
+            },
+
+            async put(url, buffer) {
+                memoryCache.set(url, buffer);
+                await Promise.allSettled([
+                    putToCacheStorage(url, buffer),
+                    putToIDB(url, buffer)
+                ]);
+            },
+
+            async isCached(url) {
+                if (memoryCache.has(url)) return true;
+                if ('caches' in window) {
+                    try {
+                        const cache = await caches.open(CACHE_NAME);
+                        const match = await cache.match(url);
+                        if (match) return true;
+                    } catch (e) {}
+                }
+                const buf = await getFromIDB(url);
+                if (buf) {
+                    memoryCache.set(url, buf);
+                    return true;
+                }
+                return false;
+            },
+
+            async fetchWithProgress(url, onProgress) {
+                // 1. Check persistent caches first
+                const cached = await this.get(url);
+                if (cached) {
+                    if (typeof onProgress === 'function') {
+                        try { onProgress(cached.byteLength, cached.byteLength, true); } catch (e) {}
+                    }
+                    return cached;
+                }
+
+                // 2. In-flight request deduplication: if download already active, subscribe to it!
+                if (inFlightRequests.has(url)) {
+                    const entry = inFlightRequests.get(url);
+                    if (typeof onProgress === 'function') {
+                        entry.listeners.add(onProgress);
+                    }
+                    return entry.promise;
+                }
+
+                // 3. Initiate single network request
+                const listeners = new Set();
+                if (typeof onProgress === 'function') listeners.add(onProgress);
+
+                const fetchPromise = (async () => {
+                    try {
+                        const response = await fetch(url);
+                        if (!response.ok) throw new Error(`HTTP ${response.status} loading ${url}`);
+
+                        const contentLength = response.headers.get('content-length');
+                        const totalBytes = contentLength ? parseInt(contentLength, 10) : 10000000;
+                        let loadedBytes = 0;
+                        const chunks = [];
+
+                        if (response.body && response.body.getReader) {
+                            const reader = response.body.getReader();
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+                                chunks.push(value);
+                                loadedBytes += value.length;
+                                listeners.forEach(fn => {
+                                    try { fn(loadedBytes, totalBytes, false); } catch (err) {}
+                                });
+                            }
+                        } else {
+                            const raw = await response.arrayBuffer();
+                            chunks.push(new Uint8Array(raw));
+                            loadedBytes = raw.byteLength;
+                            listeners.forEach(fn => {
+                                try { fn(loadedBytes, totalBytes, false); } catch (err) {}
+                            });
+                        }
+
+                        const allChunks = new Uint8Array(loadedBytes);
+                        let pos = 0;
+                        for (const c of chunks) {
+                            allChunks.set(c, pos);
+                            pos += c.length;
+                        }
+                        const finalBuffer = allChunks.buffer;
+
+                        // Persist to memory and storage
+                        await this.put(url, finalBuffer);
+                        return finalBuffer;
+                    } finally {
+                        inFlightRequests.delete(url);
+                    }
+                })();
+
+                inFlightRequests.set(url, { promise: fetchPromise, listeners });
+                return fetchPromise;
+            },
+
+            // Sequential background preload to prevent starving active viewer & server
+            async preload(urls) {
+                const list = Array.isArray(urls) ? urls : [urls];
+                for (const u of list) {
+                    if (!u) continue;
+                    try {
+                        const cached = await this.isCached(u);
+                        if (!cached) {
+                            await this.fetchWithProgress(u, null);
+                        }
+                    } catch (e) {}
+                }
+            }
+        };
+
+        // Otomatis preload seluruh model 3D di background saat idle (secara SEQUENTIAL)
+        const glbToPreload = [
+            "{{ asset('models/Denah_Lantai_1-opt.glb') }}",
+            "{{ asset('models/Lantai_2-final.glb') }}",
+            "{{ asset('models/robot.glb') }}"
+        ];
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => window.RobopathGLBCache.preload(glbToPreload), { timeout: 4000 });
+        } else {
+            setTimeout(() => window.RobopathGLBCache.preload(glbToPreload), 1500);
+        }
+    })();
+    </script>
 
     <script>
         tailwind.config = {
@@ -48,7 +295,7 @@
 <body class="bg-gray-50 text-gray-800 font-sans h-screen flex overflow-hidden">
     
     <!-- Sidebar Navigation -->
-    <aside class="w-64 bg-brand-blue text-white flex flex-col justify-between shrink-0 shadow-lg z-20">
+    <aside id="main-sidebar" class="w-64 bg-brand-blue text-white flex flex-col justify-between shrink-0 shadow-lg z-20">
         <div>
             <!-- Sidebar Header / Logo -->
             <div class="h-20 flex items-center px-6 border-b border-white/20 gap-3 bg-brand-blue">
@@ -95,35 +342,11 @@
                 </a>
                 @endif
             </nav>
-
-            <!-- Mode Tampilan Switcher (2D / 3D) -->
-            <div class="px-4 pb-2">
-                <div class="p-3 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/15 shadow-inner">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-blue-100 flex items-center gap-1.5">
-                            <i class="fa-solid fa-layer-group text-sky-300"></i> Mode Tampilan
-                        </span>
-                        <span id="global-mode-badge" data-testid="view-mode-badge" class="view-mode-badge text-[9px] font-bold px-1.5 py-0.5 rounded-full {{ ($viewMode ?? '2d') === '3d' ? 'bg-emerald-400 text-slate-900' : 'bg-white/20 text-white' }} font-mono">
-                            {{ strtoupper($viewMode ?? '2d') }}
-                        </span>
-                    </div>
-                    <div class="grid grid-cols-2 p-1 bg-black/20 rounded-xl gap-1">
-                        <button type="button" id="btn-view-mode-2d" data-testid="toggle-view-mode-2d" onclick="switchGlobalViewMode('2d')" 
-                                class="toggle-view-mode-2d py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 {{ ($viewMode ?? '2d') === '2d' ? 'shadow-sm bg-white text-brand-blue' : 'text-white/80 hover:text-white hover:bg-white/10' }}">
-                            <i class="fa-solid fa-map text-[10px]"></i> 2D
-                        </button>
-                        <button type="button" id="btn-view-mode-3d" data-testid="toggle-view-mode-3d" onclick="switchGlobalViewMode('3d')" 
-                                class="toggle-view-mode-3d py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 {{ ($viewMode ?? '2d') === '3d' ? 'shadow-sm bg-white text-brand-blue' : 'text-white/80 hover:text-white hover:bg-white/10' }}">
-                            <i class="fa-solid fa-cube text-[10px]"></i> 3D
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
     </aside>
 
     <!-- Main Content Area -->
-    <main class="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
+    <main id="main-content" class="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
         <!-- Topbar -->
         <header class="h-20 border-b border-gray-200 bg-white shadow-sm flex items-center justify-between px-6 lg:px-8 shrink-0 z-10 gap-4">
             <div class="min-w-0">
@@ -302,7 +525,7 @@
 
         // --- Persistent 3D Model Caching via Browser Cache Storage API ---
         window.Robopath3DCache = {
-            CACHE_NAME: 'robopath-3d-cache-v1',
+            CACHE_NAME: 'robopath-models-v1',
 
             async getCache() {
                 if ('caches' in window) {
@@ -390,94 +613,7 @@
                 }
             }
         };
-
-        // --- Global View Mode State & Switcher ---
-        window.getGlobalViewMode = function() {
-            const saved = localStorage.getItem('robopath_view_mode');
-            return (saved === '3d') ? '3d' : '2d';
-        };
-
-        window.switchGlobalViewMode = function(mode) {
-            if (mode !== '2d' && mode !== '3d') mode = '2d';
-
-            // Show smooth transition overlay immediately (eliminates white flicker/blink)
-            const overlay = document.getElementById('global-mode-switch-overlay');
-            const title = document.getElementById('mode-switch-title');
-            const desc = document.getElementById('mode-switch-desc');
-            const icon = document.getElementById('mode-switch-icon');
-            if (overlay) {
-                if (title) title.textContent = mode === '3d' ? 'Mengaktifkan Mode 3D' : 'Mengaktifkan Mode 2D';
-                if (desc) desc.textContent = mode === '3d' ? 'Memuat visualisasi 3D...' : 'Menyiapkan layout 2D...';
-                if (icon) icon.className = mode === '3d' ? 'fa-solid fa-cube text-indigo-600 absolute text-xs' : 'fa-solid fa-map text-indigo-600 absolute text-xs';
-                overlay.classList.remove('pointer-events-none');
-                overlay.classList.remove('opacity-0');
-            }
-
-            // Immediately update sidebar buttons & badge for 0ms visual feedback
-            const btn2d = document.getElementById('btn-view-mode-2d');
-            const btn3d = document.getElementById('btn-view-mode-3d');
-            const badge = document.getElementById('global-mode-badge');
-            if (badge) {
-                badge.textContent = mode.toUpperCase();
-                badge.className = 'view-mode-badge text-[9px] font-bold px-1.5 py-0.5 rounded-full font-mono ' + (mode === '3d' ? 'bg-emerald-400 text-slate-900' : 'bg-white/20 text-white');
-            }
-            if (btn2d && btn3d) {
-                if (mode === '3d') {
-                    btn3d.className = 'toggle-view-mode-3d py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm bg-white text-brand-blue';
-                    btn2d.className = 'toggle-view-mode-2d py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-white/80 hover:text-white hover:bg-white/10';
-                } else {
-                    btn2d.className = 'toggle-view-mode-2d py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm bg-white text-brand-blue';
-                    btn3d.className = 'toggle-view-mode-3d py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-white/80 hover:text-white hover:bg-white/10';
-                }
-            }
-
-            localStorage.setItem('robopath_view_mode', mode);
-            document.cookie = "robopath_view_mode=" + mode + "; path=/; max-age=31536000; SameSite=Lax";
-
-            // Navigate using URL parameter to ensure atomic server response and prevent blank reload
-            const targetUrl = new URL(window.location.href);
-            targetUrl.searchParams.set('view_mode', mode);
-            window.location.href = targetUrl.toString();
-        };
-
-        // Sync initial mode on page load without double reload loops
-        document.addEventListener('DOMContentLoaded', () => {
-            const currentServerMode = "{{ $viewMode ?? '2d' }}";
-            const urlParams = new URLSearchParams(window.location.search);
-
-            // If arrived via view_mode parameter, sync localStorage & clean URL silently
-            if (urlParams.has('view_mode')) {
-                localStorage.setItem('robopath_view_mode', currentServerMode);
-                const cleanUrl = new URL(window.location.href);
-                cleanUrl.searchParams.delete('view_mode');
-                window.history.replaceState({}, document.title, cleanUrl.pathname + (cleanUrl.search ? cleanUrl.search : ''));
-                return;
-            }
-
-            const localMode = localStorage.getItem('robopath_view_mode');
-            if (localMode && (localMode === '2d' || localMode === '3d') && localMode !== currentServerMode) {
-                // Out of sync: navigate cleanly with query parameter
-                document.cookie = "robopath_view_mode=" + localMode + "; path=/; max-age=31536000; SameSite=Lax";
-                const targetUrl = new URL(window.location.href);
-                targetUrl.searchParams.set('view_mode', localMode);
-                window.location.href = targetUrl.toString();
-            } else if (!localMode) {
-                localStorage.setItem('robopath_view_mode', currentServerMode);
-            }
-        });
     </script>
-
-    <!-- Global Mode Transition Overlay (Prevents white flash/blink on switch) -->
-    <div id="global-mode-switch-overlay" class="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center transition-opacity duration-200 opacity-0 pointer-events-none">
-        <div class="bg-white/95 backdrop-blur-md rounded-2xl p-6 shadow-2xl flex flex-col items-center max-w-xs text-center border border-white/40">
-            <div class="relative flex items-center justify-center w-12 h-12 mb-3">
-                <div class="w-10 h-10 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin"></div>
-                <i id="mode-switch-icon" class="fa-solid fa-cube text-indigo-600 absolute text-xs"></i>
-            </div>
-            <h4 id="mode-switch-title" class="text-sm font-bold text-gray-800">Mengalihkan Mode...</h4>
-            <p id="mode-switch-desc" class="text-xs text-gray-500 mt-1">Menyiapkan tampilan sistem...</p>
-        </div>
-    </div>
 
     @yield('scripts')
 </body>

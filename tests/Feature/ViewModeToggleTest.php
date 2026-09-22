@@ -11,6 +11,7 @@ class ViewModeToggleTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+    protected User $karyawan;
 
     protected ?string $graph3dBackup = null;
 
@@ -18,6 +19,7 @@ class ViewModeToggleTest extends TestCase
     {
         parent::setUp();
         $this->admin = User::factory()->create(['role' => 'admin']);
+        $this->karyawan = User::factory()->create(['role' => 'karyawan']);
         if (file_exists(base_path('graph_3d.json'))) {
             $this->graph3dBackup = file_get_contents(base_path('graph_3d.json'));
         }
@@ -31,61 +33,59 @@ class ViewModeToggleTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_sidebar_has_view_mode_toggle_and_defaults_to_2d(): void
+    public function test_sidebar_is_pure_3d_and_no_2d_toggle(): void
     {
         $response = $this->actingAs($this->admin)->get('/');
         $response->assertStatus(200);
-        $response->assertSee('toggle-view-mode-2d', false);
-        $response->assertSee('toggle-view-mode-3d', false);
-        $response->assertSee('view-mode-badge', false);
-        $response->assertSee('2D', false);
 
-        // Verify lazy-loading: 2D mode does NOT load Three.js in head
-        $response->assertDontSee('three.min.js', false);
-        $response->assertDontSee('GLTFLoader.js', false);
-        $response->assertDontSee('DRACOLoader.js', false);
-    }
+        // Verify 2D switcher is removed
+        $response->assertDontSee('toggle-view-mode-2d', false);
+        $response->assertDontSee('toggle-view-mode-3d', false);
 
-    public function test_dashboard_switches_to_3d_mode(): void
-    {
-        $response = $this->actingAs($this->admin)->get('/?view_mode=3d');
-        $response->assertStatus(200);
+        // Verify 3D Three.js is loaded
         $response->assertSee('three.min.js', false);
         $response->assertSee('GLTFLoader.js', false);
-        $response->assertSee('std-3d-canvas-container', false);
-        $response->assertSee('fullview-3d-canvas-f2', false);
-        $response->assertSee('fetchGLBBufferWithCache', false);
+        $response->assertSee('DRACOLoader.js', false);
     }
 
-    public function test_deliveries_renders_2d_and_3d(): void
+    public function test_karyawan_only_has_access_to_dashboard(): void
     {
-        // 2D Deliveries
-        $res2D = $this->actingAs($this->admin)->get('/deliveries');
-        $res2D->assertStatus(200);
-        $res2D->assertDontSee('three.min.js', false);
+        // Karyawan can access dashboard
+        $resDashboard = $this->actingAs($this->karyawan)->get('/');
+        $resDashboard->assertStatus(200);
 
-        // 3D Deliveries
-        $res3D = $this->actingAs($this->admin)->get('/deliveries?view_mode=3d');
-        $res3D->assertStatus(200);
-        $res3D->assertSee('three.min.js', false);
-        $res3D->assertSee('deliv-3d-canvas-container', false);
-        $res3D->assertSee('deliv-3d-canvas-f1', false);
-        $res3D->assertSee('fetchGLBBufferWithCache', false);
+        // Karyawan cannot see edit/control panels on dashboard
+        $resDashboard->assertDontSee('id="panel-3d-light"', false);
+        $resDashboard->assertDontSee('id="panel-3d-camera"', false);
+        $resDashboard->assertDontSee('id="panel-3d-label-size"', false);
+        $resDashboard->assertDontSee('id="panel-3d-robot-control"', false);
+        $resDashboard->assertDontSee('id="fullview-dispatch-panel"', false);
+        $resDashboard->assertDontSee('id="autopilot-btn"', false);
+
+        // Karyawan is blocked from other admin routes
+        $resDeliveries = $this->actingAs($this->karyawan)->get('/deliveries');
+        $this->assertTrue(in_array($resDeliveries->status(), [403, 302]));
+
+        $resBotControl = $this->actingAs($this->karyawan)->get('/bot-control');
+        $this->assertTrue(in_array($resBotControl->status(), [403, 302]));
+
+        $resHistory = $this->actingAs($this->karyawan)->get('/history');
+        $this->assertTrue(in_array($resHistory->status(), [403, 302]));
+
+        $resReports = $this->actingAs($this->karyawan)->get('/reports');
+        $this->assertTrue(in_array($resReports->status(), [403, 302]));
     }
 
-    public function test_bot_control_renders_2d_and_3d(): void
+    public function test_admin_has_full_3d_controls_on_dashboard(): void
     {
-        // 2D Bot Control
-        $res2D = $this->actingAs($this->admin)->get('/bot-control');
-        $res2D->assertStatus(200);
-        $res2D->assertDontSee('three.min.js', false);
-
-        // 3D Bot Control
-        $res3D = $this->actingAs($this->admin)->get('/bot-control?view_mode=3d');
-        $res3D->assertStatus(200);
-        $res3D->assertSee('three.min.js', false);
-        $res3D->assertSee('botctrl-3d-canvas-container', false);
-        $res3D->assertSee('botctrl-3d-canvas-f1', false);
+        $response = $this->actingAs($this->admin)->get('/');
+        $response->assertStatus(200);
+        $response->assertSee('id="panel-3d-light"', false);
+        $response->assertSee('id="panel-3d-camera"', false);
+        $response->assertSee('id="panel-3d-label-size"', false);
+        $response->assertSee('id="panel-3d-robot-control"', false);
+        $response->assertSee('id="fullview-dispatch-panel"', false);
+        $response->assertSee('id="autopilot-btn"', false);
     }
 
     public function test_label_scale_endpoint_updates_graph_3d(): void
@@ -94,6 +94,7 @@ class ViewModeToggleTest extends TestCase
             'scale' => 1.35,
             'settings_3d' => [
                 'camera' => ['dist' => 6.0, 'fov' => 6.0, 'preset' => 'iso'],
+                'lighting' => ['ambient' => 1.5, 'sun' => 2.0, 'exposure' => 1.1, 'fill' => 0.8, 'shadow' => true],
             ],
         ]);
 
@@ -108,22 +109,17 @@ class ViewModeToggleTest extends TestCase
         $this->assertEquals(1.35, $data['label_scale']);
     }
 
-    public function test_save_graph_endpoint_supports_3d_flag(): void
+    public function test_telemetry_returns_settings_3d(): void
     {
-        $response = $this->actingAs($this->admin)->postJson('/api/graph/save', [
-            'is_3d' => true,
-            'locations' => [
-                '1_TEST' => ['id' => '1_TEST', 'name' => 'Test Room', 'x' => 10.0, 'y' => 20.0, 'floor' => 1]
-            ],
-            'adj' => [
-                '1_TEST' => []
-            ],
-            'label_scale' => 1.2
-        ]);
-
+        $response = $this->getJson('/api/telemetry');
         $response->assertStatus(200);
-        $this->assertFileExists(base_path('graph_3d.json'));
-        $data = json_decode(file_get_contents(base_path('graph_3d.json')), true);
-        $this->assertArrayHasKey('1_TEST', $data['locations']);
+        $response->assertJsonStructure([
+            'robots',
+            'active_deliveries',
+            'settings_3d' => [
+                'lighting',
+                'camera',
+            ]
+        ]);
     }
 }

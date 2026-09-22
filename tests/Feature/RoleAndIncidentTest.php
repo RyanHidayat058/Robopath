@@ -201,16 +201,14 @@ class RoleAndIncidentTest extends TestCase
         $karyawanDash = $this->actingAs($karyawan)->get('/');
         $karyawanDash->assertStatus(200);
         $karyawanDash->assertSee('toggleFullView(true)', false);
-        $karyawanDash->assertSee('id="fullview-mode"', false);
-        $karyawanDash->assertSee('id="fullview-wrapper"', false);
-        $karyawanDash->assertSee('id="fullview-container-merged"', false);
+        $karyawanDash->assertSee('id="fullview-top-bar"', false);
+        $karyawanDash->assertSee('id="std-map-container"', false);
 
         // Check Admin view
         $adminDash = $this->actingAs($admin)->get('/');
         $adminDash->assertStatus(200);
         $adminDash->assertSee('toggleFullView(true)', false);
-        $adminDash->assertSee('id="fullview-mode"', false);
-        $adminDash->assertSee('id="fullview-wrapper"', false);
-        $adminDash->assertSee('id="fullview-container-merged"', false);
+        $adminDash->assertSee('id="fullview-top-bar"', false);
+        $adminDash->assertSee('id="std-map-container"', false);
     }
 }
