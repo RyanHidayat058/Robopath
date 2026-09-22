@@ -417,9 +417,9 @@ class TelemetryController extends Controller
 
         $issueType = $request->input('issue_type', 'Collision');
         $defaultDesc = match ($issueType) {
-            'Collision' => "Robot {$robot->name} mengalami tabrakan dengan hambatan di jalur! Pengantaran mandek (pending).",
-            'Low Battery' => "Baterai Robot {$robot->name} habis kritis (<20%) di tengah jalan! Pengantaran mandek (pending).",
-            'Sensor Error' => "Sensor Lidar Robot {$robot->name} mengalami disfungsi hardware! Pengantaran mandek (pending).",
+            'Collision' => "Robot {$robot->name} mengalami tabrakan dengan rintangan di jalur! Pengantaran terhenti sementara.",
+            'Low Battery' => "Daya baterai Robot {$robot->name} menipis (<20%) di perjalanan! Pengantaran terhenti sementara.",
+            'Sensor Error' => "Sensor LiDAR Robot {$robot->name} mengalami kendala teknis! Pengantaran terhenti sementara.",
             default => "Robot {$robot->name} dialihkan ke status {$issueType} oleh Admin.",
         };
 
