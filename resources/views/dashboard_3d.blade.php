@@ -1177,7 +1177,7 @@
 
         let cleanText = String(text).replace(/^[12]_/, '');
         if (cleanText.length > 18) cleanText = cleanText.substring(0, 16) + '...';
-        ctx.fillText((isMarkas ? '🏠 ' : '') + cleanText, 46, canvas.height / 2);
+        ctx.fillText(cleanText, 46, canvas.height / 2);
 
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
