@@ -114,11 +114,16 @@ class TelemetryController extends Controller
         $activeDeliveries = Delivery::with('robot')->whereIn('status', ['In Progress', 'Pending'])->get();
         $activeAlerts = Report::with('robot')->where('status', 'Active')->get();
 
-        // Return recent completed deliveries for live update lists
+        // Return today's deliveries for timeline & live update lists
         $recentDeliveries = Delivery::with('robot')
-            ->where('status', 'Completed')
-            ->orderBy('completed_at', 'desc')
-            ->limit(10)
+            ->where(function ($q) {
+                $q->whereDate('completed_at', Carbon::today())
+                  ->orWhereDate('started_at', Carbon::today())
+                  ->orWhereDate('created_at', Carbon::today())
+                  ->orWhereDate('updated_at', Carbon::today());
+            })
+            ->orderBy('updated_at', 'desc')
+            ->limit(30)
             ->get();
 
         // Calculate live statistics for real-time KPI card updates

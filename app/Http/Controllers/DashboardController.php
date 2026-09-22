@@ -82,7 +82,7 @@ class DashboardController extends Controller
         $viewMode = '3d';
 
         $robots = Robot::all();
-        $activeDeliveries = Delivery::with('robot')->where('status', 'In Progress')->get();
+        $activeDeliveries = Delivery::with('robot')->whereIn('status', ['In Progress', 'Pending'])->get();
 
         $locations = $this->get3DLocationsData();
         $adj = $this->get3DAdjData();
@@ -92,8 +92,14 @@ class DashboardController extends Controller
         $settings3D = $this->get3DSettings();
 
         $recentActivity = Delivery::with('robot')
+            ->where(function ($q) {
+                $q->whereDate('completed_at', Carbon::today())
+                  ->orWhereDate('started_at', Carbon::today())
+                  ->orWhereDate('created_at', Carbon::today())
+                  ->orWhereDate('updated_at', Carbon::today());
+            })
             ->orderBy('updated_at', 'desc')
-            ->limit(10)
+            ->limit(30)
             ->get();
 
         return view('deliveries_3d', compact(
