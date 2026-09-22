@@ -48,7 +48,7 @@ class ViewModeToggleTest extends TestCase
         $response->assertSee('DRACOLoader.js', false);
     }
 
-    public function test_karyawan_only_has_access_to_dashboard(): void
+    public function test_karyawan_has_access_to_dashboard_and_reports(): void
     {
         // Karyawan can access dashboard
         $resDashboard = $this->actingAs($this->karyawan)->get('/');
@@ -62,6 +62,10 @@ class ViewModeToggleTest extends TestCase
         $resDashboard->assertDontSee('id="fullview-dispatch-panel"', false);
         $resDashboard->assertDontSee('id="autopilot-btn"', false);
 
+        // Karyawan can access reports
+        $resReports = $this->actingAs($this->karyawan)->get('/reports');
+        $resReports->assertStatus(200);
+
         // Karyawan is blocked from other admin routes
         $resDeliveries = $this->actingAs($this->karyawan)->get('/deliveries');
         $this->assertTrue(in_array($resDeliveries->status(), [403, 302]));
@@ -71,9 +75,6 @@ class ViewModeToggleTest extends TestCase
 
         $resHistory = $this->actingAs($this->karyawan)->get('/history');
         $this->assertTrue(in_array($resHistory->status(), [403, 302]));
-
-        $resReports = $this->actingAs($this->karyawan)->get('/reports');
-        $this->assertTrue(in_array($resReports->status(), [403, 302]));
     }
 
     public function test_admin_has_full_3d_controls_on_dashboard(): void

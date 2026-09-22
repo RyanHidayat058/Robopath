@@ -14,13 +14,13 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware('auth')->group(function () {
     // Accessible by all authenticated roles (Admin & Karyawan)
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/reports', [DashboardController::class, 'reports'])->name('reports');
 
     // Admin-only Routes (Karyawan restricted)
     Route::middleware('role:admin')->group(function () {
         Route::get('/deliveries', [DashboardController::class, 'deliveries'])->name('deliveries');
         Route::get('/bot-control', [DashboardController::class, 'botControl'])->name('bot-control');
         Route::get('/history', [DashboardController::class, 'history'])->name('history');
-        Route::get('/reports', [DashboardController::class, 'reports'])->name('reports');
     });
 });
 

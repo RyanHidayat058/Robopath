@@ -19,7 +19,7 @@ class RoleAndIncidentTest extends TestCase
         $response->assertRedirect('/login');
     }
 
-    public function test_karyawan_can_access_dashboard_only(): void
+    public function test_karyawan_can_access_dashboard_and_reports(): void
     {
         $karyawan = User::factory()->create(['role' => 'karyawan']);
 
@@ -27,9 +27,13 @@ class RoleAndIncidentTest extends TestCase
         $dashboard->assertStatus(200);
         $dashboard->assertDontSee('id="autopilot-btn"', false);
 
+        // Karyawan can access reports
+        $reports = $this->actingAs($karyawan)->get('/reports');
+        $reports->assertStatus(200);
+
+        // Admin-only routes are restricted
         $this->actingAs($karyawan)->get('/deliveries')->assertRedirect('/');
         $this->actingAs($karyawan)->get('/bot-control')->assertRedirect('/');
-        $this->actingAs($karyawan)->get('/reports')->assertRedirect('/');
         $this->actingAs($karyawan)->get('/history')->assertRedirect('/');
 
         // JSON requests receive 403
