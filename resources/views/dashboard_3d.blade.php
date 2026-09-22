@@ -157,7 +157,7 @@
             </button>
             @else
             <span class="text-[11px] bg-black/25 text-white px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5">
-                <i class="fa-solid fa-lock text-rose-200"></i> Menunggu Supervisor/Admin
+                <i class="fa-solid fa-lock text-rose-200"></i> Menunggu Admin
             </span>
             @endif
         </div>
@@ -171,7 +171,7 @@
             <div>
                 <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Unit Aktif</span>
                 <div class="flex items-baseline gap-1.5">
-                    <span class="text-lg font-black text-gray-800">{{ $activeRobotsCount }}/{{ $totalRobotsCount }}</span>
+                    <span class="text-lg font-black text-gray-800" id="stat-active-robots">{{ $activeRobotsCount }}/{{ $totalRobotsCount }}</span>
                     <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">Aktif</span>
                 </div>
             </div>
@@ -185,7 +185,7 @@
             <div>
                 <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Misi Berjalan</span>
                 <div class="flex items-baseline gap-1.5">
-                    <span class="text-lg font-black text-gray-800">{{ $activeDeliveriesCount }}</span>
+                    <span class="text-lg font-black text-gray-800" id="stat-active-deliveries">{{ $activeDeliveriesCount }}</span>
                     <span class="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200">Berlangsung</span>
                 </div>
             </div>
@@ -199,8 +199,8 @@
             <div>
                 <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Selesai Hari Ini</span>
                 <div class="flex items-baseline gap-1.5">
-                    <span class="text-lg font-black text-gray-800">{{ $deliveriesTodayCount }}</span>
-                    <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">{{ $successRate }}%</span>
+                    <span class="text-lg font-black text-gray-800" id="stat-deliveries-today">{{ $deliveriesTodayCount }}</span>
+                    <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200" id="stat-success-rate">{{ $successRate }}%</span>
                 </div>
             </div>
             <div class="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 text-base shadow-sm shrink-0">
@@ -213,8 +213,8 @@
             <div>
                 <span class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-0.5">Peringatan Sistem</span>
                 <div class="flex items-baseline gap-1.5">
-                    <span class="text-lg font-black {{ $activeAlertsCount > 0 ? 'text-rose-600' : 'text-gray-800' }}">{{ $activeAlertsCount }}</span>
-                    <span class="text-[10px] font-bold {{ $activeAlertsCount > 0 ? 'text-rose-600 bg-rose-50 border-rose-200' : 'text-gray-500 bg-gray-100 border-gray-200' }} px-1.5 py-0.5 rounded-full border">
+                    <span class="text-lg font-black {{ $activeAlertsCount > 0 ? 'text-rose-600' : 'text-gray-800' }}" id="stat-active-alerts">{{ $activeAlertsCount }}</span>
+                    <span class="text-[10px] font-bold {{ $activeAlertsCount > 0 ? 'text-rose-600 bg-rose-50 border-rose-200' : 'text-gray-500 bg-gray-100 border-gray-200' }} px-1.5 py-0.5 rounded-full border" id="stat-active-alerts-badge">
                         {{ $activeAlertsCount > 0 ? 'Perhatian' : 'Optimal' }}
                     </span>
                 </div>
@@ -270,13 +270,13 @@
                             <div id="simulate-menu" class="hidden absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-2xl border border-gray-200 py-1.5 z-50">
                                 <div class="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">Simulasikan Insiden Robot</div>
                                 <button onclick="simulateIssueAction(1, 'Collision')" class="w-full text-left px-3 py-2 text-xs hover:bg-rose-50 text-gray-700 flex items-center gap-2">
-                                    <i class="fa-solid fa-car-burst text-rose-500"></i> Tabrakan - Robot Alpha
+                                    <i class="fa-solid fa-car-burst text-rose-500"></i> Tabrakan
                                 </button>
                                 <button onclick="simulateIssueAction(1, 'Low Battery')" class="w-full text-left px-3 py-2 text-xs hover:bg-rose-50 text-gray-700 flex items-center gap-2">
-                                    <i class="fa-solid fa-battery-empty text-amber-500"></i> Baterai Habis - Robot Alpha
+                                    <i class="fa-solid fa-battery-empty text-amber-500"></i> Baterai Habis
                                 </button>
                                 <button onclick="simulateIssueAction(1, 'Sensor Error')" class="w-full text-left px-3 py-2 text-xs hover:bg-rose-50 text-gray-700 flex items-center gap-2">
-                                    <i class="fa-solid fa-triangle-exclamation text-orange-500"></i> Sensor Rusak - Robot Alpha
+                                    <i class="fa-solid fa-triangle-exclamation text-orange-500"></i> Sensor Rusak
                                 </button>
                             </div>
                         </div>
@@ -292,7 +292,7 @@
                 <!-- Active Floor Title Badge -->
                 <div class="flex items-center justify-between mb-2" id="std-floor-title-bar">
                     <span class="text-xs font-bold text-[#3b4cb8] flex items-center gap-1.5" id="std-floor-title">
-                        <i class="fa-solid fa-building-user"></i> Lantai 1 (Ground Floor - Lobby, Office &amp; Receptionist)
+                        <i class="fa-solid fa-building-user"></i> Lantai 1
                     </span>
                     <span class="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200" id="std-floor-badge">
                         Menampilkan Lantai 1
@@ -300,56 +300,56 @@
                 </div>
 
                 <!-- Top Floating Navigation Bar in Full View (Matching Bot Control Sleek Single Row) -->
-                <div id="fullview-top-bar" class="hidden flex items-center justify-between gap-3 pb-2.5 mb-2 border-b border-slate-700/60 text-xs shrink-0 select-none">
+                <div id="fullview-top-bar" class="hidden flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-700/60 text-xs shrink-0 select-none w-full">
                     <!-- Left: Floor Switcher Tabs & View Badge -->
-                    <div class="flex items-center gap-2 shrink-0">
+                    <div class="flex items-center gap-1.5 shrink-0">
                         <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-white/10 text-xs font-bold">
-                            <button type="button" onclick="switchDashboardFloor(1)" id="fullview-tab-f1" class="px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow">
+                            <button type="button" onclick="switchDashboardFloor(1)" id="fullview-tab-f1" class="px-3 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow">
                                 <i class="fa-solid fa-layer-group mr-1"></i> Lantai 1
                             </button>
-                            <button type="button" onclick="switchDashboardFloor(2)" id="fullview-tab-f2" class="px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10">
+                            <button type="button" onclick="switchDashboardFloor(2)" id="fullview-tab-f2" class="px-3 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10">
                                 <i class="fa-solid fa-layer-group mr-1"></i> Lantai 2
                             </button>
                         </div>
-                        <span class="text-[11px] bg-slate-900/90 text-sky-400 font-bold px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5 whitespace-nowrap">
-                            <i class="fa-solid fa-eye text-sky-400"></i> Mode Navigasi Bebas
+                        <span class="hidden sm:flex text-[11px] bg-slate-900/90 text-sky-400 font-bold px-2.5 py-1.5 rounded-xl border border-white/10 items-center gap-1.5 whitespace-nowrap">
+                            <i class="fa-solid fa-eye text-sky-400"></i> Navigasi Bebas
                         </span>
                     </div>
 
-                    <!-- Center: Quick View Tools -->
-                    <div class="hidden md:flex items-center gap-2">
-                        <button type="button" onclick="toggle3DRoomLabels()" id="fullview-btn-labels" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Tampilkan / Sembunyikan Label Ruangan">
+                    <!-- Center: Quick View Tools (Scrollable smoothly on narrower screens) -->
+                    <div class="flex-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 min-w-0 mx-1">
+                        <button type="button" onclick="toggle3DRoomLabels()" id="fullview-btn-labels" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="Tampilkan / Sembunyikan Label Ruangan">
                             <i class="fa-solid fa-tag text-emerald-400" id="fullview-icon-labels"></i> <span id="fullview-text-labels">Label: AKTIF</span>
                         </button>
                         @if(auth()->check() && auth()->user()->isAdmin())
-                        <button type="button" onclick="toggle3DControlPanel('label-size')" id="fullview-btn-label-size" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Ukuran Label & Model 3D">
+                        <button type="button" onclick="toggle3DControlPanel('label-size')" id="fullview-btn-label-size" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="Pengaturan Ukuran Label & Model 3D">
                             <i class="fa-solid fa-text-height text-indigo-400"></i> <span>Ukuran Label</span>
                         </button>
-                        <button type="button" onclick="toggle3DControlPanel('camera')" id="fullview-btn-camera" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Sudut & Zoom Kamera">
+                        <button type="button" onclick="toggle3DControlPanel('camera')" id="fullview-btn-camera" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="Pengaturan Sudut & Zoom Kamera">
                             <i class="fa-solid fa-video text-sky-400"></i> <span>Kamera</span>
                         </button>
-                        <button type="button" onclick="toggle3DControlPanel('light')" id="fullview-btn-light" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Pengaturan Pencahayaan, Shader & Bayangan Ruangan">
-                            <i class="fa-solid fa-sun text-amber-400"></i> <span>Cahaya & Bayangan</span>
+                        <button type="button" onclick="toggle3DControlPanel('light')" id="fullview-btn-light" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="Pengaturan Pencahayaan, Shader & Bayangan Ruangan">
+                            <i class="fa-solid fa-sun text-amber-400"></i> <span>Cahaya</span>
                         </button>
                         @endif
-                        <button type="button" onclick="toggleFollowMode()" id="fullview-btn-follow" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Kamera Mengikuti Robot Aktif">
+                        <button type="button" onclick="toggleFollowMode()" id="fullview-btn-follow" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="Kamera Mengikuti Robot Aktif">
                             <i class="fa-solid fa-crosshairs text-sky-400" id="fullview-icon-follow"></i> <span id="fullview-text-follow">Ikuti: NONAKTIF</span>
                         </button>
-                        <button type="button" onclick="reset3DCamera()" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition" title="Pusatkan Kembali Kamera">
+                        <button type="button" onclick="reset3DCamera()" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-300 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition shrink-0" title="Pusatkan Kembali Kamera">
                             <i class="fa-solid fa-arrows-to-dot text-amber-400"></i> <span>Pusatkan</span>
                         </button>
 
                         @if(auth()->check() && auth()->user()->isAdmin())
                         <!-- Autopilot Button in Full View -->
                         <button type="button" id="fullview-autopilot-btn" onclick="toggleAutopilot()" 
-                                class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap">
+                                class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0">
                             <i class="fa-solid fa-wand-magic-sparkles text-amber-400" id="fullview-autopilot-icon"></i>
                             <span id="fullview-autopilot-text">Autopilot: NONAKTIF</span>
                         </button>
 
                         <!-- Manual Dispatch Inspector Button in Full View -->
                         <button type="button" id="fullview-btn-dispatch" onclick="toggleFullViewDispatchPanel()" 
-                                class="bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition whitespace-nowrap active:scale-95" 
+                                class="bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition whitespace-nowrap active:scale-95 shrink-0" 
                                 title="Buka Panel Tugas Pengantaran Manual (Inspector)">
                             <i class="fa-solid fa-paper-plane text-sky-300"></i>
                             <span id="fullview-text-dispatch">Suruh Manual</span>
@@ -358,15 +358,9 @@
                         @endif
                     </div>
 
-                    <!-- Right: Status Legend & Exit Button -->
-                    <div class="flex items-center gap-3 shrink-0">
-                        <div class="hidden lg:flex items-center gap-3 text-[11px] font-semibold text-gray-300 bg-slate-900/90 px-3 py-1.5 rounded-xl border border-white/10">
-                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Siaga</span></div>
-                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500"></span><span>Mengantar</span></div>
-                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-orange-500"></span><span>Mengisi Daya</span></div>
-                            <div class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Perbaikan</span></div>
-                        </div>
-                        <button type="button" onclick="toggleFullView(false)" class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow transition active:scale-95" title="Keluar Layar Penuh (Esc)">
+                    <!-- Right: Exit Fullscreen Button (Always pinned and fully visible) -->
+                    <div class="flex items-center gap-2 shrink-0 ml-auto z-20">
+                        <button type="button" onclick="toggleFullView(false)" class="bg-rose-600 hover:bg-rose-700 text-white font-black px-4 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-rose-600/30 transition active:scale-95 border border-rose-400/40 cursor-pointer" title="Keluar Layar Penuh (Esc)">
                             <i class="fa-solid fa-compress"></i> <span>Keluar</span>
                         </button>
                     </div>
@@ -442,7 +436,7 @@
                 <div class="flex flex-wrap gap-4 pt-4 mt-4 border-t border-gray-200 text-xs text-gray-600 font-semibold">
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span>
-                        <span>Siaga / Standby</span>
+                        <span>Siaga</span>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="w-3 h-3 rounded-full bg-sky-500 shadow-sm"></span>
@@ -1875,18 +1869,29 @@
         const c = spr.userData.canvas, tex = spr.userData.texture;
         const ctx = c.getContext('2d');
         ctx.clearRect(0, 0, c.width, c.height);
-        let label = '● IDLE (Markas)', bg = 'rgba(16,185,129,0.94)';
+        let label = '● SIAGA (Markas)', bg = 'rgba(16,185,129,0.94)';
         if (hasIssue) {
-            const issue = robot.activeAlert ? String(robot.activeAlert.issue_type).toUpperCase() : (robot.battery_level <= 10 ? 'LOW BATTERY' : 'MAINTENANCE');
+            let issue = 'KENDALA';
+            if (robot.activeAlert && robot.activeAlert.issue_type) {
+                const it = String(robot.activeAlert.issue_type).toUpperCase();
+                if (it.includes('COLLISION') || it.includes('TABRAKAN')) issue = 'TABRAKAN';
+                else if (it.includes('LOW BATTERY') || it.includes('BATERAI')) issue = 'BATERAI LEMAH';
+                else if (it.includes('SENSOR')) issue = 'SENSOR RUSAK';
+                else issue = it;
+            } else if (robot.battery_level <= 10) {
+                issue = 'BATERAI HABIS';
+            } else {
+                issue = 'PERBAIKAN';
+            }
             label = '⚠ ' + issue; bg = 'rgba(225,29,72,0.94)';
         } else if (robot.status === 'Delivering' && delivery) {
             label = '▶ MENGANTAR → ' + (destName || '?'); bg = 'rgba(59,130,246,0.94)';
         } else if (robot.status === 'Returning' || robot.isReturning) {
-            label = '◀ RETURNING'; bg = 'rgba(99,102,241,0.94)';
+            label = '◀ MENUJU MARKAS'; bg = 'rgba(99,102,241,0.94)';
         } else if (robot.status === 'Charging') {
-            label = '⚡ CHARGING'; bg = 'rgba(249,115,22,0.94)';
+            label = '⚡ MENGISI DAYA'; bg = 'rgba(249,115,22,0.94)';
         } else if (robot.status === 'Maintenance') {
-            label = '🔧 MAINTENANCE'; bg = 'rgba(225,29,72,0.94)';
+            label = '🔧 PERBAIKAN'; bg = 'rgba(225,29,72,0.94)';
         }
         ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         const wRaw = ctx.measureText(label).width;
@@ -2784,7 +2789,7 @@
             if (tabF2) tabF2.className = "px-3.5 py-1.5 rounded-lg text-gray-600 hover:text-gray-900 transition";
             if (fvTabF1) fvTabF1.className = "px-3.5 py-1.5 rounded-lg font-bold transition bg-[#3b4cb8] text-white shadow";
             if (fvTabF2) fvTabF2.className = "px-3.5 py-1.5 rounded-lg font-bold transition text-gray-400 hover:text-white hover:bg-white/10";
-            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-emerald-400"></i> Lantai 1 (Ground Floor - Lobby, Office & Receptionist) <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 ml-1">3D</span>';
+            if (title) title.innerHTML = '<i class="fa-solid fa-cube text-emerald-400"></i> Lantai 1<span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 ml-1">3D</span>';
             if (badge) badge.textContent = 'Menampilkan Lantai 1 (3D)';
             if (canvasContainer3D) canvasContainer3D.classList.add('hidden');
             if (canvasContainer3DF1) {
@@ -3925,14 +3930,14 @@
                     if (robot.isLowBatteryReturning || robot.battery_level <= 20) {
                         robot.isLowBatteryReturning = false;
                         robot.status = 'Charging';
-                        taskText = `<span class="text-orange-500 font-bold"><i class="fa-solid fa-bolt mr-1"></i> Baterai Rendah! Charging di ${baseLoc.name || 'Base'}...</span>`;
+                        taskText = `<span class="text-orange-500 font-bold"><i class="fa-solid fa-bolt mr-1"></i> Baterai Rendah! Mengisi daya di ${baseLoc.name || 'Markas Robot'}...</span>`;
                         syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Charging', robot.battery_level);
                     } else {
                         robot.status = 'Idle';
-                        taskText = `Standby di ${baseLoc.name || 'Base Station'}`;
+                        taskText = `Siaga di ${baseLoc.name || 'Markas Robot'}`;
                         syncRobotBaseLocation(robot.id, baseLoc.x, baseLoc.y, 1, 'Idle', robot.battery_level);
                     }
-                    currentLocName = baseLoc.name || 'Base Station';
+                    currentLocName = baseLoc.name || 'Markas Robot';
                 } else if (!isNearBase && distToBase > 2.0 && !robot.customPosition) {
                     const hasActiveOrPendingDelivery = activeDeliveries.some(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending'));
                     if (!hasActiveOrPendingDelivery && !robot.isDispatching && !robot._activeDelivery) {
@@ -4878,6 +4883,37 @@
             }
             if (typeof populateFullViewDispatchDropdowns === 'function') {
                 populateFullViewDispatchDropdowns();
+            }
+
+            // Real-time Update KPI Cards (Unit Aktif, Misi Berjalan, Selesai Hari Ini, Peringatan Sistem)
+            if (data.stats) {
+                const statActiveRobots = document.getElementById('stat-active-robots');
+                const statActiveDeliveries = document.getElementById('stat-active-deliveries');
+                const statDeliveriesToday = document.getElementById('stat-deliveries-today');
+                const statSuccessRate = document.getElementById('stat-success-rate');
+                const statActiveAlerts = document.getElementById('stat-active-alerts');
+                const statActiveAlertsBadge = document.getElementById('stat-active-alerts-badge');
+
+                if (statActiveRobots && typeof data.stats.active_robots_count !== 'undefined') {
+                    statActiveRobots.textContent = `${data.stats.active_robots_count}/${data.stats.total_robots_count}`;
+                }
+                if (statActiveDeliveries && typeof data.stats.active_deliveries_count !== 'undefined') {
+                    statActiveDeliveries.textContent = data.stats.active_deliveries_count;
+                }
+                if (statDeliveriesToday && typeof data.stats.deliveries_today_count !== 'undefined') {
+                    statDeliveriesToday.textContent = data.stats.deliveries_today_count;
+                }
+                if (statSuccessRate && typeof data.stats.success_rate !== 'undefined') {
+                    statSuccessRate.textContent = `${data.stats.success_rate}%`;
+                }
+                if (statActiveAlerts && typeof data.stats.active_alerts_count !== 'undefined') {
+                    statActiveAlerts.textContent = data.stats.active_alerts_count;
+                    statActiveAlerts.className = `text-lg font-black ${data.stats.active_alerts_count > 0 ? 'text-rose-600' : 'text-gray-800'}`;
+                }
+                if (statActiveAlertsBadge && typeof data.stats.active_alerts_count !== 'undefined') {
+                    statActiveAlertsBadge.textContent = data.stats.active_alerts_count > 0 ? 'Perhatian' : 'Optimal';
+                    statActiveAlertsBadge.className = `text-[10px] font-bold ${data.stats.active_alerts_count > 0 ? 'text-rose-600 bg-rose-50 border-rose-200' : 'text-gray-500 bg-gray-100 border-gray-200'} px-1.5 py-0.5 rounded-full border`;
+                }
             }
         })
         .catch(err => console.error('Error fetching dashboard telemetry:', err));
