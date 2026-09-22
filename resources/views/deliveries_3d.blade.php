@@ -737,11 +737,24 @@
             const spr=holder.userData.statusSprite; const tex=spr.material.map; if(!tex || !spr.userData.canvas) return;
             const c=spr.userData.canvas, ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
             let label='', bg='';
-            if(hasIssue){ label='⚠ '+(robot._activeIssue||'ISSUE').toString().toUpperCase(); bg='rgba(225,29,72,0.94)'; }
+            if(hasIssue){
+                let issue = 'KENDALA';
+                if (robot._activeIssue) {
+                    const it = String(robot._activeIssue).toUpperCase();
+                    if (it.includes('COLLISION') || it.includes('TABRAKAN')) issue = 'TABRAKAN';
+                    else if (it.includes('LOW BATTERY') || it.includes('BATERAI')) issue = 'BATERAI LEMAH';
+                    else if (it.includes('SENSOR')) issue = 'SENSOR RUSAK';
+                    else issue = it;
+                } else {
+                    issue = 'PERBAIKAN';
+                }
+                label='⚠ ' + issue; bg='rgba(225,29,72,0.94)';
+            }
             else if(robot.status==='Delivering' && delivery){ label='▶ MENGANTAR → '+(destName||delivery.destination_location||''); bg='rgba(59,130,246,0.94)'; }
-            else if(robot.status==='Charging'){ label='⚡ CHARGING'; bg='rgba(234,88,12,0.94)'; }
-            else if(robot.status==='Maintenance'){ label='🔧 MAINTENANCE'; bg='rgba(225,29,72,0.94)'; }
-            else { label='● IDLE (Markas)'; bg='rgba(16,185,129,0.94)'; }
+            else if(robot.status==='Returning' || robot.isReturning){ label='◀ MENUJU MARKAS'; bg='rgba(99,102,241,0.94)'; }
+            else if(robot.status==='Charging'){ label='⚡ MENGISI DAYA'; bg='rgba(234,88,12,0.94)'; }
+            else if(robot.status==='Maintenance'){ label='🔧 PERBAIKAN'; bg='rgba(225,29,72,0.94)'; }
+            else { label='● SIAGA (Markas)'; bg='rgba(16,185,129,0.94)'; }
             ctx.font='bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'; 
             const pad=16, h=36, tw=Math.min(c.width-12, ctx.measureText(label).width+28), radius=h/2;
             const x0=(c.width-tw)/2, y0=(c.height-h)/2;
@@ -1669,16 +1682,16 @@
             let coords = { x: robot.current_x, y: robot.current_y };
             let floorNum = robot.floor || 1;
             let statusColor = 'bg-emerald-500';
-            let taskText = 'Standby at base station (N7)';
+            let taskText = 'Siaga di markas robot (N7)';
             
             const hasIssue = (robot.status === 'Maintenance' || (robot.status === 'Charging' && robot.battery_level <= 10) || delivery?.status === 'Pending');
 
             if (robot.status === 'Charging') {
                 statusColor = 'bg-orange-500';
-                taskText = 'Battery charging';
+                taskText = 'Mengisi daya baterai';
             } else if (robot.status === 'Maintenance') {
                 statusColor = 'bg-rose-500';
-                taskText = 'Maintenance required';
+                taskText = 'Perlu perbaikan';
             }
             
             if (hasIssue) {
@@ -1927,12 +1940,24 @@
                     if(holder.userData.statusSprite && holder.userData.statusSprite.userData.canvas){
                         const spr=holder.userData.statusSprite, c=spr.userData.canvas, ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
                         let label='', bg='';
-                        if(_knownIssue){ label='⚠ '+(robot._activeIssue||'ISSUE').toString().toUpperCase(); bg='rgba(225,29,72,0.94)'; }
+                        if(_knownIssue){
+                            let issue = 'KENDALA';
+                            if (robot._activeIssue) {
+                                const it = String(robot._activeIssue).toUpperCase();
+                                if (it.includes('COLLISION') || it.includes('TABRAKAN')) issue = 'TABRAKAN';
+                                else if (it.includes('LOW BATTERY') || it.includes('BATERAI')) issue = 'BATERAI LEMAH';
+                                else if (it.includes('SENSOR')) issue = 'SENSOR RUSAK';
+                                else issue = it;
+                            } else {
+                                issue = 'PERBAIKAN';
+                            }
+                            label='⚠ ' + issue; bg='rgba(225,29,72,0.94)';
+                        }
                         else if(robot.status==='Delivering' && _activeDeliv){ label='▶ MENGANTAR → '+(destName||_activeDeliv.destination_location||''); bg='rgba(59,130,246,0.94)'; }
-                        else if(robot.status==='Returning' || robot.isReturning){ label='◀ RETURNING'; bg='rgba(99,102,241,0.94)'; }
-                        else if(robot.status==='Charging'){ label='⚡ CHARGING'; bg='rgba(234,88,12,0.94)'; }
-                        else if(robot.status==='Maintenance'){ label='🔧 MAINTENANCE'; bg='rgba(225,29,72,0.94)'; }
-                        else { label='● IDLE (Markas)'; bg='rgba(16,185,129,0.94)'; }
+                        else if(robot.status==='Returning' || robot.isReturning){ label='◀ MENUJU MARKAS'; bg='rgba(99,102,241,0.94)'; }
+                        else if(robot.status==='Charging'){ label='⚡ MENGISI DAYA'; bg='rgba(234,88,12,0.94)'; }
+                        else if(robot.status==='Maintenance'){ label='🔧 PERBAIKAN'; bg='rgba(225,29,72,0.94)'; }
+                        else { label='● SIAGA (Markas)'; bg='rgba(16,185,129,0.94)'; }
                         ctx.font='bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'; 
                         const pad=16, h=36, tw=Math.min(c.width-12, ctx.measureText(label).width+28), radius=h/2;
                         const x0=(c.width-tw)/2, y0=(c.height-h)/2;
