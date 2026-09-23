@@ -1819,10 +1819,12 @@
 
                 const rSc = parseFloat(current3DSettings.robot_scale ?? 0.1);
                 // Ketinggian mata/kamera robot (sejajar mata robot, tepat di bodi atas depan)
-                const eyeHeight = Math.max(0.035, rSc * 0.46);
+                const eyeHeight = Math.max(0.020, rSc * 0.10);
 
                 if (followCameraMode === 'fpv') {
-                    // Mode 1: POV Robot (Mata Robot Onboard - Sejajar Mata Robot Melintasi Ruangan)
+                    // Nonaktifkan OrbitControls agar tidak menimpa posisi kamera mata robot
+                    controls.enabled = false;
+
                     if (holder.userData.markerSprite) holder.userData.markerSprite.visible = false;
                     if (holder.userData.nameSprite) holder.userData.nameSprite.visible = false;
                     if (holder.userData.statusSprite) holder.userData.statusSprite.visible = false;
@@ -1842,14 +1844,16 @@
 
                     if (viewerFollowCamSnap) {
                         camera.position.copy(camPos);
-                        controls.target.copy(lookTarget);
                         viewerFollowCamSnap = false;
                     } else {
-                        camera.position.lerp(camPos, 0.22);
-                        controls.target.lerp(lookTarget, 0.25);
+                        camera.position.lerp(camPos, 0.25);
                     }
+                    camera.lookAt(lookTarget);
+                    controls.target.copy(lookTarget);
                 } else if (followCameraMode === 'chase') {
-                    // Mode 2: Tampak Belakang (Third-Person Chase Cam Rendah Sinematik)
+                    // Nonaktifkan OrbitControls agar tidak menimpa sudut kamera belakang
+                    controls.enabled = false;
+
                     if (holder.userData.markerSprite) holder.userData.markerSprite.visible = true;
                     if (holder.userData.nameSprite) holder.userData.nameSprite.visible = true;
                     if (holder.userData.statusSprite) holder.userData.statusSprite.visible = true;
@@ -1869,14 +1873,15 @@
 
                     if (viewerFollowCamSnap) {
                         camera.position.copy(camPos);
-                        controls.target.copy(lookTarget);
                         viewerFollowCamSnap = false;
                     } else {
-                        camera.position.lerp(camPos, 0.14);
-                        controls.target.lerp(lookTarget, 0.16);
+                        camera.position.lerp(camPos, 0.16);
                     }
+                    camera.lookAt(lookTarget);
+                    controls.target.copy(lookTarget);
                 } else {
                     // Mode 3: Orbit Bebas (Top-Down Follow Klasik)
+                    controls.enabled = true;
                     if (holder.userData.markerSprite) holder.userData.markerSprite.visible = true;
                     if (holder.userData.nameSprite) holder.userData.nameSprite.visible = true;
                     if (holder.userData.statusSprite) holder.userData.statusSprite.visible = true;
@@ -1889,9 +1894,12 @@
                     if(dir.length()<0.01) dir.set(0.35,0.55,0.75).normalize();
                     const desired = controls.target.clone().add(dir.multiplyScalar(savedDist));
                     camera.position.lerp(desired, 0.08);
+                    controls.update();
                 }
+            } else {
+                controls.enabled = true;
+                controls.update();
             }
-            controls.update();
             renderer.render(scene, camera);
         }
         animate();
@@ -2520,6 +2528,10 @@
         if (isFollowMode) {
             allViewers().forEach(v => {
                 if (v && v.requestCamSnap) v.requestCamSnap();
+            });
+        } else {
+            allViewers().forEach(v => {
+                if (v && v.controls) v.controls.enabled = true;
             });
         }
         updateFollowButton();
