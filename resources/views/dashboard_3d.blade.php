@@ -335,9 +335,16 @@
                             <i class="fa-solid fa-sun text-amber-400"></i> <span>Cahaya</span>
                         </button>
                         @endif
-                        <button type="button" onclick="toggleFollowMode()" id="fullview-btn-follow" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="Kamera Mengikuti Robot Aktif">
-                            <i class="fa-solid fa-crosshairs text-sky-400" id="fullview-icon-follow"></i> <span id="fullview-text-follow">Ikuti: NONAKTIF</span>
-                        </button>
+                        <!-- Fullview Follow Button & View Mode Group -->
+                        <div class="inline-flex items-center rounded-xl bg-slate-900/90 border border-white/10 p-0.5 shrink-0" id="fullview-group-follow">
+                            <button type="button" onclick="toggleFollowMode()" id="fullview-btn-follow" class="hover:bg-slate-800 text-gray-200 font-bold px-2.5 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition whitespace-nowrap" title="Kamera Mengikuti Robot Aktif">
+                                <i class="fa-solid fa-crosshairs text-sky-400" id="fullview-icon-follow"></i> <span id="fullview-text-follow">Ikuti: NONAKTIF</span>
+                            </button>
+                            <button type="button" id="fullview-btn-cycle-follow" onclick="cycleFollowCameraMode()" class="hidden px-2.5 py-1.5 rounded-lg text-xs font-bold transition text-sky-300 hover:text-white hover:bg-white/10 border-l border-white/10 flex items-center gap-1.5" title="Ganti Mode Pandangan (Klik untuk beralih antara Belakang, POV Robot, dan Orbit)">
+                                <i class="fa-solid fa-video text-amber-400" id="fullview-icon-follow-mode"></i>
+                                <span id="fullview-follow-mode-badge" class="font-mono text-[11px]">Belakang</span>
+                            </button>
+                        </div>
                         <button type="button" onclick="reset3DCamera()" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-300 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition shrink-0" title="Pusatkan Kembali Kamera">
                             <i class="fa-solid fa-arrows-to-dot text-amber-400"></i> <span>Pusatkan</span>
                         </button>
@@ -402,9 +409,16 @@
                         <button id="btn-toggle-network" onclick="toggleNetworkLines()" class="bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition opacity-60" title="Garis ke semua ruangan (graph adj)">
                             <i class="fa-solid fa-share-nodes text-violet-400"></i> <span id="text-network">Jaringan: NONAKTIF</span>
                         </button>
-                        <button id="btn-toggle-follow" onclick="toggleFollowMode()" class="bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition" title="Kamera ikut robot yang difokuskan">
-                            <i class="fa-solid fa-eye text-sky-400" id="icon-follow"></i> <span id="text-follow">Ikuti: NONAKTIF</span>
-                        </button>
+                        <!-- Follow Button & View Mode Group -->
+                        <div class="inline-flex items-center rounded-xl bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md border border-white/10 shadow-lg p-0.5 transition" id="group-follow-controls">
+                            <button id="btn-toggle-follow" onclick="toggleFollowMode()" class="text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition" title="Kamera ikut robot yang difokuskan">
+                                <i class="fa-solid fa-eye text-sky-400" id="icon-follow"></i> <span id="text-follow">Ikuti: NONAKTIF</span>
+                            </button>
+                            <button id="btn-cycle-follow-mode" onclick="cycleFollowCameraMode()" class="hidden px-2.5 py-1.5 rounded-lg text-xs font-bold transition text-sky-300 hover:text-white hover:bg-white/10 border-l border-white/10 flex items-center gap-1.5" title="Ganti Mode Pandangan (Klik untuk beralih antara Belakang, POV Robot, dan Orbit)">
+                                <i class="fa-solid fa-video text-amber-400" id="icon-follow-mode"></i>
+                                <span id="text-follow-mode-badge" class="font-mono text-[11px]">Belakang</span>
+                            </button>
+                        </div>
                         <!-- Room Labels Toggle -->
                         <button id="btn-toggle-3d-labels" onclick="toggle3DRoomLabels()" class="bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition">
                             <i class="fa-solid fa-tag text-emerald-400" id="icon-3d-labels"></i> <span id="text-3d-labels">Label: AKTIF</span>
@@ -1035,6 +1049,7 @@
     // Lantai 2 Robot Monitoring state
     let focusedRobotId = null;
     let isFollowMode = false;
+    let followCameraMode = 'chase'; // 'chase' (Tampak Belakang), 'fpv' (POV Robot), or 'orbit' (Orbit Bebas)
     let showNetworkLines = false;
     let isEditingRobot3D = false;
     let robotTemplate = null;
@@ -1790,18 +1805,73 @@
                     holder.position.y = tgt.y;
                 }
             });
-            // Follow mode: kamera ngikut robot yang difokuskan (Lantai 2 only)
+            // Follow mode: kamera mengikuti robot yang difokuskan (Chase Cam, POV Robot, atau Orbit)
             if(isFollowMode && focusedRobotId!=null && robotMeshes.has(Number(focusedRobotId))){
                 const holder = robotMeshes.get(Number(focusedRobotId));
-                const tgt = holder.position.clone(); tgt.y += 0.3;
-                controls.target.lerp(tgt, 0.08);
-                // keep distance roughly savedDist behind current dir
-                const savedDistVal = parseFloat(current3DSettings.camera.dist ?? 5.0);
-                const savedDist = 5 + (savedDistVal/10)*115;
-                const dir = camera.position.clone().sub(controls.target).normalize();
-                if(dir.length()<0.01) dir.set(0.35,0.55,0.75).normalize();
-                const desired = controls.target.clone().add(dir.multiplyScalar(savedDist));
-                camera.position.lerp(desired, 0.08);
+                
+                // Vektor hadap robot di koordinat 3D
+                const forward = new THREE.Vector3(
+                    -Math.sin(holder.rotation.y),
+                    0,
+                    -Math.cos(holder.rotation.y)
+                ).normalize();
+
+                if (followCameraMode === 'fpv') {
+                    // Mode 1: POV Robot (First-Person View / Mata Robot Onboard)
+                    if (holder.userData.markerSprite) holder.userData.markerSprite.visible = false;
+                    if (holder.userData.nameSprite) holder.userData.nameSprite.visible = false;
+                    if (holder.userData.statusSprite) holder.userData.statusSprite.visible = false;
+
+                    const eyeHeight = 0.22;
+                    const eyeForward = 0.10;
+                    const lookAhead = 3.5;
+
+                    const camPos = holder.position.clone()
+                        .add(new THREE.Vector3(0, eyeHeight, 0))
+                        .addScaledVector(forward, eyeForward);
+
+                    const lookTarget = holder.position.clone()
+                        .add(new THREE.Vector3(0, eyeHeight * 0.95, 0))
+                        .addScaledVector(forward, lookAhead);
+
+                    camera.position.lerp(camPos, 0.12);
+                    controls.target.lerp(lookTarget, 0.14);
+                } else if (followCameraMode === 'chase') {
+                    // Mode 2: Tampak Belakang (Third-Person Chase Cam / Sinematik)
+                    if (holder.userData.markerSprite) holder.userData.markerSprite.visible = true;
+                    if (holder.userData.nameSprite) holder.userData.nameSprite.visible = true;
+                    if (holder.userData.statusSprite) holder.userData.statusSprite.visible = true;
+
+                    const camDist = 0.85;
+                    const camHeight = 0.45;
+                    const lookAhead = 2.2;
+                    const lookHeight = 0.20;
+
+                    const camPos = holder.position.clone()
+                        .addScaledVector(forward, -camDist)
+                        .add(new THREE.Vector3(0, camHeight, 0));
+
+                    const lookTarget = holder.position.clone()
+                        .addScaledVector(forward, lookAhead)
+                        .add(new THREE.Vector3(0, lookHeight, 0));
+
+                    camera.position.lerp(camPos, 0.08);
+                    controls.target.lerp(lookTarget, 0.09);
+                } else {
+                    // Mode 3: Orbit Bebas (Top-Down Follow Klasik)
+                    if (holder.userData.markerSprite) holder.userData.markerSprite.visible = true;
+                    if (holder.userData.nameSprite) holder.userData.nameSprite.visible = true;
+                    if (holder.userData.statusSprite) holder.userData.statusSprite.visible = true;
+
+                    const tgt = holder.position.clone(); tgt.y += 0.3;
+                    controls.target.lerp(tgt, 0.08);
+                    const savedDistVal = parseFloat(current3DSettings.camera.dist ?? 5.0);
+                    const savedDist = 5 + (savedDistVal/10)*115;
+                    const dir = camera.position.clone().sub(controls.target).normalize();
+                    if(dir.length()<0.01) dir.set(0.35,0.55,0.75).normalize();
+                    const desired = controls.target.clone().add(dir.multiplyScalar(savedDist));
+                    camera.position.lerp(desired, 0.08);
+                }
             }
             controls.update();
             renderer.render(scene, camera);
@@ -2027,26 +2097,103 @@
         if(focusedRobotId==null){ badge.classList.add('hidden'); return; }
         const r=robots.find(x=>Number(x.id)===Number(focusedRobotId));
         badge.classList.remove('hidden');
-        if(txt) txt.textContent='Fokus: '+(r? r.name : ('Robot '+focusedRobotId))+(isFollowMode?' • Follow':'');
+        const modeBadgeNames = {
+            'chase': 'Tampak Belakang',
+            'fpv': 'POV Robot',
+            'orbit': 'Orbit Atas'
+        };
+        const modeName = modeBadgeNames[followCameraMode] || 'Tampak Belakang';
+        if(txt) txt.textContent='Fokus: '+(r? r.name : ('Robot '+focusedRobotId))+(isFollowMode ? (' • ' + modeName) : '');
     }
+
+    function cycleFollowCameraMode() {
+        if (!isFollowMode) {
+            toggleFollowMode();
+            return;
+        }
+        if (followCameraMode === 'chase') {
+            setFollowCameraMode('fpv');
+        } else if (followCameraMode === 'fpv') {
+            setFollowCameraMode('orbit');
+        } else {
+            setFollowCameraMode('chase');
+        }
+    }
+
+    function setFollowCameraMode(mode) {
+        followCameraMode = mode;
+        if (!isFollowMode) {
+            isFollowMode = true;
+        }
+        updateFollowButton();
+    }
+
     function updateFollowButton(){
         const t=document.getElementById('text-follow');
         const ic=document.getElementById('icon-follow');
         const btn=document.getElementById('btn-toggle-follow');
+        const cycleBtn=document.getElementById('btn-cycle-follow-mode');
+        const badgeMode=document.getElementById('text-follow-mode-badge');
+        const iconMode=document.getElementById('icon-follow-mode');
+
+        const modeLabels = {
+            'chase': 'Belakang',
+            'fpv': 'POV Robot',
+            'orbit': 'Orbit'
+        };
+        const modeIcons = {
+            'chase': 'fa-solid fa-video text-amber-400',
+            'fpv': 'fa-solid fa-eye text-emerald-400',
+            'orbit': 'fa-solid fa-arrows-to-dot text-sky-400'
+        };
+
+        const curLabel = modeLabels[followCameraMode] || 'Belakang';
+        const curIcon = modeIcons[followCameraMode] || 'fa-solid fa-video text-amber-400';
+
         if(t) t.textContent = isFollowMode ? 'Ikuti: AKTIF' : 'Ikuti: NONAKTIF';
         if(ic) ic.className = isFollowMode ? 'fa-solid fa-eye text-emerald-400 animate-pulse' : 'fa-solid fa-eye text-sky-400';
-        if(btn) btn.classList.toggle('ring-2', isFollowMode);
-        if(btn) btn.classList.toggle('ring-emerald-400', isFollowMode);
+        if(btn) {
+            btn.classList.toggle('text-emerald-400', isFollowMode);
+            btn.classList.toggle('text-white', !isFollowMode);
+        }
+        if(cycleBtn) {
+            cycleBtn.classList.toggle('hidden', !isFollowMode);
+            cycleBtn.title = 'Ganti Sudut Pandang (Saat ini: ' + curLabel + ') - Klik untuk ganti';
+        }
+        if(badgeMode) badgeMode.textContent = curLabel;
+        if(iconMode) iconMode.className = curIcon;
 
         const f_t = document.getElementById('fullview-text-follow');
         const f_ic = document.getElementById('fullview-icon-follow');
         const f_btn = document.getElementById('fullview-btn-follow');
+        const f_cycleBtn = document.getElementById('fullview-btn-cycle-follow');
+        const f_badgeMode = document.getElementById('fullview-follow-mode-badge');
+        const f_iconMode = document.getElementById('fullview-icon-follow-mode');
+
         if (f_t) f_t.textContent = isFollowMode ? 'Ikuti: AKTIF' : 'Ikuti: NONAKTIF';
         if (f_ic) f_ic.className = isFollowMode ? 'fa-solid fa-crosshairs text-emerald-400 animate-pulse' : 'fa-solid fa-crosshairs text-sky-400';
         if (f_btn) {
-            f_btn.classList.toggle('ring-2', isFollowMode);
-            f_btn.classList.toggle('ring-emerald-400', isFollowMode);
+            f_btn.classList.toggle('text-emerald-400', isFollowMode);
+            f_btn.classList.toggle('text-gray-200', !isFollowMode);
         }
+        if (f_cycleBtn) {
+            f_cycleBtn.classList.toggle('hidden', !isFollowMode);
+            f_cycleBtn.title = 'Ganti Sudut Pandang (Saat ini: ' + curLabel + ') - Klik untuk ganti';
+        }
+        if (f_badgeMode) f_badgeMode.textContent = curLabel;
+        if (f_iconMode) f_iconMode.className = curIcon;
+
+        // Restore sprites visibility if leaving FPV mode or follow mode
+        allViewers().forEach(v => {
+            if (v && v.robotMeshes) {
+                for (const h of v.robotMeshes.values()) {
+                    const isFpvOnThis = isFollowMode && followCameraMode === 'fpv' && Number(h.userData.robotId) === Number(focusedRobotId);
+                    if (h.userData.markerSprite) h.userData.markerSprite.visible = !isFpvOnThis;
+                    if (h.userData.nameSprite) h.userData.nameSprite.visible = !isFpvOnThis;
+                    if (h.userData.statusSprite) h.userData.statusSprite.visible = !isFpvOnThis;
+                }
+            }
+        });
 
         updateFocusBadge();
     }
@@ -4958,6 +5105,13 @@
     });
 
     window.addEventListener('keydown', (e) => {
+        if ((e.key === 'v' || e.key === 'V') && isFollowMode) {
+            const tag = (e.target && e.target.tagName) || '';
+            if (tag !== 'INPUT' && tag !== 'SELECT' && tag !== 'TEXTAREA') {
+                cycleFollowCameraMode();
+                return;
+            }
+        }
         if (e.key === 'Escape') {
             const dispatchPanel = document.getElementById('fullview-dispatch-panel');
             if (dispatchPanel && !dispatchPanel.classList.contains('hidden')) {
