@@ -3,8 +3,8 @@
         {
             "id": "1_Ruang Meeting 2",
             "name": "Ruang Meeting 2",
-            "x": 51.88,
-            "y": 15.38,
+            "x": 53.46,
+            "y": 25.5,
             "y_elev": 0.019,
             "floor": 1,
             "hidden": false,
@@ -13,17 +13,7 @@
         {
             "id": "1_N100",
             "name": "N100",
-            "x": 51.9,
-            "y": 28.1,
-            "y_elev": 0.019,
-            "floor": 1,
-            "hidden": true,
-            "is_destination": false
-        },
-        {
-            "id": "1_N101",
-            "name": "N101",
-            "x": 64.4,
+            "x": 53.46,
             "y": 28.1,
             "y_elev": 0.019,
             "floor": 1,
@@ -33,8 +23,8 @@
         {
             "id": "1_Ruang Meeting 3",
             "name": "Ruang Meeting 3",
-            "x": 64.4,
-            "y": 15.38,
+            "x": 62.62,
+            "y": 25.5,
             "y_elev": 0.019,
             "floor": 1,
             "hidden": false,
@@ -103,7 +93,7 @@
         {
             "id": "1_N106",
             "name": "N106",
-            "x": 65.65,
+            "x": 69,
             "y": 61.7,
             "y_elev": 0.019,
             "floor": 1,
@@ -113,8 +103,8 @@
         {
             "id": "1_Ruang Multifunctional",
             "name": "Ruang Multifunctional",
-            "x": 65.65,
-            "y": 73.2,
+            "x": 69,
+            "y": 66.8,
             "y_elev": 0.019,
             "floor": 1,
             "hidden": false,
@@ -123,7 +113,7 @@
         {
             "id": "1_N107",
             "name": "N107",
-            "x": 71.69,
+            "x": 70.3,
             "y": 61.7,
             "y_elev": 0.019,
             "floor": 1,
@@ -133,8 +123,8 @@
         {
             "id": "1_Ruang Rapat Eksternal",
             "name": "Ruang Rapat Eksternal",
-            "x": 71.69,
-            "y": 51.07,
+            "x": 70.3,
+            "y": 57.8,
             "y_elev": 0.019,
             "floor": 1,
             "hidden": false,
@@ -264,7 +254,7 @@
             "id": "2_N201",
             "name": "N201",
             "x": 77.65,
-            "y": 47.68,
+            "y": 50.86,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": true,
@@ -273,8 +263,8 @@
         {
             "id": "2_N202",
             "name": "N202",
-            "x": 80.6,
-            "y": 47.68,
+            "x": 82,
+            "y": 50.86,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": true,
@@ -283,8 +273,8 @@
         {
             "id": "2_Ruang Meeting 2",
             "name": "Ruang Meeting 2",
-            "x": 80.6,
-            "y": 32.6,
+            "x": 82,
+            "y": 44.4,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -303,8 +293,8 @@
         {
             "id": "2_N204",
             "name": "N204",
-            "x": 88.6,
-            "y": 47.68,
+            "x": 88.31,
+            "y": 50.86,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": true,
@@ -313,8 +303,8 @@
         {
             "id": "2_Ruang Meeting 1",
             "name": "Ruang Meeting 1",
-            "x": 88.6,
-            "y": 32.6,
+            "x": 94.45,
+            "y": 44.4,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -323,7 +313,7 @@
         {
             "id": "2_N205",
             "name": "N205",
-            "x": 91.4,
+            "x": 91.6,
             "y": 57.4,
             "y_elev": 0.073,
             "floor": 2,
@@ -334,7 +324,7 @@
             "id": "2_N206",
             "name": "N206",
             "x": 94.45,
-            "y": 47.68,
+            "y": 50.36,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": true,
@@ -344,7 +334,7 @@
             "id": "2_N207",
             "name": "N207",
             "x": 98.1,
-            "y": 59,
+            "y": 57.4,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": true,
@@ -353,28 +343,18 @@
         {
             "id": "2_Ruang Meeting 3",
             "name": "Ruang Meeting 3",
-            "x": 98.1,
-            "y": 72.6,
+            "x": 99.3,
+            "y": 64.93,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
             "is_destination": true
         },
         {
-            "id": "2_N208",
-            "name": "N208",
-            "x": 95.8,
-            "y": 65.61,
-            "y_elev": 0.073,
-            "floor": 2,
-            "hidden": true,
-            "is_destination": false
-        },
-        {
             "id": "2_Ruang Meeting 4",
             "name": "Ruang Meeting 4",
-            "x": 95.8,
-            "y": 72.6,
+            "x": 91.6,
+            "y": 64.77,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -413,7 +393,7 @@
         {
             "id": "2_N210",
             "name": "N210",
-            "x": 69.5,
+            "x": 67.3,
             "y": 34.2,
             "y_elev": 0.073,
             "floor": 2,
@@ -423,27 +403,17 @@
         {
             "id": "2_R. Sekertaris",
             "name": "R. Sekertaris",
-            "x": 69.5,
-            "y": 41.6,
+            "x": 67.3,
+            "y": 42,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
             "is_destination": true
         },
         {
-            "id": "2_N211",
-            "name": "N211",
-            "x": 66,
-            "y": 34.2,
-            "y_elev": 0.073,
-            "floor": 2,
-            "hidden": true,
-            "is_destination": false
-        },
-        {
             "id": "2_N212",
             "name": "N212",
-            "x": 66,
+            "x": 67.3,
             "y": 28.3,
             "y_elev": 0.073,
             "floor": 2,
@@ -453,7 +423,7 @@
         {
             "id": "2_N213",
             "name": "N213",
-            "x": 35.2,
+            "x": 36.6,
             "y": 28.3,
             "y_elev": 0.073,
             "floor": 2,
@@ -474,7 +444,7 @@
             "id": "2_N215",
             "name": "N215",
             "x": 63.8,
-            "y": 64.5,
+            "y": 68.8,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": true,
@@ -483,8 +453,8 @@
         {
             "id": "2_Ruang Meeting 6",
             "name": "Ruang Meeting 6",
-            "x": 66.4,
-            "y": 64.5,
+            "x": 64.6,
+            "y": 68.8,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -493,8 +463,8 @@
         {
             "id": "2_Ruang Meeting 5",
             "name": "Ruang Meeting 5",
-            "x": 66.4,
-            "y": 78.5,
+            "x": 64.6,
+            "y": 73.8,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -504,7 +474,7 @@
             "id": "2_N216",
             "name": "N216",
             "x": 63.8,
-            "y": 78.5,
+            "y": 73.8,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": true,
@@ -513,8 +483,8 @@
         {
             "id": "2_VIP Room",
             "name": "VIP Room",
-            "x": 66,
-            "y": 19.5,
+            "x": 67.3,
+            "y": 26,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -523,8 +493,8 @@
         {
             "id": "2_R. Kerja Tamu Direksi",
             "name": "R. Kerja Tamu Direksi",
-            "x": 58.3,
-            "y": 19.5,
+            "x": 59.8,
+            "y": 26,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -533,7 +503,7 @@
         {
             "id": "2_N217",
             "name": "N217",
-            "x": 58.3,
+            "x": 59.8,
             "y": 28.3,
             "y_elev": 0.073,
             "floor": 2,
@@ -543,8 +513,8 @@
         {
             "id": "2_PRESDIR",
             "name": "PRESDIR",
-            "x": 50.6,
-            "y": 19.5,
+            "x": 51.8,
+            "y": 26,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -553,8 +523,8 @@
         {
             "id": "2_Vice President",
             "name": "Vice President",
-            "x": 42.9,
-            "y": 19.5,
+            "x": 44.2,
+            "y": 26,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -563,8 +533,8 @@
         {
             "id": "2_Private Meeting Room",
             "name": "Private Meeting Room",
-            "x": 35.2,
-            "y": 19.5,
+            "x": 36.6,
+            "y": 26,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -573,8 +543,8 @@
         {
             "id": "2_Direktur 1",
             "name": "Direktur 1",
-            "x": 27.5,
-            "y": 19.5,
+            "x": 28.7,
+            "y": 26,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -583,8 +553,8 @@
         {
             "id": "2_Direktur 2",
             "name": "Direktur 2",
-            "x": 19.8,
-            "y": 19.5,
+            "x": 21.2,
+            "y": 26,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -593,8 +563,8 @@
         {
             "id": "2_R. Perpus",
             "name": "R. Perpus",
-            "x": 16.9,
-            "y": 19.5,
+            "x": 15.2,
+            "y": 26,
             "y_elev": 0.073,
             "floor": 2,
             "hidden": false,
@@ -603,7 +573,7 @@
         {
             "id": "2_N218",
             "name": "N218",
-            "x": 16.9,
+            "x": 15.2,
             "y": 28.3,
             "y_elev": 0.073,
             "floor": 2,
@@ -613,7 +583,7 @@
         {
             "id": "2_N219",
             "name": "N219",
-            "x": 19.8,
+            "x": 21.2,
             "y": 28.3,
             "y_elev": 0.073,
             "floor": 2,
@@ -623,7 +593,7 @@
         {
             "id": "2_N220",
             "name": "N220",
-            "x": 27.5,
+            "x": 28.7,
             "y": 28.3,
             "y_elev": 0.073,
             "floor": 2,
@@ -633,7 +603,7 @@
         {
             "id": "2_N221",
             "name": "N221",
-            "x": 42.9,
+            "x": 44.2,
             "y": 28.3,
             "y_elev": 0.073,
             "floor": 2,
@@ -643,7 +613,7 @@
         {
             "id": "2_N222",
             "name": "N222",
-            "x": 50.6,
+            "x": 51.8,
             "y": 28.3,
             "y_elev": 0.073,
             "floor": 2,
@@ -659,6 +629,136 @@
             "floor": 1,
             "hidden": false,
             "is_destination": true
+        },
+        {
+            "id": "1_N1201",
+            "name": "N1201",
+            "x": 57.5,
+            "y": 28.1,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_N1202",
+            "name": "N1202",
+            "x": 50.5,
+            "y": 28.1,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_N1203",
+            "name": "N1203",
+            "x": 43.7,
+            "y": 28.1,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "1_N1204",
+            "name": "N1204",
+            "x": 36.9,
+            "y": 28.1,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "2_N2201",
+            "name": "N2201",
+            "x": 99.3,
+            "y": 57.4,
+            "y_elev": 0.073,
+            "floor": 2,
+            "hidden": true,
+            "is_destination": false
+        },
+        {
+            "id": "2_Table Office 1",
+            "name": "Table Office 1",
+            "x": 57.6,
+            "y": 30.5,
+            "y_elev": 0.073,
+            "floor": 2,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "2_Table Office 2",
+            "name": "Table Office 2",
+            "x": 50.6,
+            "y": 30.5,
+            "y_elev": 0.073,
+            "floor": 2,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "2_Table Office 3",
+            "name": "Table Office 3",
+            "x": 43.8,
+            "y": 30.5,
+            "y_elev": 0.073,
+            "floor": 2,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "2_Table Office 4",
+            "name": "Table Office 4",
+            "x": 37.1,
+            "y": 30.5,
+            "y_elev": 0.073,
+            "floor": 2,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_Table Office 1",
+            "name": "Table Office 1",
+            "x": 57.5,
+            "y": 32,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_Table Office 2",
+            "name": "Table Office 2",
+            "x": 50.5,
+            "y": 32,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_Table Office 3",
+            "name": "Table Office 3",
+            "x": 43.7,
+            "y": 32,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
+        },
+        {
+            "id": "1_Table Office 4",
+            "name": "Table Office 4",
+            "x": 36.9,
+            "y": 32,
+            "y_elev": 0.019,
+            "floor": 1,
+            "hidden": false,
+            "is_destination": true
         }
     ],
     "adj": {
@@ -667,29 +767,25 @@
         ],
         "1_N100": [
             "1_Ruang Meeting 2",
-            "1_N104",
-            "1_N102"
-        ],
-        "1_N101": [
-            "1_Ruang Meeting 3",
-            "1_N102"
+            "1_N1202",
+            "1_N1201"
         ],
         "1_Ruang Meeting 3": [
-            "1_N101"
+            "1_N102"
         ],
         "1_N102": [
-            "1_N101",
-            "1_N100",
-            "1_N103"
+            "1_N103",
+            "1_Ruang Meeting 3",
+            "1_N1201"
         ],
         "1_N103": [
             "1_N102",
             "1_N106"
         ],
         "1_N104": [
-            "1_N100",
             "1_Ruang Meeting 1",
-            "1_N105"
+            "1_N105",
+            "1_N1204"
         ],
         "1_Ruang Meeting 1": [
             "1_N104"
@@ -782,34 +878,30 @@
         ],
         "2_N204": [
             "2_N205",
-            "2_N203",
-            "2_Ruang Meeting 1"
+            "2_N203"
         ],
         "2_Ruang Meeting 1": [
-            "2_N204"
+            "2_N206"
         ],
         "2_N205": [
             "2_N206",
-            "2_N204"
+            "2_N204",
+            "2_Ruang Meeting 4"
         ],
         "2_N206": [
             "2_N207",
-            "2_N205"
+            "2_N205",
+            "2_Ruang Meeting 1"
         ],
         "2_N207": [
-            "2_Ruang Meeting 3",
-            "2_N208",
-            "2_N206"
+            "2_N206",
+            "2_N2201"
         ],
         "2_Ruang Meeting 3": [
-            "2_N207"
-        ],
-        "2_N208": [
-            "2_Ruang Meeting 4",
-            "2_N207"
+            "2_N2201"
         ],
         "2_Ruang Meeting 4": [
-            "2_N208"
+            "2_N205"
         ],
         "2_N209": [
             "2_N201",
@@ -824,31 +916,28 @@
             "2_Lounge"
         ],
         "2_N210": [
-            "2_N211",
             "2_R. Sekertaris",
-            "2_N209"
+            "2_N209",
+            "2_N212"
         ],
         "2_R. Sekertaris": [
             "2_N210"
         ],
-        "2_N211": [
-            "2_N212",
-            "2_N210"
-        ],
         "2_N212": [
+            "2_VIP Room",
             "2_N214",
-            "2_N211",
-            "2_VIP Room"
+            "2_N210"
         ],
         "2_N213": [
             "2_N221",
             "2_Private Meeting Room",
-            "2_N220"
+            "2_N220",
+            "2_Table Office 4"
         ],
         "2_N214": [
             "2_N215",
-            "2_N212",
-            "2_N217"
+            "2_N217",
+            "2_N212"
         ],
         "2_N215": [
             "2_N216",
@@ -874,6 +963,7 @@
         "2_N217": [
             "2_N214",
             "2_R. Kerja Tamu Direksi",
+            "2_Table Office 1",
             "2_N222"
         ],
         "2_PRESDIR": [
@@ -910,15 +1000,65 @@
         ],
         "2_N221": [
             "2_Vice President",
-            "2_N222",
-            "2_N213"
+            "2_N213",
+            "2_Table Office 3",
+            "2_N222"
         ],
         "2_N222": [
             "2_PRESDIR",
-            "2_N217",
+            "2_Table Office 2",
+            "2_N221",
+            "2_N217"
+        ],
+        "1_Markas Robot": [],
+        "1_N1201": [
+            "1_N100",
+            "1_Table Office 1",
+            "1_N102"
+        ],
+        "1_N1202": [
+            "1_Table Office 2",
+            "1_N1203",
+            "1_N100"
+        ],
+        "1_N1203": [
+            "1_N1204",
+            "1_Table Office 3",
+            "1_N1202"
+        ],
+        "1_N1204": [
+            "1_N104",
+            "1_Table Office 4",
+            "1_N1203"
+        ],
+        "2_N2201": [
+            "2_N207",
+            "2_Ruang Meeting 3"
+        ],
+        "2_Table Office 1": [
+            "2_N217"
+        ],
+        "2_Table Office 2": [
+            "2_N222"
+        ],
+        "2_Table Office 3": [
             "2_N221"
         ],
-        "1_Markas Robot": []
+        "2_Table Office 4": [
+            "2_N213"
+        ],
+        "1_Table Office 1": [
+            "1_N1201"
+        ],
+        "1_Table Office 2": [
+            "1_N1202"
+        ],
+        "1_Table Office 3": [
+            "1_N1203"
+        ],
+        "1_Table Office 4": [
+            "1_N1204"
+        ]
     },
     "settings_3d": {
         "camera": {
