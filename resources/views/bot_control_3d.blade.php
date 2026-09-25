@@ -213,6 +213,11 @@
                             <i class="fa-solid fa-eye text-sky-400" id="fullmap-icon-toggle-hidden"></i> <span id="fullmap-text-toggle-hidden">Transit: Tampil</span>
                         </button>
 
+                        <!-- Atur Kamera Awal -->
+                        <button type="button" onclick="openInitialCameraModal()" id="fullmap-btn-initial-cam" class="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 text-indigo-300 font-bold px-2.5 sm:px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0 active:scale-95 cursor-pointer" title="Atur Sudut Pandang Kamera Awal (View Saat Denah Dimuat)">
+                            <i class="fa-solid fa-camera text-indigo-400"></i> <span>Kamera Awal</span>
+                        </button>
+
                         <!-- Label Size Scale -->
                         <div class="flex items-center gap-1 bg-slate-900/90 border border-white/10 px-2 py-1 rounded-xl text-xs font-bold whitespace-nowrap shrink-0" title="Sesuaikan Ukuran Label Teks">
                             <span class="text-gray-400 text-[11px]"><i class="fa-solid fa-font text-indigo-400 mr-1"></i>Label:</span>
@@ -315,6 +320,9 @@
                         <button type="button" onclick="focusOnActiveSelection()" title="Fokus Kamera ke Node / Robot Terpilih" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-amber-400 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
                             <i class="fa-solid fa-crosshairs"></i>
                         </button>
+                        <button type="button" onclick="openInitialCameraModal()" title="Atur Posisi Kamera Awal Saat Peta Dimuat" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-indigo-300 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
                         <button type="button" onclick="toggleFullMap()" id="btn-floating-fullmap" title="Full Map 3D / Layar Penuh" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-sky-400 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
                             <i class="fa-solid fa-expand" id="icon-floating-fullmap"></i>
                         </button>
@@ -413,8 +421,11 @@
                     </div>
 
                     <!-- Bottom Action Buttons in Node Inspector -->
-                    <div class="pt-2 border-t border-gray-100">
-                        <button type="button" onclick="saveGraphToServer()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow transition">
+                    <div class="pt-2 border-t border-gray-100 space-y-2">
+                        <button type="button" onclick="openInitialCameraModal()" class="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition cursor-pointer">
+                            <i class="fa-solid fa-camera text-indigo-600"></i> Atur Kamera Awal 3D
+                        </button>
+                        <button type="button" onclick="saveGraphToServer()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow transition cursor-pointer">
                             <i class="fa-solid fa-floppy-disk"></i> Simpan Denah
                         </button>
                     </div>
@@ -649,6 +660,112 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal Pengaturan Kamera Awal 3D -->
+    <div id="modal-initial-camera-3d" class="hidden fixed inset-0 z-[10005] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 select-none">
+        <div class="bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl w-full max-w-lg p-6 text-white transform transition-all">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-lg shrink-0">
+                        <i class="fa-solid fa-camera"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-sm text-gray-100">Pengaturan Kamera Awal 3D</h4>
+                        <p class="text-[11px] text-gray-400">Atur posisi dan sudut pandang kamera saat denah 3D pertama kali dimuat.</p>
+                    </div>
+                </div>
+                <button type="button" onclick="closeInitialCameraModal()" class="text-gray-400 hover:text-white w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-sm transition cursor-pointer" title="Tutup">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Floor Selector Tabs inside Modal -->
+            <div class="mt-4 flex items-center gap-2 bg-slate-950/60 p-1.5 rounded-xl border border-slate-800">
+                <span class="text-[11px] text-gray-400 font-bold px-2">Pilih Lantai:</span>
+                <button type="button" onclick="selectInitialCamFloor(1)" id="btn-initcam-floor-1" class="flex-1 py-1.5 rounded-lg text-xs font-bold transition bg-indigo-600 text-white shadow">
+                    Lantai 1
+                </button>
+                <button type="button" onclick="selectInitialCamFloor(2)" id="btn-initcam-floor-2" class="flex-1 py-1.5 rounded-lg text-xs font-bold transition text-gray-400 hover:text-white">
+                    Lantai 2
+                </button>
+            </div>
+
+            <!-- Capture Current Camera View Button -->
+            <div class="mt-3">
+                <button type="button" onclick="captureCurrentCameraForInitial()" class="w-full bg-slate-800 hover:bg-slate-700/90 border border-indigo-500/30 hover:border-indigo-500/60 text-indigo-300 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs transition cursor-pointer active:scale-95">
+                    <i class="fa-solid fa-crosshairs text-indigo-400"></i>
+                    <span>Gunakan Sudut Kamera Saat Ini</span>
+                </button>
+                <p class="text-[10px] text-gray-500 mt-1 text-center">Arahkan dan sesuaikan kamera 3D di kanvas, lalu klik tombol di atas untuk menyalin sudut pandang.</p>
+            </div>
+
+            <!-- Coordinate Inputs -->
+            <div class="mt-4 space-y-3">
+                <!-- Camera Position -->
+                <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                    <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-2">
+                        <i class="fa-solid fa-location-dot text-sky-400 mr-1"></i> Posisi Kamera (X, Y, Z)
+                    </label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <span class="text-[10px] text-gray-500 block mb-0.5">Pos X</span>
+                            <input type="number" step="0.1" id="initcam-pos-x" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-gray-100 focus:border-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-gray-500 block mb-0.5">Pos Y (Tinggi)</span>
+                            <input type="number" step="0.1" id="initcam-pos-y" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-gray-100 focus:border-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-gray-500 block mb-0.5">Pos Z</span>
+                            <input type="number" step="0.1" id="initcam-pos-z" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-gray-100 focus:border-indigo-500 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Camera Target (Orbit / LookAt center) -->
+                <div class="bg-slate-950/60 p-3 rounded-xl border border-slate-800">
+                    <label class="block text-[11px] font-bold text-gray-300 uppercase tracking-wider mb-2">
+                        <i class="fa-solid fa-bullseye text-amber-400 mr-1"></i> Titik Fokus Target (X, Y, Z)
+                    </label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <span class="text-[10px] text-gray-500 block mb-0.5">Target X</span>
+                            <input type="number" step="0.1" id="initcam-tgt-x" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-gray-100 focus:border-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-gray-500 block mb-0.5">Target Y</span>
+                            <input type="number" step="0.1" id="initcam-tgt-y" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-gray-100 focus:border-indigo-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-gray-500 block mb-0.5">Target Z</span>
+                            <input type="number" step="0.1" id="initcam-tgt-z" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold text-gray-100 focus:border-indigo-500 focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="flex items-center justify-between gap-2 pt-4 mt-4 border-t border-slate-800">
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="previewInitialCamera()" class="px-3 py-2 rounded-xl text-xs font-bold text-sky-400 hover:text-sky-300 hover:bg-slate-800 border border-sky-500/30 transition flex items-center gap-1.5 cursor-pointer" title="Coba terapkan sudut kamera ini sekarang">
+                        <i class="fa-solid fa-eye"></i> <span>Uji Tampilan</span>
+                    </button>
+                    <button type="button" onclick="resetInitialCameraToDefault()" class="px-3 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-gray-200 hover:bg-slate-800 transition flex items-center gap-1.5 cursor-pointer" title="Kembalikan ke koordinat kamera standar">
+                        <i class="fa-solid fa-arrows-rotate"></i> <span>Reset Standar</span>
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeInitialCameraModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-slate-800 transition cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="button" onclick="saveInitialCameraSettings()" class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 transition cursor-pointer active:scale-95">
+                        <i class="fa-solid fa-check"></i> <span>Simpan Kamera Awal</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -685,7 +802,8 @@
         robot_elevation_f1: parseFloat(settings3D?.robot_elevation_f1 ?? 0.019),
         robot_elevation_f2: parseFloat(settings3D?.robot_elevation_f2 ?? 0.073),
         node_scale: parseFloat(settings3D?.node_scale ?? 0.6),
-        node_color: settings3D?.node_color ?? '#ff0000'
+        node_color: settings3D?.node_color ?? '#ff0000',
+        initial_camera: settings3D?.initial_camera ?? null
     };
 
     // === 3D Robot Avatar & Node Editor State ===
@@ -1223,7 +1341,13 @@
         const initFovVal = parseFloat(current3DSettings.camera.fov ?? 5.0);
         const initFov = 20 + (initFovVal / 10) * 70;
         const camera = new THREE.PerspectiveCamera(initFov, width / height, 0.02, 1000);
-        camera.position.set(3.8, 16, 24);
+        const floorKey = 'floor_' + floorNum;
+        const earlyInitCam = current3DSettings.initial_camera?.[floorKey] || current3DSettings.initial_camera;
+        if (earlyInitCam && earlyInitCam.position && earlyInitCam.target) {
+            camera.position.set(earlyInitCam.position.x, earlyInitCam.position.y, earlyInitCam.position.z);
+        } else {
+            camera.position.set(3.8, 7.5, 9.5);
+        }
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(width, height);
@@ -1237,7 +1361,11 @@
         container.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.target.set(3.8, 0.5, 0);
+        if (earlyInitCam && earlyInitCam.target) {
+            controls.target.set(earlyInitCam.target.x, earlyInitCam.target.y, earlyInitCam.target.z);
+        } else {
+            controls.target.set(3.8, 0.5, 0.5);
+        }
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
         controls.maxPolarAngle = Math.PI / 2.02;
@@ -1831,7 +1959,8 @@
         }, 10000);
 
         let _bcModel = null; let _bcSize = new THREE.Vector3();
-        let _defaultCamTarget = new THREE.Vector3(0,0,0);
+        let _defaultCamTarget = new THREE.Vector3(3.8, 0.5, 0.5);
+        let _defaultCamPos = new THREE.Vector3(3.8, 7.5, 9.5);
         fetchGLBBufferWithCache(modelUrl, (loadedBytes, totalBytes, fromCache) => {
             if (!_loaderEl) return;
             if (fromCache) {
@@ -1906,9 +2035,17 @@
                     console.log('[Robopath bot_control] floor',floorNum,'nodeMeshes:', nodeMeshes.size, 'robotMeshes:', robotMeshes.size);
                     try{ refreshRobotSelector(); updateDriveReadout(); }catch(e){}
 
-                    // Framing kamera denah bangunan presisi (Foto 2)
-                    _defaultCamTarget.set(3.8, 0.5, 0);
-                    camera.position.set(3.8, 16, 24);
+                    // Framing kamera denah bangunan presisi
+                    const floorKey = 'floor_' + floorNum;
+                    const customInitCam = current3DSettings.initial_camera?.[floorKey] || current3DSettings.initial_camera;
+                    if (customInitCam && customInitCam.position && customInitCam.target) {
+                        _defaultCamTarget.set(customInitCam.target.x, customInitCam.target.y, customInitCam.target.z);
+                        _defaultCamPos.set(customInitCam.position.x, customInitCam.position.y, customInitCam.position.z);
+                    } else {
+                        _defaultCamTarget.set(3.8, 0.5, 0.5);
+                        _defaultCamPos.set(3.8, 7.5, 9.5);
+                    }
+                    camera.position.copy(_defaultCamPos);
                     controls.target.copy(_defaultCamTarget);
                     controls.update();
                 } catch(parseErr) {
@@ -2013,8 +2150,16 @@
         }
 
         function resetView() {
-            _defaultCamTarget.set(3.8, 0.5, 0);
-            camera.position.set(3.8, 16, 24);
+            const floorKey = 'floor_' + floorNum;
+            const customInitCam = current3DSettings.initial_camera?.[floorKey] || current3DSettings.initial_camera;
+            if (customInitCam && customInitCam.position && customInitCam.target) {
+                _defaultCamTarget.set(customInitCam.target.x, customInitCam.target.y, customInitCam.target.z);
+                _defaultCamPos.set(customInitCam.position.x, customInitCam.position.y, customInitCam.position.z);
+            } else {
+                _defaultCamTarget.set(3.8, 0.5, 0.5);
+                _defaultCamPos.set(3.8, 7.5, 9.5);
+            }
+            camera.position.copy(_defaultCamPos);
             controls.target.copy(_defaultCamTarget);
             controls.update();
         }
@@ -2028,7 +2173,17 @@
             getOrCreateRobotMesh, getOrCreateNodeMesh, updateNodeMeshAppearance, build3DEdges,
             getModelSize: () => _bcSize,
             floor: floorNum,
+            getDefaultCamPos: () => _defaultCamPos.clone(),
             getDefaultCamTarget: () => _defaultCamTarget.clone(),
+            setDefaultCamera: (pos, tgt) => {
+                _defaultCamPos.copy(pos);
+                _defaultCamTarget.copy(tgt);
+            },
+            applyCamera: (pos, tgt) => {
+                camera.position.copy(pos);
+                controls.target.copy(tgt);
+                controls.update();
+            },
             focusOn,
             resetView
         };
@@ -4052,6 +4207,181 @@
         }
     }
 
+    // === Pengaturan Kamera Awal 3D Modal Logic ===
+    let initialCamModalFloor = 1;
+
+    function openInitialCameraModal() {
+        initialCamModalFloor = Number(currentFloor) || 1;
+        selectInitialCamFloor(initialCamModalFloor);
+        const modal = document.getElementById('modal-initial-camera-3d');
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeInitialCameraModal() {
+        const modal = document.getElementById('modal-initial-camera-3d');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function selectInitialCamFloor(floorNum) {
+        initialCamModalFloor = Number(floorNum);
+        const btn1 = document.getElementById('btn-initcam-floor-1');
+        const btn2 = document.getElementById('btn-initcam-floor-2');
+        if (btn1 && btn2) {
+            if (initialCamModalFloor === 1) {
+                btn1.className = "flex-1 py-1.5 rounded-lg text-xs font-bold transition bg-indigo-600 text-white shadow";
+                btn2.className = "flex-1 py-1.5 rounded-lg text-xs font-bold transition text-gray-400 hover:text-white";
+            } else {
+                btn1.className = "flex-1 py-1.5 rounded-lg text-xs font-bold transition text-gray-400 hover:text-white";
+                btn2.className = "flex-1 py-1.5 rounded-lg text-xs font-bold transition bg-indigo-600 text-white shadow";
+            }
+        }
+
+        // Ambil pengaturan kamera tersimpan dari current3DSettings
+        const floorKey = 'floor_' + initialCamModalFloor;
+        const saved = current3DSettings.initial_camera?.[floorKey];
+        const defaultPos = initialCamModalFloor === 2 ? { x: 3.8, y: 8.0, z: 9.5 } : { x: 3.8, y: 7.5, z: 9.5 };
+        const defaultTgt = { x: 3.8, y: 0.5, z: 0.5 };
+
+        const posX = saved?.position?.x ?? defaultPos.x;
+        const posY = saved?.position?.y ?? defaultPos.y;
+        const posZ = saved?.position?.z ?? defaultPos.z;
+
+        const tgtX = saved?.target?.x ?? defaultTgt.x;
+        const tgtY = saved?.target?.y ?? defaultTgt.y;
+        const tgtZ = saved?.target?.z ?? defaultTgt.z;
+
+        const elPosX = document.getElementById('initcam-pos-x');
+        const elPosY = document.getElementById('initcam-pos-y');
+        const elPosZ = document.getElementById('initcam-pos-z');
+        const elTgtX = document.getElementById('initcam-tgt-x');
+        const elTgtY = document.getElementById('initcam-tgt-y');
+        const elTgtZ = document.getElementById('initcam-tgt-z');
+
+        if (elPosX) elPosX.value = Number(posX).toFixed(2);
+        if (elPosY) elPosY.value = Number(posY).toFixed(2);
+        if (elPosZ) elPosZ.value = Number(posZ).toFixed(2);
+        if (elTgtX) elTgtX.value = Number(tgtX).toFixed(2);
+        if (elTgtY) elTgtY.value = Number(tgtY).toFixed(2);
+        if (elTgtZ) elTgtZ.value = Number(tgtZ).toFixed(2);
+    }
+
+    function captureCurrentCameraForInitial() {
+        const vw = activeBotViewer();
+        if (!vw || !vw.camera || !vw.controls) {
+            showToast('Viewer 3D belum siap untuk disalin.', 'warning');
+            return;
+        }
+        const cPos = vw.camera.position;
+        const cTgt = vw.controls.target;
+
+        const elPosX = document.getElementById('initcam-pos-x');
+        const elPosY = document.getElementById('initcam-pos-y');
+        const elPosZ = document.getElementById('initcam-pos-z');
+        const elTgtX = document.getElementById('initcam-tgt-x');
+        const elTgtY = document.getElementById('initcam-tgt-y');
+        const elTgtZ = document.getElementById('initcam-tgt-z');
+
+        if (elPosX) elPosX.value = Number(cPos.x).toFixed(2);
+        if (elPosY) elPosY.value = Number(cPos.y).toFixed(2);
+        if (elPosZ) elPosZ.value = Number(cPos.z).toFixed(2);
+        if (elTgtX) elTgtX.value = Number(cTgt.x).toFixed(2);
+        if (elTgtY) elTgtY.value = Number(cTgt.y).toFixed(2);
+        if (elTgtZ) elTgtZ.value = Number(cTgt.z).toFixed(2);
+
+        showToast(`Sudut kamera saat ini berhasil disalin untuk Lantai ${initialCamModalFloor}.`, 'info');
+    }
+
+    function previewInitialCamera() {
+        const posX = parseFloat(document.getElementById('initcam-pos-x')?.value);
+        const posY = parseFloat(document.getElementById('initcam-pos-y')?.value);
+        const posZ = parseFloat(document.getElementById('initcam-pos-z')?.value);
+        const tgtX = parseFloat(document.getElementById('initcam-tgt-x')?.value);
+        const tgtY = parseFloat(document.getElementById('initcam-tgt-y')?.value);
+        const tgtZ = parseFloat(document.getElementById('initcam-tgt-z')?.value);
+
+        if (isNaN(posX) || isNaN(posY) || isNaN(posZ) || isNaN(tgtX) || isNaN(tgtY) || isNaN(tgtZ)) {
+            showToast('Koordinat kamera tidak valid.', 'error');
+            return;
+        }
+
+        if (Number(currentFloor) !== initialCamModalFloor) {
+            switchFloor(initialCamModalFloor);
+        }
+
+        const vw = activeBotViewer();
+        if (vw && vw.camera && vw.controls) {
+            vw.camera.position.set(posX, posY, posZ);
+            vw.controls.target.set(tgtX, tgtY, tgtZ);
+            vw.controls.update();
+            showToast(`Uji tampilan kamera Lantai ${initialCamModalFloor} diterapkan di layar.`, 'info');
+        }
+    }
+
+    function resetInitialCameraToDefault() {
+        const defaultPos = initialCamModalFloor === 2 ? { x: 3.8, y: 8.0, z: 9.5 } : { x: 3.8, y: 7.5, z: 9.5 };
+        const defaultTgt = { x: 3.8, y: 0.5, z: 0.5 };
+
+        const elPosX = document.getElementById('initcam-pos-x');
+        const elPosY = document.getElementById('initcam-pos-y');
+        const elPosZ = document.getElementById('initcam-pos-z');
+        const elTgtX = document.getElementById('initcam-tgt-x');
+        const elTgtY = document.getElementById('initcam-tgt-y');
+        const elTgtZ = document.getElementById('initcam-tgt-z');
+
+        if (elPosX) elPosX.value = defaultPos.x.toFixed(2);
+        if (elPosY) elPosY.value = defaultPos.y.toFixed(2);
+        if (elPosZ) elPosZ.value = defaultPos.z.toFixed(2);
+        if (elTgtX) elTgtX.value = defaultTgt.x.toFixed(2);
+        if (elTgtY) elTgtY.value = defaultTgt.y.toFixed(2);
+        if (elTgtZ) elTgtZ.value = defaultTgt.z.toFixed(2);
+
+        showToast('Koordinat kamera direset ke nilai standar.', 'info');
+    }
+
+    function saveInitialCameraSettings() {
+        const posX = parseFloat(document.getElementById('initcam-pos-x')?.value);
+        const posY = parseFloat(document.getElementById('initcam-pos-y')?.value);
+        const posZ = parseFloat(document.getElementById('initcam-pos-z')?.value);
+        const tgtX = parseFloat(document.getElementById('initcam-tgt-x')?.value);
+        const tgtY = parseFloat(document.getElementById('initcam-tgt-y')?.value);
+        const tgtZ = parseFloat(document.getElementById('initcam-tgt-z')?.value);
+
+        if (isNaN(posX) || isNaN(posY) || isNaN(posZ) || isNaN(tgtX) || isNaN(tgtY) || isNaN(tgtZ)) {
+            showToast('Koordinat kamera tidak valid.', 'error');
+            return;
+        }
+
+        if (!current3DSettings.initial_camera || typeof current3DSettings.initial_camera !== 'object') {
+            current3DSettings.initial_camera = {};
+        }
+
+        const floorKey = 'floor_' + initialCamModalFloor;
+        current3DSettings.initial_camera[floorKey] = {
+            position: { x: posX, y: posY, z: posZ },
+            target: { x: tgtX, y: tgtY, z: tgtZ }
+        };
+
+        const targetVw = initialCamModalFloor === 1 ? threeBotCtrlF1 : threeBotCtrl;
+        if (targetVw && typeof targetVw.setDefaultCamera === 'function') {
+            targetVw.setDefaultCamera(new THREE.Vector3(posX, posY, posZ), new THREE.Vector3(tgtX, tgtY, tgtZ));
+        }
+
+        if (Number(currentFloor) === initialCamModalFloor) {
+            const vw = activeBotViewer();
+            if (vw && vw.camera && vw.controls) {
+                vw.camera.position.set(posX, posY, posZ);
+                vw.controls.target.set(tgtX, tgtY, tgtZ);
+                vw.controls.update();
+            }
+        }
+
+        save3DSettingsToServer(() => {
+            showToast(`Kamera awal Lantai ${initialCamModalFloor} berhasil disimpan ke server.`, 'success');
+        });
+
+        closeInitialCameraModal();
+    }
+
     window.addEventListener('load', () => {
         syncRobotVisibilityUI();
         syncTransitVisibilityUI();
@@ -4083,6 +4413,11 @@
             return;
         }
         if (e.key === 'Escape') {
+            const initCamModal = document.getElementById('modal-initial-camera-3d');
+            if (initCamModal && !initCamModal.classList.contains('hidden')) {
+                closeInitialCameraModal();
+                return;
+            }
             const addModal = document.getElementById('modal-add-node-3d');
             if (addModal && !addModal.classList.contains('hidden')) {
                 closeAddNodeModal();

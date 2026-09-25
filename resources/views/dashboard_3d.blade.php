@@ -983,7 +983,8 @@
         robot_elevation_f1: parseFloat(settings3D?.robot_elevation_f1 ?? 0.059),
         robot_elevation_f2: parseFloat(settings3D?.robot_elevation_f2 ?? 0.112),
         node_scale: parseFloat(settings3D?.node_scale ?? 0.6),
-        node_color: settings3D?.node_color ?? '#ff0000'
+        node_color: settings3D?.node_color ?? '#ff0000',
+        initial_camera: settings3D?.initial_camera ?? null
     };
     let settings3DSaveTimeout = null;
     let serverClientOffset = 0;
@@ -1366,7 +1367,14 @@
         const initFovVal = parseFloat(current3DSettings.camera.fov ?? 5.0);
         const initFov = 20 + (initFovVal / 10) * 70;
         const camera = new THREE.PerspectiveCamera(initFov, width / height, 0.1, 1000);
-        camera.position.set(0, 38, 48);
+        
+        const floorKey = 'floor_' + floorNum;
+        const earlyInitCam = current3DSettings.initial_camera?.[floorKey] || current3DSettings.initial_camera;
+        if (earlyInitCam && earlyInitCam.position && earlyInitCam.target) {
+            camera.position.set(earlyInitCam.position.x, earlyInitCam.position.y, earlyInitCam.position.z);
+        } else {
+            camera.position.set(3.8, 7.5, 9.5);
+        }
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(width, height);
@@ -1381,6 +1389,11 @@
         container.appendChild(renderer.domElement);
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        if (earlyInitCam && earlyInitCam.target) {
+            controls.target.set(earlyInitCam.target.x, earlyInitCam.target.y, earlyInitCam.target.z);
+        } else {
+            controls.target.set(3.8, 0.5, 0.5);
+        }
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
         controls.maxPolarAngle = Math.PI / 2.05;
@@ -1688,17 +1701,24 @@
                         }
                     } catch(e) {}
 
+                    const floorKey = 'floor_' + floorNum;
+                    const customInitCam = current3DSettings.initial_camera?.[floorKey] || current3DSettings.initial_camera;
+                    if (customInitCam && customInitCam.position && customInitCam.target) {
+                        camera.position.set(customInitCam.position.x, customInitCam.position.y, customInitCam.position.z);
+                        focusTarget.set(customInitCam.target.x, customInitCam.target.y, customInitCam.target.z);
+                    } else {
+                        // Langsung zoom dekat ke lantai saat awal tampil (detail lantai dan robot langsung terlihat!)
+                        camera.position.set(
+                            focusTarget.x + 3.2,
+                            floorElev + 5.2,
+                            focusTarget.z + 6.2
+                        );
+                    }
                     defaultCamTarget.copy(focusTarget);
                     controls.target.copy(focusTarget);
-
-                    // Langsung zoom dekat ke lantai saat awal tampil (detail lantai dan robot langsung terlihat!)
-                    camera.position.set(
-                        focusTarget.x + 3.2,
-                        floorElev + 5.2,
-                        focusTarget.z + 6.2
-                    );
+                    defaultCamPos.copy(camera.position);
                     camera.lookAt(focusTarget);
-                    controls.minDistance = 0.1;
+                    controls.minDistance = 0.05;
                     controls.maxDistance = 250;
                     controls.update();
                 } catch (parseErr) {
@@ -2530,13 +2550,21 @@
     function reset3DCamera() {
         const v = activeStdViewer();
         if (!v) return;
-        const defaultPos = v.getDefaultCamPos();
-        const size = v.getModelSize();
-        v.camera.position.copy(defaultPos);
+        const fl = v.floor || currentDashboardFloor;
+        const floorKey = 'floor_' + fl;
+        const customInitCam = current3DSettings.initial_camera?.[floorKey] || current3DSettings.initial_camera;
+        if (customInitCam && customInitCam.position && customInitCam.target) {
+            v.camera.position.set(customInitCam.position.x, customInitCam.position.y, customInitCam.position.z);
+            v.controls.target.set(customInitCam.target.x, customInitCam.target.y, customInitCam.target.z);
+        } else {
+            const defaultPos = v.getDefaultCamPos();
+            const size = v.getModelSize();
+            v.camera.position.copy(defaultPos);
+            if (typeof v.getDefaultCamTarget === 'function') v.controls.target.copy(v.getDefaultCamTarget());
+            else v.controls.target.set(0, (size.y || 5) * 0.1, 0);
+        }
         v.camera.fov = 45;
         v.camera.updateProjectionMatrix();
-        if (typeof v.getDefaultCamTarget === 'function') v.controls.target.copy(v.getDefaultCamTarget());
-        else v.controls.target.set(0, (size.y || 5) * 0.1, 0);
         v.controls.update();
         if (!isFullViewMode) {
             current3DSettings.camera.dist = 5.0;

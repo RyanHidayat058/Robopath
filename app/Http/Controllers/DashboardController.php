@@ -230,6 +230,7 @@ class DashboardController extends Controller
             'robot_elevation_f2' => 0.073,
             'node_scale' => 0.6,
             'node_color' => '#ff0000',
+            'initial_camera' => null,
         ];
 
         return array_replace_recursive($default, $data['settings_3d'] ?? []);
