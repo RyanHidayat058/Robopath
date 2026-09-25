@@ -737,7 +737,11 @@ class TelemetryController extends Controller
             $data['settings_3d'] = $existing['settings_3d'];
         }
         if ($request->has('settings_3d')) {
-            $data['settings_3d'] = $request->input('settings_3d');
+            $existingSettings = is_array($data['settings_3d'] ?? null) ? $data['settings_3d'] : (is_array($existing['settings_3d'] ?? null) ? $existing['settings_3d'] : []);
+            $newSettings = $request->input('settings_3d');
+            if (is_array($newSettings)) {
+                $data['settings_3d'] = array_replace_recursive($existingSettings, $newSettings);
+            }
         }
         if (isset($existing['label_scale'])) {
             $data['label_scale'] = $existing['label_scale'];
@@ -765,7 +769,11 @@ class TelemetryController extends Controller
         }
 
         if ($request->has('settings_3d')) {
-            $data['settings_3d'] = $request->input('settings_3d');
+            $existingSettings = is_array($data['settings_3d'] ?? null) ? $data['settings_3d'] : [];
+            $newSettings = $request->input('settings_3d');
+            if (is_array($newSettings)) {
+                $data['settings_3d'] = array_replace_recursive($existingSettings, $newSettings);
+            }
         }
 
         file_put_contents($graphPath, json_encode($data, JSON_PRETTY_PRINT));

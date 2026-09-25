@@ -570,7 +570,7 @@
                                 notifiedAlertIds.add(a.id);
                                 if (lastKnownAlertCount !== null) {
                                     // New alert came in while admin is viewing!
-                                    window.showToast(`⚠️ Laporan Baru: Robot ${a.robot?.name || ''} mengalami ${a.issue_type}! Cek Kontrol Bot.`, 'warning');
+                                    window.showToast(`Laporan Baru: Robot ${a.robot?.name || ''} mengalami ${a.issue_type}! Cek Kontrol Bot.`, 'warning');
                                 }
                             }
                         });

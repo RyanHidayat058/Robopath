@@ -759,7 +759,7 @@
                     <button type="button" onclick="closeInitialCameraModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-slate-800 transition cursor-pointer">
                         Batal
                     </button>
-                    <button type="button" onclick="saveInitialCameraSettings()" class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 transition cursor-pointer active:scale-95">
+                    <button type="button" id="btn-save-initcam" onclick="saveInitialCameraSettings()" class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center gap-1.5 transition cursor-pointer active:scale-95">
                         <i class="fa-solid fa-check"></i> <span>Simpan Kamera Awal</span>
                     </button>
                 </div>
@@ -794,16 +794,63 @@
     let showRobotsOnMap = true; // Default: tampilkan avatar robot 3D di peta
     let settings3D = @json($settings3D ?? []);
     let current3DSettings = {
-        camera: { dist: parseFloat(settings3D?.camera?.dist ?? 5.0), fov: parseFloat(settings3D?.camera?.fov ?? 5.0), preset: settings3D?.camera?.preset ?? 'iso' },
-        lighting: { ambient: parseFloat(settings3D?.lighting?.ambient ?? 1.4), sun: parseFloat(settings3D?.lighting?.sun ?? 1.8), exposure: parseFloat(settings3D?.lighting?.exposure ?? 1.0), fill: parseFloat(settings3D?.lighting?.fill ?? 0.8) },
+        camera: { dist: parseFloat(settings3D?.camera?.dist ?? 3.6), fov: parseFloat(settings3D?.camera?.fov ?? 3.7), preset: settings3D?.camera?.preset ?? 'iso' },
+        lighting: { ambient: parseFloat(settings3D?.lighting?.ambient ?? 0.8), sun: parseFloat(settings3D?.lighting?.sun ?? 1.7), exposure: parseFloat(settings3D?.lighting?.exposure ?? 0.35), fill: parseFloat(settings3D?.lighting?.fill ?? 0.7) },
         model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
-        robot_scale: parseFloat(settings3D?.robot_scale ?? 0.6),
-        robot_elevation_f1: parseFloat(settings3D?.robot_elevation_f1 ?? 0.019),
-        robot_elevation_f2: parseFloat(settings3D?.robot_elevation_f2 ?? 0.073),
+        robot_scale: parseFloat(settings3D?.robot_scale ?? 0.1),
+        robot_elevation_f1: parseFloat(settings3D?.robot_elevation_f1 ?? 0.059),
+        robot_elevation_f2: parseFloat(settings3D?.robot_elevation_f2 ?? 0.112),
         node_scale: parseFloat(settings3D?.node_scale ?? 0.6),
-        node_color: settings3D?.node_color ?? '#ff0000',
+        node_color: settings3D?.node_color ?? '#ef4444',
         initial_camera: settings3D?.initial_camera ?? null
     };
+
+    // Guaranteed DOM Toast Notification (berjalan independen tanpa bergantung CDN SweetAlert)
+    function showNotification(message, type = 'success') {
+        if (typeof Swal !== 'undefined' && window.showToast) {
+            try {
+                window.showToast(message, type);
+            } catch (e) {
+                console.warn('[Robopath] SweetAlert showToast fallback:', e);
+            }
+        }
+        let container = document.getElementById('robopath-notification-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'robopath-notification-container';
+            container.className = 'fixed top-5 right-5 z-[999999] flex flex-col gap-2 pointer-events-none';
+            document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        toast.className = 'pointer-events-auto transform transition-all duration-300 ease-out translate-y-[-10px] opacity-0 flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl border text-sm font-semibold max-w-md';
+
+        if (type === 'success') {
+            toast.className += ' bg-slate-900/95 border-emerald-500/50 text-emerald-300 shadow-emerald-950/50';
+            toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 text-base"></i><span>${message}</span>`;
+        } else if (type === 'error') {
+            toast.className += ' bg-slate-900/95 border-rose-500/50 text-rose-300 shadow-rose-950/50';
+            toast.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose-400 text-base"></i><span>${message}</span>`;
+        } else if (type === 'warning') {
+            toast.className += ' bg-slate-900/95 border-amber-500/50 text-amber-300 shadow-amber-950/50';
+            toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-400 text-base"></i><span>${message}</span>`;
+        } else {
+            toast.className += ' bg-slate-900/95 border-sky-500/50 text-sky-300 shadow-sky-950/50';
+            toast.innerHTML = `<i class="fa-solid fa-circle-info text-sky-400 text-base"></i><span>${message}</span>`;
+        }
+
+        container.appendChild(toast);
+        requestAnimationFrame(() => {
+            toast.classList.remove('translate-y-[-10px]', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+        });
+
+        setTimeout(() => {
+            toast.classList.remove('translate-y-0', 'opacity-100');
+            toast.classList.add('translate-y-[-10px]', 'opacity-0');
+            setTimeout(() => toast.remove(), 350);
+        }, 3500);
+    }
+    const showToast = showNotification;
 
     // === 3D Robot Avatar & Node Editor State ===
     const robotModelUrl = "{{ asset('models/robot.glb') }}";
@@ -1126,9 +1173,9 @@
     function getRobotElevation(floorNum) {
         const f = Number(floorNum) === 2 ? 2 : 1;
         if (f === 2) {
-            return parseFloat(current3DSettings.robot_elevation_f2 ?? 0.073);
+            return parseFloat(current3DSettings.robot_elevation_f2 ?? 0.112);
         }
-        return parseFloat(current3DSettings.robot_elevation_f1 ?? 0.019);
+        return parseFloat(current3DSettings.robot_elevation_f1 ?? 0.059);
     }
 
     function updateRobotElevationUI() {
@@ -1227,25 +1274,41 @@
         });
     }
 
-    function save3DSettingsToServer(onSuccess) {
+    async function save3DSettingsToServer(onSuccess, onError) {
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-        fetch('/api/settings/label-scale', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrf,
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                scale: labelScaleMultiplier,
-                settings_3d: current3DSettings
-            })
-        })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success && typeof onSuccess === 'function') onSuccess();
-        })
-        .catch(e => console.warn('[Robopath] Save 3D settings fail:', e));
+        try {
+            const res = await fetch('/api/settings/label-scale', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    scale: labelScaleMultiplier,
+                    settings_3d: current3DSettings
+                })
+            });
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(`HTTP ${res.status}: ${errText}`);
+            }
+            const data = await res.json();
+            if (data.success) {
+                if (typeof onSuccess === 'function') {
+                    onSuccess(data);
+                }
+                return data;
+            } else {
+                throw new Error(data.message || 'Gagal menyimpan pengaturan 3D.');
+            }
+        } catch (err) {
+            console.error('[Robopath] Save 3D settings fail:', err);
+            if (typeof onError === 'function') {
+                onError(err);
+            }
+            throw err;
+        }
     }
 
     // Helper: Cached GLB buffer loader with progress (Streaming + CacheStorage)
@@ -4249,12 +4312,18 @@
         if (elTgtX) elTgtX.value = Number(tgtX).toFixed(2);
         if (elTgtY) elTgtY.value = Number(tgtY).toFixed(2);
         if (elTgtZ) elTgtZ.value = Number(tgtZ).toFixed(2);
+
+        // Jika viewer lantai yang dipilih belum aktif di latar belakang, sinkronkan ke denah lantai tersebut
+        if (Number(currentFloor) !== initialCamModalFloor) {
+            switchFloor(initialCamModalFloor);
+        }
     }
 
     function captureCurrentCameraForInitial() {
-        const vw = activeBotViewer();
+        const targetViewer = (initialCamModalFloor === 1) ? threeBotCtrlF1 : threeBotCtrl;
+        const vw = targetViewer || activeBotViewer();
         if (!vw || !vw.camera || !vw.controls) {
-            showToast('Viewer 3D belum siap untuk disalin.', 'warning');
+            showNotification('Viewer 3D belum siap untuk disalin.', 'warning');
             return;
         }
         const cPos = vw.camera.position;
@@ -4274,7 +4343,7 @@
         if (elTgtY) elTgtY.value = Number(cTgt.y).toFixed(2);
         if (elTgtZ) elTgtZ.value = Number(cTgt.z).toFixed(2);
 
-        showToast(`Sudut kamera saat ini berhasil disalin untuk Lantai ${initialCamModalFloor}.`, 'info');
+        showNotification(`Sudut kamera saat ini berhasil disalin untuk Lantai ${initialCamModalFloor}.`, 'info');
     }
 
     function previewInitialCamera() {
@@ -4286,7 +4355,7 @@
         const tgtZ = parseFloat(document.getElementById('initcam-tgt-z')?.value);
 
         if (isNaN(posX) || isNaN(posY) || isNaN(posZ) || isNaN(tgtX) || isNaN(tgtY) || isNaN(tgtZ)) {
-            showToast('Koordinat kamera tidak valid.', 'error');
+            showNotification('Koordinat kamera tidak valid.', 'error');
             return;
         }
 
@@ -4294,12 +4363,13 @@
             switchFloor(initialCamModalFloor);
         }
 
-        const vw = activeBotViewer();
+        const targetViewer = (initialCamModalFloor === 1) ? threeBotCtrlF1 : threeBotCtrl;
+        const vw = targetViewer || activeBotViewer();
         if (vw && vw.camera && vw.controls) {
             vw.camera.position.set(posX, posY, posZ);
             vw.controls.target.set(tgtX, tgtY, tgtZ);
             vw.controls.update();
-            showToast(`Uji tampilan kamera Lantai ${initialCamModalFloor} diterapkan di layar.`, 'info');
+            showNotification(`Uji tampilan kamera Lantai ${initialCamModalFloor} diterapkan di layar.`, 'info');
         }
     }
 
@@ -4321,10 +4391,10 @@
         if (elTgtY) elTgtY.value = defaultTgt.y.toFixed(2);
         if (elTgtZ) elTgtZ.value = defaultTgt.z.toFixed(2);
 
-        showToast('Koordinat kamera direset ke nilai standar.', 'info');
+        showNotification('Koordinat kamera direset ke nilai standar.', 'info');
     }
 
-    function saveInitialCameraSettings() {
+    async function saveInitialCameraSettings() {
         const posX = parseFloat(document.getElementById('initcam-pos-x')?.value);
         const posY = parseFloat(document.getElementById('initcam-pos-y')?.value);
         const posZ = parseFloat(document.getElementById('initcam-pos-z')?.value);
@@ -4333,7 +4403,7 @@
         const tgtZ = parseFloat(document.getElementById('initcam-tgt-z')?.value);
 
         if (isNaN(posX) || isNaN(posY) || isNaN(posZ) || isNaN(tgtX) || isNaN(tgtY) || isNaN(tgtZ)) {
-            showToast('Koordinat kamera tidak valid.', 'error');
+            showNotification('Koordinat kamera tidak valid.', 'error');
             return;
         }
 
@@ -4361,11 +4431,15 @@
             }
         }
 
-        save3DSettingsToServer(() => {
-            showToast(`Kamera awal Lantai ${initialCamModalFloor} berhasil disimpan ke server.`, 'success');
-        });
-
         closeInitialCameraModal();
+
+        try {
+            await save3DSettingsToServer(() => {
+                showNotification(`Kamera awal Lantai ${initialCamModalFloor} berhasil disimpan ke server.`, 'success');
+            });
+        } catch (err) {
+            showNotification(`Gagal menyimpan kamera awal: ${err.message || err}`, 'error');
+        }
     }
 
     window.addEventListener('load', () => {

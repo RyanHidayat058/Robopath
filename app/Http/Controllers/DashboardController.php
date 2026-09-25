@@ -214,23 +214,32 @@ class DashboardController extends Controller
 
         $default = [
             'camera' => [
-                'dist' => 5.0,
-                'fov' => 5.0,
+                'dist' => 3.6,
+                'fov' => 3.7,
                 'preset' => 'iso',
             ],
             'lighting' => [
-                'ambient' => 1.4,
-                'sun' => 1.8,
-                'exposure' => 1.0,
-                'fill' => 0.8,
+                'ambient' => 0.8,
+                'sun' => 1.7,
+                'exposure' => 0.35,
+                'fill' => 0.7,
             ],
             'model_scale' => 1.0,
-            'robot_scale' => 0.6,
-            'robot_elevation_f1' => 0.019,
-            'robot_elevation_f2' => 0.073,
+            'robot_scale' => 0.1,
+            'robot_elevation_f1' => 0.059,
+            'robot_elevation_f2' => 0.112,
             'node_scale' => 0.6,
-            'node_color' => '#ff0000',
-            'initial_camera' => null,
+            'node_color' => '#ef4444',
+            'initial_camera' => [
+                'floor_1' => [
+                    'position' => ['x' => 3.8, 'y' => 7.5, 'z' => 9.5],
+                    'target' => ['x' => 3.8, 'y' => 0.5, 'z' => 0.5],
+                ],
+                'floor_2' => [
+                    'position' => ['x' => 3.8, 'y' => 8.0, 'z' => 9.5],
+                    'target' => ['x' => 3.8, 'y' => 0.5, 'z' => 0.5],
+                ],
+            ],
         ];
 
         return array_replace_recursive($default, $data['settings_3d'] ?? []);

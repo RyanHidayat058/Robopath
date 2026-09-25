@@ -1371,9 +1371,13 @@
         const floorKey = 'floor_' + floorNum;
         const earlyInitCam = current3DSettings.initial_camera?.[floorKey] || current3DSettings.initial_camera;
         if (earlyInitCam && earlyInitCam.position && earlyInitCam.target) {
-            camera.position.set(earlyInitCam.position.x, earlyInitCam.position.y, earlyInitCam.position.z);
+            camera.position.set(
+                parseFloat(earlyInitCam.position.x),
+                parseFloat(earlyInitCam.position.y),
+                parseFloat(earlyInitCam.position.z)
+            );
         } else {
-            camera.position.set(3.8, 7.5, 9.5);
+            camera.position.set(3.8, floorNum === 2 ? 8.0 : 7.5, 9.5);
         }
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1390,7 +1394,11 @@
 
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         if (earlyInitCam && earlyInitCam.target) {
-            controls.target.set(earlyInitCam.target.x, earlyInitCam.target.y, earlyInitCam.target.z);
+            controls.target.set(
+                parseFloat(earlyInitCam.target.x),
+                parseFloat(earlyInitCam.target.y),
+                parseFloat(earlyInitCam.target.z)
+            );
         } else {
             controls.target.set(3.8, 0.5, 0.5);
         }
@@ -1704,8 +1712,16 @@
                     const floorKey = 'floor_' + floorNum;
                     const customInitCam = current3DSettings.initial_camera?.[floorKey] || current3DSettings.initial_camera;
                     if (customInitCam && customInitCam.position && customInitCam.target) {
-                        camera.position.set(customInitCam.position.x, customInitCam.position.y, customInitCam.position.z);
-                        focusTarget.set(customInitCam.target.x, customInitCam.target.y, customInitCam.target.z);
+                        camera.position.set(
+                            parseFloat(customInitCam.position.x),
+                            parseFloat(customInitCam.position.y),
+                            parseFloat(customInitCam.position.z)
+                        );
+                        focusTarget.set(
+                            parseFloat(customInitCam.target.x),
+                            parseFloat(customInitCam.target.y),
+                            parseFloat(customInitCam.target.z)
+                        );
                     } else {
                         // Langsung zoom dekat ke lantai saat awal tampil (detail lantai dan robot langsung terlihat!)
                         camera.position.set(
@@ -2554,8 +2570,16 @@
         const floorKey = 'floor_' + fl;
         const customInitCam = current3DSettings.initial_camera?.[floorKey] || current3DSettings.initial_camera;
         if (customInitCam && customInitCam.position && customInitCam.target) {
-            v.camera.position.set(customInitCam.position.x, customInitCam.position.y, customInitCam.position.z);
-            v.controls.target.set(customInitCam.target.x, customInitCam.target.y, customInitCam.target.z);
+            v.camera.position.set(
+                parseFloat(customInitCam.position.x),
+                parseFloat(customInitCam.position.y),
+                parseFloat(customInitCam.position.z)
+            );
+            v.controls.target.set(
+                parseFloat(customInitCam.target.x),
+                parseFloat(customInitCam.target.y),
+                parseFloat(customInitCam.target.z)
+            );
         } else {
             const defaultPos = v.getDefaultCamPos();
             const size = v.getModelSize();
@@ -2563,7 +2587,8 @@
             if (typeof v.getDefaultCamTarget === 'function') v.controls.target.copy(v.getDefaultCamTarget());
             else v.controls.target.set(0, (size.y || 5) * 0.1, 0);
         }
-        v.camera.fov = 45;
+        const initFovVal = parseFloat(current3DSettings.camera?.fov ?? 3.7);
+        v.camera.fov = 20 + (initFovVal / 10) * 70;
         v.camera.updateProjectionMatrix();
         v.controls.update();
         if (!isFullViewMode) {
@@ -4817,8 +4842,9 @@
                 }
             }
 
-            if (data.settings_3d && data.settings_3d.lighting) {
-                applyAdminLighting(data.settings_3d.lighting);
+            if (data.settings_3d) {
+                if (data.settings_3d.lighting) applyAdminLighting(data.settings_3d.lighting);
+                if (data.settings_3d.initial_camera) current3DSettings.initial_camera = data.settings_3d.initial_camera;
             }
             
             if (activeDeliveries && Array.isArray(activeDeliveries)) {
