@@ -32,7 +32,7 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('password'),
         ]);
 
-        // 1. Seed 1 Robot in Idle state at Markas Robot (Floor 1 Base Station 3D)
+        // 1. Seed Robot Alpha on Floor 1
         $alpha = Robot::create([
             'id' => 1,
             'name' => 'Robot Alpha',
@@ -41,6 +41,17 @@ class DatabaseSeeder extends Seeder
             'current_x' => 85.48,
             'current_y' => 51.07,
             'floor' => 1,
+        ]);
+
+        // 2. Seed Robot Beta on Floor 2 (Standby Lounge / Floor 2 Base)
+        $beta = Robot::create([
+            'id' => 2,
+            'name' => 'Robot Beta',
+            'status' => 'Idle',
+            'battery_level' => 100,
+            'current_x' => 70.86,
+            'current_y' => 14.57,
+            'floor' => 2,
         ]);
 
         // Reset sequence in PostgreSQL for robots

@@ -702,16 +702,29 @@ class TelemetryController extends Controller
             }
         }
 
-        Robot::where('id', 1)->update([
-            'name' => 'Robot Alpha',
-            'status' => 'Idle',
-            'battery_level' => 100,
-            'current_x' => $baseX,
-            'current_y' => $baseY,
-            'floor' => 1,
-        ]);
+        Robot::updateOrCreate(
+            ['name' => 'Robot Alpha'],
+            [
+                'status' => 'Idle',
+                'battery_level' => 100,
+                'current_x' => $baseX,
+                'current_y' => $baseY,
+                'floor' => 1,
+            ]
+        );
 
-        Robot::where('id', '>', 1)->delete();
+        Robot::updateOrCreate(
+            ['name' => 'Robot Beta'],
+            [
+                'status' => 'Idle',
+                'battery_level' => 100,
+                'current_x' => 70.86,
+                'current_y' => 14.57,
+                'floor' => 2,
+            ]
+        );
+
+        Robot::whereNotIn('name', ['Robot Alpha', 'Robot Beta'])->delete();
 
         return response()->json([
             'success' => true,

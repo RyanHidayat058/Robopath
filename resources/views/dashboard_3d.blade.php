@@ -1818,8 +1818,10 @@
                 ).normalize();
 
                 const rSc = parseFloat(current3DSettings.robot_scale ?? 0.1);
-                // Ketinggian mata/kamera robot (sejajar mata robot, tepat di bodi atas depan)
-                const eyeHeight = Math.max(0.020, rSc * 0.10);
+                // Ketinggian mata/kamera robot (dapat disesuaikan di VS Code untuk masing-masing lantai)
+                const eyeHeightF1 = Math.max(0.020, rSc * 0.10);
+                const eyeHeightF2 = Math.max(0.020, rSc * 0.10);
+                const eyeHeight = (Number(floorNum) === 2) ? eyeHeightF2 : eyeHeightF1;
 
                 if (followCameraMode === 'fpv') {
                     // Nonaktifkan OrbitControls agar tidak menimpa posisi kamera mata robot
@@ -2537,7 +2539,12 @@
         updateFollowButton();
         if(isFollowMode && focusedRobotId!=null) focusRobotOnMap(focusedRobotId, true);
     }
+    let focusRetryTimer = null;
     function focusRobotOnMap(robotId, isFollowClick=false){
+        if (focusRetryTimer) {
+            clearTimeout(focusRetryTimer);
+            focusRetryTimer = null;
+        }
         const rid=Number(robotId);
         const robot=robots.find(r=>Number(r.id)===rid);
         if(!robot) return;
@@ -2555,21 +2562,21 @@
         if (isFullViewMode) {
             if (Number(currentFullViewFloor) !== robotFloor) {
                 switchFullViewFloor(robotFloor);
-                setTimeout(() => focusRobotOnMap(rid, isFollowClick), 250);
+                focusRetryTimer = setTimeout(() => focusRobotOnMap(rid, isFollowClick), 250);
                 return;
             }
         } else {
             if (Number(currentDashboardFloor) !== robotFloor) {
                 switchDashboardFloor(robotFloor);
                 // wait for viewer then focus
-                setTimeout(() => focusRobotOnMap(rid, isFollowClick), 250);
+                focusRetryTimer = setTimeout(() => focusRobotOnMap(rid, isFollowClick), 250);
                 return;
             }
         }
         const activeViewerInst = activeStdViewer();
         if (!activeViewerInst || !activeViewerInst.robotMeshes) {
             // viewer belum ready, retry
-            setTimeout(() => focusRobotOnMap(rid, isFollowClick), 300);
+            focusRetryTimer = setTimeout(() => focusRobotOnMap(rid, isFollowClick), 300);
             return;
         }
         // ensure mesh exists (create if needed) then snap/follow
@@ -2952,7 +2959,14 @@
     }
 
     function switchDashboardFloor(floorNum) {
+        floorNum = Number(floorNum) === 2 ? 2 : 1;
+        if (Number(currentDashboardFloor) === floorNum && ((floorNum === 1 && threeStdF1) || (floorNum === 2 && threeStd))) {
+            const v = floorNum === 1 ? threeStdF1 : threeStd;
+            if (v && typeof v.resize === 'function') v.resize();
+            return;
+        }
         currentDashboardFloor = floorNum;
+        currentFullViewFloor = floorNum;
         
         const tabF1 = document.getElementById('std-tab-f1');
         const tabF2 = document.getElementById('std-tab-f2');
@@ -3006,18 +3020,11 @@
                         }
                     }
                 } catch(e){}
-                setTimeout(() => {
-                    if (!threeStdF1 || !modelLoadedByFloor[1]) {
-                        if (threeStdF1 && !modelLoadedByFloor[1]) {
-                            try { canvasContainer3DF1.innerHTML=''; } catch(e){}
-                            try { if(threeStdF1.renderer) threeStdF1.renderer.dispose(); } catch(e){}
-                            threeStdF1 = null;
-                        }
-                        threeStdF1 = initThreeViewer('std-3d-canvas-f1', 1);
-                    } else {
-                        threeStdF1.resize();
-                    }
-                }, 50);
+                if (!threeStdF1) {
+                    threeStdF1 = initThreeViewer('std-3d-canvas-f1', 1);
+                } else {
+                    threeStdF1.resize();
+                }
             }
         } else {
             if (tabF2) tabF2.className = "px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition";
@@ -3047,18 +3054,11 @@
                         }
                     }
                 } catch(e){}
-                setTimeout(() => {
-                    if (!threeStd || !modelLoadedByFloor[2]) {
-                        if (threeStd && !modelLoadedByFloor[2]) {
-                            try { canvasContainer3D.innerHTML=''; } catch(e){}
-                            try { if(threeStd.renderer) threeStd.renderer.dispose(); } catch(e){}
-                            threeStd = null;
-                        }
-                        threeStd = initThreeViewer('std-3d-canvas-container', 2);
-                    } else {
-                        threeStd.resize();
-                    }
-                }, 50);
+                if (!threeStd) {
+                    threeStd = initThreeViewer('std-3d-canvas-container', 2);
+                } else {
+                    threeStd.resize();
+                }
             }
             if (hint3D) hint3D.classList.remove('hidden');
             if (toolbar3D) toolbar3D.classList.remove('hidden');
@@ -3068,6 +3068,7 @@
     }
 
     function switchFullViewFloor(floorNum) {
+        currentFullViewFloor = Number(floorNum) === 2 ? 2 : 1;
         switchDashboardFloor(floorNum);
     }
 
@@ -4291,6 +4292,20 @@
             } else {
                 updateRobot3DAvatar(threeStdF1, robot, coords, destName);
                 hideRobot3DAvatar(threeStd, robot);
+            }
+
+            // Sinkronisasi otomatis lantai tampilan jika sedang mem-follow robot ini dan robot berpindah lantai
+            if (isFollowMode && Number(focusedRobotId) === Number(robot.id)) {
+                const targetFloor = Number(floorNum) === 2 ? 2 : 1;
+                if (isFullViewMode) {
+                    if (Number(currentFullViewFloor) !== targetFloor) {
+                        switchFullViewFloor(targetFloor);
+                    }
+                } else {
+                    if (Number(currentDashboardFloor) !== targetFloor) {
+                        switchDashboardFloor(targetFloor);
+                    }
+                }
             }
 
             // Update Robot Cards in standard view
