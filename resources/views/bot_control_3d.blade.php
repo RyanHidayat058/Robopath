@@ -766,7 +766,6 @@
             </div>
         </div>
     </div>
-</div>
 @endsection
 
 @section('scripts')
@@ -2201,20 +2200,7 @@
         vw.controls.update();
     }
 
-    function focusOnActiveSelection() {
-        const vw = activeBotViewer();
-        if (!vw || !vw.focusOn) return;
-        if (selected3DObject) {
-            vw.focusOn(selected3DObject.position, 1.8);
-        } else if (selectedNodeId && locationsData[selectedNodeId]) {
-            const wp = worldPosForLoc(locationsData[selectedNodeId], vw.getModelSize());
-            vw.focusOn(wp, 1.8);
-        } else if (activeRobotId != null && vw.robotMeshes && vw.robotMeshes.has(activeRobotId)) {
-            vw.focusOn(vw.robotMeshes.get(activeRobotId).position, 1.8);
-        } else {
-            alert('Pilih sebuah node atau robot terlebih dahulu untuk fokus kamera.');
-        }
-    }
+
 
     function reset3DCameraView() {
         const vw = activeBotViewer();
