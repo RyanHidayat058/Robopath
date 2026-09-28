@@ -1005,10 +1005,10 @@
     let currentFullViewFloor = 1;
 
     // 3D Three.js State, Cache & Loader
-    const floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
-    const floor1ModelUrl = "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
-    const robotModelUrl = "{{ asset('models/robot.glb') }}";
-    const MODEL_CACHE_NAME = 'robopath-models-v1';
+    var floor2ModelUrl = window.floor2ModelUrl || "{{ asset('models/Lantai_2-final.glb') }}";
+    var floor1ModelUrl = window.floor1ModelUrl || "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
+    var robotModelUrl = window.robotModelUrl || "{{ asset('models/robot.glb') }}";
+    var MODEL_CACHE_NAME = window.MODEL_CACHE_NAME || 'robopath-models-v1';
     let threeStd = null;
     let threeStdF1 = null;
     let modelLoadedByFloor = { 1: false, 2: false };

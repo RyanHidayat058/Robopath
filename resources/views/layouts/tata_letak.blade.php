@@ -130,6 +130,11 @@
             } catch (e) {}
         }
 
+        window.floor1ModelUrl = "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
+        window.floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
+        window.robotModelUrl = "{{ asset('models/robot.glb') }}";
+        window.MODEL_CACHE_NAME = CACHE_NAME;
+
         window.RobopathGLBCache = {
             // Fast multi-layer read: Memory (0ms) -> CacheStorage (<10ms) -> IndexedDB (<300ms)
             async get(url) {
@@ -822,6 +827,19 @@
                     history.pushState({ route: norm }, '', norm);
                 }
 
+                // Eksekusi skrip jika belum pernah dijalankan (misal dari hasil prefetch)
+                if (targetPane._scripts && !targetPane._scriptsExecuted) {
+                    targetPane._scriptsExecuted = true;
+                    targetPane._scripts.forEach(s => {
+                        const src = s.getAttribute('src');
+                        if (src && (src.includes('three') || src.includes('OrbitControls') || src.includes('GLTFLoader') || src.includes('DRACOLoader') || src.includes('sweetalert'))) return;
+                        const newS = document.createElement('script');
+                        if (src) newS.src = src;
+                        else newS.textContent = s.textContent;
+                        document.body.appendChild(newS);
+                    });
+                }
+
                 this.triggerViewHooks(norm);
                 return true;
             },
@@ -870,13 +888,14 @@
                     newPane.setAttribute('data-page-subtitle', subtitle);
                     newPane._topbarActions = topbarActions;
                     newPane.innerHTML = fetchedPane.innerHTML;
+                    newPane._scriptsExecuted = true;
 
                     document.querySelectorAll('#spa-views-container .spa-view-pane').forEach(p => {
                         p.style.display = 'none';
                     });
                     container.appendChild(newPane);
 
-                    // Jalankan skrip halaman baru
+                    // Jalankan skrip halaman baru untuk pertama kali
                     const scripts = doc.querySelectorAll('#initial-page-scripts script, #main-content script');
                     scripts.forEach(s => {
                         const src = s.getAttribute('src');
@@ -936,17 +955,9 @@
                     newPane.setAttribute('data-page-subtitle', subtitle);
                     newPane._topbarActions = topbarActions;
                     newPane.innerHTML = fetchedPane.innerHTML;
+                    newPane._scripts = Array.from(doc.querySelectorAll('#initial-page-scripts script, #main-content script'));
+                    newPane._scriptsExecuted = false;
                     container.appendChild(newPane);
-
-                    const scripts = doc.querySelectorAll('#initial-page-scripts script');
-                    scripts.forEach(s => {
-                        const src = s.getAttribute('src');
-                        if (src && (src.includes('three') || src.includes('OrbitControls') || src.includes('GLTFLoader') || src.includes('DRACOLoader') || src.includes('sweetalert'))) return;
-                        const newS = document.createElement('script');
-                        if (src) newS.src = src;
-                        else newS.textContent = s.textContent;
-                        document.body.appendChild(newS);
-                    });
                 } catch (e) {
                     // prefetch error diabaikan
                 }

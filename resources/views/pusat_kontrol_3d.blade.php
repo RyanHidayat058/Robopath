@@ -769,13 +769,13 @@
 
 @section('scripts')
 <script>
-    const floor1ModelUrl = "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
-    const floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
-    const MODEL_CACHE_NAME = 'robopath-glb-cache-v1';
-    let currentFloor = 1;
-    let threeBotCtrl = null;
-    let threeBotCtrlF1 = null;
-    let modelLoadedByFloor = {1:false,2:false};
+    var floor1ModelUrl = "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
+    var floor2ModelUrl = "{{ asset('models/Lantai_2-final.glb') }}";
+    var MODEL_CACHE_NAME = 'robopath-glb-cache-v1';
+    var currentFloor = 1;
+    var threeBotCtrl = null;
+    var threeBotCtrlF1 = null;
+    var modelLoadedByFloor = {1:false,2:false};
     function activeBotViewer(){ return Number(currentFloor)===1 ? threeBotCtrlF1 : threeBotCtrl; }
     function allBotViewers(){ return [threeBotCtrl, threeBotCtrlF1].filter(Boolean); }
     function parkCoordsForFloor(f){ return f===1 ? {x:72.1,y:85.71} : {x:72.3,y:66.3}; }
@@ -789,10 +789,10 @@
         }
         return activeBotViewer();
     }
-    let labelScaleMultiplier = parseFloat(localStorage.getItem('robopath_label_scale') || '{{ $labelScale ?? 0.85 }}');
-    let showRobotsOnMap = true; // Default: tampilkan avatar robot 3D di peta
-    let settings3D = @json($settings3D ?? []);
-    let current3DSettings = {
+    var labelScaleMultiplier = parseFloat(localStorage.getItem('robopath_label_scale') || '{{ $labelScale ?? 0.85 }}');
+    var showRobotsOnMap = true; // Default: tampilkan avatar robot 3D di peta
+    var settings3D = @json($settings3D ?? []);
+    var current3DSettings = {
         camera: { dist: parseFloat(settings3D?.camera?.dist ?? 3.6), fov: parseFloat(settings3D?.camera?.fov ?? 3.7), preset: settings3D?.camera?.preset ?? 'iso' },
         lighting: { ambient: parseFloat(settings3D?.lighting?.ambient ?? 0.8), sun: parseFloat(settings3D?.lighting?.sun ?? 1.7), exposure: parseFloat(settings3D?.lighting?.exposure ?? 0.35), fill: parseFloat(settings3D?.lighting?.fill ?? 0.7) },
         model_scale: parseFloat(settings3D?.model_scale ?? 1.0),
@@ -849,30 +849,30 @@
             setTimeout(() => toast.remove(), 350);
         }, 3500);
     }
-    const showToast = showNotification;
+    var showToast = showNotification;
 
     // === 3D Robot Avatar & Node Editor State ===
-    const robotModelUrl = "{{ asset('models/robot.glb') }}";
-    let robotTemplate = null;
-    let robotTemplateReady = false;
-    let robotTemplateLoading = false;
-    let robotTemplateCallbacks = [];
-    let selected3DObject = null;
-    let dragged3D = null;
-    let connectStart3DNode = null;
-    const raycaster = new THREE.Raycaster();
-    const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const dragOffset = new THREE.Vector3();
-    let robotsData = @json($robots);
+    var robotModelUrl = "{{ asset('models/robot.glb') }}";
+    var robotTemplate = null;
+    var robotTemplateReady = false;
+    var robotTemplateLoading = false;
+    var robotTemplateCallbacks = [];
+    var selected3DObject = null;
+    var dragged3D = null;
+    var connectStart3DNode = null;
+    var raycaster = new THREE.Raycaster();
+    var dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    var dragOffset = new THREE.Vector3();
+    var robotsData = @json($robots);
 
     // Manual drive (WASD/QE, world coords, sesi saja — tidak persist ke mana pun).
     // W/S = world Z, A/D = world X, Q/E = world Y (testing). Shift = 4x.
-    const DRIVE_SPEED = 2.0;
-    const driveKeys = { w: false, a: false, s: false, d: false, q: false, e: false, shift: false };
-    let driveJustReleasedY = false;
+    var DRIVE_SPEED = 2.0;
+    var driveKeys = { w: false, a: false, s: false, d: false, q: false, e: false, shift: false };
+    var driveJustReleasedY = false;
     // Active robot: satu-satunya source of truth untuk manual drive, readout, dan reset.
     // Default = Robot #1 bila ada; dropdown/canvas selalu sinkron ke state ini.
-    let activeRobotId = null;
+    var activeRobotId = null;
     function resolveDefaultRobotId() {
         const vw = activeBotViewer();
         if (vw && vw.robotMeshes && vw.robotMeshes.has(1)) return 1;
@@ -999,7 +999,7 @@
 
     // ObjectName anchor: posisi runtime dari Box3 center geometri GLB (GLB = source of truth).
     // Hasil di field runtime _u/_v/_fy — tidak pernah persist ke graph.json. Fallback x/y bila Not found.
-    const BLENDER_OBJECTS = ['LANTAI2_VIP_ROOM_01','LANTAI2_VICE_PRESIDENT_01','LANTAI2_UPS_01','LANTAI2_TOILET_WANITA_02','LANTAI2_TOILET_WANITA_01','LANTAI2_TOILET_PRIA_02','LANTAI2_TOILET_PRIA_01','LANTAI2_TOILET_DIREKSI_01','LANTAI2_SERVER_01','LANTAI2_PRIVATE_MEETING_01','LANTAI2_PRESDIR_01','LANTAI2_PERPUS_01','LANTAI2_PAYROLL_01','LANTAI2_PANTRY_01','LANTAI2_PANEL_01','LANTAI2_OFFICE_01','LANTAI2_MEETING_07','LANTAI2_MEETING_06','LANTAI2_MEETING_05','LANTAI2_MEETING_04','LANTAI2_MEETING_03','LANTAI2_MEETING_02','LANTAI2_MEETING_01','LANTAI2_LOUNGE_01','LANTAI2_JONATHAN_02','LANTAI2_JONATHAN_01','LANTAI2_GUDANG_SEKERTARIS_01','LANTAI2_GUDANG_JANITOR_01','LANTAI2_GUDANG_DIREKSI_01','LANTAI2_GUDANG_ACCOUNTING_01','LANTAI2_DIREKTUR_02','LANTAI2_DIREKTUR_01','LANTAI2_DIREKSI_01','LANTAI2_DIKRI_02','LANTAI2_DIKRI_01'];
+    var BLENDER_OBJECTS = ['LANTAI2_VIP_ROOM_01','LANTAI2_VICE_PRESIDENT_01','LANTAI2_UPS_01','LANTAI2_TOILET_WANITA_02','LANTAI2_TOILET_WANITA_01','LANTAI2_TOILET_PRIA_02','LANTAI2_TOILET_PRIA_01','LANTAI2_TOILET_DIREKSI_01','LANTAI2_SERVER_01','LANTAI2_PRIVATE_MEETING_01','LANTAI2_PRESDIR_01','LANTAI2_PERPUS_01','LANTAI2_PAYROLL_01','LANTAI2_PANTRY_01','LANTAI2_PANEL_01','LANTAI2_OFFICE_01','LANTAI2_MEETING_07','LANTAI2_MEETING_06','LANTAI2_MEETING_05','LANTAI2_MEETING_04','LANTAI2_MEETING_03','LANTAI2_MEETING_02','LANTAI2_MEETING_01','LANTAI2_LOUNGE_01','LANTAI2_JONATHAN_02','LANTAI2_JONATHAN_01','LANTAI2_GUDANG_SEKERTARIS_01','LANTAI2_GUDANG_JANITOR_01','LANTAI2_GUDANG_DIREKSI_01','LANTAI2_GUDANG_ACCOUNTING_01','LANTAI2_DIREKTUR_02','LANTAI2_DIREKTUR_01','LANTAI2_DIREKSI_01','LANTAI2_DIKRI_02','LANTAI2_DIKRI_01'];
     function resolveObjectAnchor(loc, model, size) {
         if (!loc || !loc.objectName || !model || !size || !(size.x > 0.1)) return false;
         const obj = model.getObjectByName(loc.objectName);
@@ -1104,8 +1104,8 @@
     }
 
     // Helper: Dynamic Room Label Scaling (Kecil, ringkas, dan dapat diskalakan hingga 0.1x)
-    const BASE_LABEL_W = 0.65;
-    const BASE_LABEL_H = 0.1625;
+    var BASE_LABEL_W = 0.65;
+    var BASE_LABEL_H = 0.1625;
 
     function setLabelScale(val) {
         val = Math.max(0.1, Math.min(2.5, parseFloat(Number(val).toFixed(2))));
@@ -1132,7 +1132,7 @@
     }
 
     // === Dynamic Robot Scale Controller (Gede/Kecil Robot 3D) ===
-    let robotScaleMultiplier = parseFloat(current3DSettings.robot_scale ?? 0.6);
+    var robotScaleMultiplier = parseFloat(current3DSettings.robot_scale ?? 0.6);
 
     function setRobotScale(val, persist = true) {
         val = Math.max(0.02, Math.min(3.0, parseFloat(Number(val).toFixed(2))));
@@ -1167,7 +1167,7 @@
     }
 
     // === Robot Elevation / Vertical Z Controller per Floor ===
-    let activeRobotFloor = 1;
+    var activeRobotFloor = 1;
 
     function getRobotElevation(floorNum) {
         const f = Number(floorNum) === 2 ? 2 : 1;
@@ -2288,14 +2288,14 @@
         vw.resetView();
     }
 
-    let currentTool = 'move';
-    let showHiddenDots = true; // Default: TRUE agar titik transit (biru terang tanpa nama) selalu tampil di denah editor
-    let selectedNodeId = null;
-    let connectStartNodeId = null;
-    let draggedNodeId = null;
+    var currentTool = 'move';
+    var showHiddenDots = true; // Default: TRUE agar titik transit (biru terang tanpa nama) selalu tampil di denah editor
+    var selectedNodeId = null;
+    var connectStartNodeId = null;
+    var draggedNodeId = null;
 
-    let locationsData = @json($locations);
-    let adjData = @json($adj);
+    var locationsData = @json($locations);
+    var adjData = @json($adj);
 
     function toggleShowHiddenDots(forceVal) {
         if (typeof forceVal === 'boolean') {
@@ -2812,8 +2812,8 @@
     }
 
     // === Add & Delete Node Modals (In-Page, Anti-Freeze, Anti-Lock) ===
-    let pendingAddNodeData = null;
-    let pendingDeleteNodeId = null;
+    var pendingAddNodeData = null;
+    var pendingDeleteNodeId = null;
 
     function openAddNodeModal(floor, xPct, yPct) {
         pendingAddNodeData = { floor: Number(floor) || 1, xPct: parseFloat(xPct), yPct: parseFloat(yPct) };
@@ -2954,7 +2954,7 @@
         }
     }
 
-    let isFullMap = false;
+    var isFullMap = false;
     function toggleFullMap(showFull) {
         if (showFull === undefined) isFullMap = !isFullMap;
         else isFullMap = !!showFull;
@@ -3399,7 +3399,7 @@
     }
 
     // === Mode Edit Target (Node vs Robot) & Inspector Switching ===
-    let currentEditTarget = 'node'; // 'node' | 'robot'
+    var currentEditTarget = 'node'; // 'node' | 'robot'
 
     function toggleEditDropdown(which) {
         const ddMain = document.getElementById('dropdown-edit-target-main');
@@ -3881,9 +3881,9 @@
     }
 
     // --- IT Repair Center & Fleet Telemetry (Foto 5) ---
-    let fleetRobots = [];
-    let fleetDeliveries = [];
-    let fleetAlerts = [];
+    var fleetRobots = [];
+    var fleetDeliveries = [];
+    var fleetAlerts = [];
 
     function fetchFleetTelemetry() {
         fetch('/api/telemetry')
@@ -4274,7 +4274,7 @@
     }
 
     // === Pengaturan Kamera Awal 3D Logic ===
-    let initialCamModalFloor = 1;
+    var initialCamModalFloor = 1;
 
     async function saveCurrentCameraAsInitial(targetFloor = null) {
         const fl = targetFloor !== null ? Number(targetFloor) : (Number(currentFloor) || 1);
@@ -4582,20 +4582,38 @@
         }
     }
 
-    window.addEventListener('load', () => {
-        syncRobotVisibilityUI();
-        syncTransitVisibilityUI();
-        setLabelScale(labelScaleMultiplier);
-        setRobotScale(robotScaleMultiplier, false);
-        updateRobotFloorUI();
-        updateRobotElevationUI();
-        setEditTargetMode('robot');
-        switchFloor(1);
+    // Telemetri armada IT Repair Center langsung dijalankan tanpa menunggu Three.js atau load event
+    fetchFleetTelemetry();
+    if (!window._fleetTelemetryInterval) {
+        window._fleetTelemetryInterval = setInterval(fetchFleetTelemetry, 2500);
+    }
 
-        // Polling telemetri armada untuk IT Repair Center
+    function initPusatKontrolUI() {
+        try { syncRobotVisibilityUI(); } catch (e) {}
+        try { syncTransitVisibilityUI(); } catch (e) {}
+        try { setLabelScale(labelScaleMultiplier); } catch (e) {}
+        try { setRobotScale(robotScaleMultiplier, false); } catch (e) {}
+        try { updateRobotFloorUI(); } catch (e) {}
+        try { updateRobotElevationUI(); } catch (e) {}
+        try { setEditTargetMode('robot'); } catch (e) {}
+        try { switchFloor(1); } catch (e) {}
         fetchFleetTelemetry();
-        setInterval(fetchFleetTelemetry, 2500);
-    });
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        initPusatKontrolUI();
+    } else {
+        document.addEventListener('DOMContentLoaded', initPusatKontrolUI);
+        window.addEventListener('load', initPusatKontrolUI);
+    }
+
+    window.onPusatKontrolViewActivated = function() {
+        fetchFleetTelemetry();
+        const activeV = (Number(currentFloor) === 1) ? threeBotCtrlF1 : threeBotCtrl;
+        if (activeV && typeof activeV.resize === 'function') {
+            activeV.resize();
+        }
+    };
 
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
