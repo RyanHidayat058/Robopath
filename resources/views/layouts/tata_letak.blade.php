@@ -807,10 +807,31 @@
                 return null;
             },
 
+            cleanRouteState() {
+                if (typeof window.exitBotCtrlFullMap === 'function') {
+                    try { window.exitBotCtrlFullMap(); } catch (e) {}
+                }
+                if (typeof window.toggleFullView === 'function' && window.isFullViewMode) {
+                    try { window.toggleFullView(false); } catch (e) {}
+                }
+                document.body.classList.remove('body-in-fullmap', 'body-in-fullview');
+                const asideEl = document.getElementById('main-sidebar') || document.querySelector('body > aside') || document.querySelector('aside');
+                if (asideEl) {
+                    asideEl.style.removeProperty('display');
+                    asideEl.classList.remove('hidden', 'fullview-hidden');
+                }
+                const mainEl = document.getElementById('main-content') || document.querySelector('body > main') || document.querySelector('main');
+                if (mainEl) {
+                    mainEl.style.removeProperty('z-index');
+                }
+            },
+
             switchToExistingPane(targetRoute, pushState = true) {
                 const norm = this.normalize(targetRoute);
                 const targetPane = this.findPane(norm);
                 if (!targetPane) return false;
+
+                this.cleanRouteState();
 
                 // Sembunyikan semua pane lain
                 document.querySelectorAll('#spa-views-container .spa-view-pane').forEach(p => {
@@ -889,6 +910,8 @@
                     newPane._topbarActions = topbarActions;
                     newPane.innerHTML = fetchedPane.innerHTML;
                     newPane._scriptsExecuted = true;
+
+                    this.cleanRouteState();
 
                     document.querySelectorAll('#spa-views-container .spa-view-pane').forEach(p => {
                         p.style.display = 'none';

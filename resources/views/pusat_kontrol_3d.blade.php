@@ -775,8 +775,11 @@
     var currentFloor = 1;
     var threeBotCtrl = null;
     var threeBotCtrlF1 = null;
-    var modelLoadedByFloor = {1:false,2:false};
+    var botCtrlModelLoadedByFloor = {1:false,2:false};
+    window.botCtrlModelLoadedByFloor = botCtrlModelLoadedByFloor;
+    var modelLoadedByFloor = botCtrlModelLoadedByFloor;
     function activeBotViewer(){ return Number(currentFloor)===1 ? threeBotCtrlF1 : threeBotCtrl; }
+    window.activeBotViewer = activeBotViewer;
     function allBotViewers(){ return [threeBotCtrl, threeBotCtrlF1].filter(Boolean); }
     function parkCoordsForFloor(f){ return f===1 ? {x:72.1,y:85.71} : {x:72.3,y:66.3}; }
     function viewerOfHolder(holder){
@@ -1360,7 +1363,7 @@
         return buffer;
     }
 
-    function initThreeViewer(containerId, floorNum) {
+    function initBotCtrlThreeViewer(containerId, floorNum) {
         const container = document.getElementById(containerId);
         if (!container) return null;
         floorNum = Number(floorNum) === 1 ? 1 : 2;
@@ -2684,7 +2687,7 @@
                 }
                 setTimeout(() => {
                     if (!threeBotCtrlF1) {
-                        threeBotCtrlF1 = initThreeViewer('botctrl-3d-canvas-f1', 1);
+                        threeBotCtrlF1 = initBotCtrlThreeViewer('botctrl-3d-canvas-f1', 1);
                     } else { threeBotCtrlF1.resize(); if(modelLoadedByFloor[1] && loaderEl) loaderEl.classList.add('hidden'); }
                     sync3DNodesToData();
                 }, 50);
@@ -2710,7 +2713,7 @@
                 }
                 setTimeout(() => {
                     if (!threeBotCtrl) {
-                        threeBotCtrl = initThreeViewer('botctrl-3d-canvas-container', 2);
+                        threeBotCtrl = initBotCtrlThreeViewer('botctrl-3d-canvas-container', 2);
                     } else { threeBotCtrl.resize(); if(modelLoadedByFloor[2] && loaderEl) loaderEl.classList.add('hidden'); }
                     sync3DNodesToData();
                 }, 50);
@@ -2963,11 +2966,18 @@
         const btnFloatingFm = document.getElementById('btn-floating-fullmap');
         const btnOpenFm = document.getElementById('btn-open-fullmap');
 
-        const asideEl = document.querySelector('body > aside') || document.querySelector('aside');
+        const asideEl = document.getElementById('main-sidebar') || document.querySelector('body > aside') || document.querySelector('aside');
         if (asideEl) {
-            asideEl.style.display = isFullMap ? 'none' : '';
+            if (isFullMap) {
+                asideEl.style.setProperty('display', 'none', 'important');
+                asideEl.classList.add('hidden', 'fullview-hidden');
+            } else {
+                asideEl.style.removeProperty('display');
+                asideEl.classList.remove('hidden', 'fullview-hidden');
+            }
         }
         document.body.classList.toggle('body-in-fullmap', isFullMap);
+        window.isFullMap = isFullMap;
 
         if (isFullMap) {
             if (editorCard) {
@@ -3030,6 +3040,19 @@
             allBotViewers().forEach(v => { if (v && v.resize) v.resize(); });
         }, 200);
     }
+
+    function exitBotCtrlFullMap() {
+        if (isFullMap) {
+            toggleFullMap(false);
+        }
+        document.body.classList.remove('body-in-fullmap');
+        const asideEl = document.getElementById('main-sidebar') || document.querySelector('body > aside') || document.querySelector('aside');
+        if (asideEl) {
+            asideEl.style.removeProperty('display');
+            asideEl.classList.remove('hidden', 'fullview-hidden');
+        }
+    }
+    window.exitBotCtrlFullMap = exitBotCtrlFullMap;
 
     function toggleInspectorPanel(forceState) {
         const cardNode = document.getElementById('node-inspector-card');

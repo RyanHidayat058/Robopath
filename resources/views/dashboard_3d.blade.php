@@ -1011,10 +1011,14 @@
     var MODEL_CACHE_NAME = window.MODEL_CACHE_NAME || 'robopath-models-v1';
     var threeStd = null;
     var threeStdF1 = null;
-    var modelLoadedByFloor = { 1: false, 2: false };
+    var dashboardModelLoadedByFloor = { 1: false, 2: false };
+    window.dashboardModelLoadedByFloor = dashboardModelLoadedByFloor;
+    var modelLoadedByFloor = dashboardModelLoadedByFloor;
     // Viewer 3D yang sedang tampil sesuai lantai aktif
     function activeStdViewer(){ return Number(currentDashboardFloor) === 1 ? threeStdF1 : threeStd; }
+    window.activeStdViewer = activeStdViewer;
     function allViewers(){ return [threeStd, threeStdF1].filter(v => !!v); }
+    window.allViewers = allViewers;
     // Koordinat parkir avatar (% denah) per lantai — dekat Stairs masing-masing
     function parkCoordsForFloor(f){ return Number(f) === 1 ? { x: 72.1, y: 85.71 } : { x: 72.3, y: 66.3 }; }
     function getBaseLocationId() {
@@ -1362,7 +1366,7 @@
         }
     }
 
-    function initThreeViewer(containerId, floorNum, onLoadedCallback) {
+    function initDashboardThreeViewer(containerId, floorNum, onLoadedCallback) {
         const container = document.getElementById(containerId);
         if (!container) return null;
         // Lantai yg divisualkan viewer ini (default 2 agar panggilan lama tetap jalan)
@@ -1575,7 +1579,7 @@
         const loaderStatus = document.getElementById('std-3d-loader-status');
         const loaderTitle = document.getElementById('std-3d-loader-title');
 
-        if (loaderEl && !modelLoadedByFloor[floorNum]) {
+        if (loaderEl && !dashboardModelLoadedByFloor[floorNum]) {
             loaderEl.classList.remove('hidden');
             if (loaderTitle) loaderTitle.textContent = `Menyiapkan Model 3D Lantai ${floorNum}...`;
             if (loaderStatus) loaderStatus.textContent = `Memeriksa penyimpanan lokal...`;
@@ -1629,7 +1633,7 @@
             gltfLoader.parse(buffer, '', (gltf) => {
                 clearTimeout(watchdogTimer);
                 try {
-                    modelLoadedByFloor[floorNum] = true;
+                    dashboardModelLoadedByFloor[floorNum] = true;
                     loadedModel = gltf.scene;
 
                     const box = new THREE.Box3().setFromObject(loadedModel);
@@ -2953,7 +2957,7 @@
                     const _ldB = document.getElementById('std-3d-loader-bar');
                     const _ldP = document.getElementById('std-3d-loader-pct');
                     if (_ld) {
-                        if (modelLoadedByFloor[1]) {
+                        if (dashboardModelLoadedByFloor[1]) {
                             _ld.classList.add('hidden');
                         } else {
                             _ld.classList.remove('hidden');
@@ -2965,13 +2969,13 @@
                     }
                 } catch(e){}
                 setTimeout(() => {
-                    if (!threeStdF1 || !modelLoadedByFloor[1]) {
-                        if (threeStdF1 && !modelLoadedByFloor[1]) {
+                    if (!threeStdF1 || !dashboardModelLoadedByFloor[1]) {
+                        if (threeStdF1 && !dashboardModelLoadedByFloor[1]) {
                             try { canvasContainer3DF1.innerHTML=''; } catch(e){}
                             try { if(threeStdF1.renderer) threeStdF1.renderer.dispose(); } catch(e){}
                             threeStdF1 = null;
                         }
-                        threeStdF1 = initThreeViewer('std-3d-canvas-f1', 1);
+                        threeStdF1 = initDashboardThreeViewer('std-3d-canvas-f1', 1);
                     } else {
                         threeStdF1.resize();
                     }
@@ -2994,7 +2998,7 @@
                     const _ldB2 = document.getElementById('std-3d-loader-bar');
                     const _ldP2 = document.getElementById('std-3d-loader-pct');
                     if (_ld2) {
-                        if (modelLoadedByFloor[2]) {
+                        if (dashboardModelLoadedByFloor[2]) {
                             _ld2.classList.add('hidden');
                         } else {
                             _ld2.classList.remove('hidden');
@@ -3006,13 +3010,13 @@
                     }
                 } catch(e){}
                 setTimeout(() => {
-                    if (!threeStd || !modelLoadedByFloor[2]) {
-                        if (threeStd && !modelLoadedByFloor[2]) {
+                    if (!threeStd || !dashboardModelLoadedByFloor[2]) {
+                        if (threeStd && !dashboardModelLoadedByFloor[2]) {
                             try { canvasContainer3D.innerHTML=''; } catch(e){}
                             try { if(threeStd.renderer) threeStd.renderer.dispose(); } catch(e){}
                             threeStd = null;
                         }
-                        threeStd = initThreeViewer('std-3d-canvas-container', 2);
+                        threeStd = initDashboardThreeViewer('std-3d-canvas-container', 2);
                     } else {
                         threeStd.resize();
                     }
@@ -3032,6 +3036,8 @@
     function toggleFullView(showFull) {
         if (showFull === undefined) isFullViewMode = !isFullViewMode;
         else isFullViewMode = !!showFull;
+        window.isFullViewMode = isFullViewMode;
+        document.body.classList.remove('body-in-fullmap');
 
         const mapCard = document.getElementById('std-map-card');
         const mapContainer = document.getElementById('std-map-container');
@@ -3119,8 +3125,20 @@
             }
         }, 50);
 
+        setTimeout(() => {
+            const activeV = activeStdViewer();
+            if (activeV && typeof activeV.resize === 'function') {
+                activeV.resize();
+            }
+        }, 200);
+
         setTimeout(runSimulationStep, 80);
     }
+
+    window.toggleFullView = toggleFullView;
+    window.switchDashboardFloor = switchDashboardFloor;
+    window.switchFullViewFloor = switchFullViewFloor;
+    window.isFullViewMode = isFullViewMode;
 
     function getNode(nameOrId, preferredFloor = null) {
         if (!nameOrId) return null;
@@ -5223,9 +5241,33 @@
     });
 
     window.onDashboardViewActivated = function() {
+        document.body.classList.remove('body-in-fullmap');
+        const asideEl = document.getElementById('main-sidebar') || document.querySelector('body > aside') || document.querySelector('aside');
+        if (asideEl && !isFullViewMode) {
+            asideEl.style.removeProperty('display');
+            asideEl.classList.remove('hidden', 'fullview-hidden');
+        }
+
+        const curFloor = Number(currentDashboardFloor || 1);
         const v = activeStdViewer();
         if (v && typeof v.resize === 'function') {
             v.resize();
+        } else {
+            switchDashboardFloor(curFloor);
+        }
+
+        if (dashboardModelLoadedByFloor[curFloor]) {
+            const _ld = document.getElementById('std-3d-loader');
+            if (_ld) _ld.classList.add('hidden');
+            const cF1 = document.getElementById('std-3d-canvas-f1');
+            const cF2 = document.getElementById('std-3d-canvas-container');
+            if (curFloor === 1) {
+                if (cF1) cF1.classList.remove('hidden');
+                if (cF2) cF2.classList.add('hidden');
+            } else {
+                if (cF2) cF2.classList.remove('hidden');
+                if (cF1) cF1.classList.add('hidden');
+            }
         }
         fetchData();
         runSimulationStep();
