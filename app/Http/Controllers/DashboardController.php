@@ -102,6 +102,18 @@ class DashboardController extends Controller
             ->limit(30)
             ->get();
 
+        $destinationsFloor1 = [];
+        $destinationsFloor2 = [];
+        foreach ($locations as $locId => $loc) {
+            if (! empty($loc['is_destination'])) {
+                if ((int) ($loc['floor'] ?? 1) === 1) {
+                    $destinationsFloor1[$locId] = $loc['name'] ?? $locId;
+                } else {
+                    $destinationsFloor2[$locId] = $loc['name'] ?? $locId;
+                }
+            }
+        }
+
         return view('pengiriman_3d', compact(
             'viewMode',
             'robots',
@@ -112,7 +124,9 @@ class DashboardController extends Controller
             'adj3D',
             'labelScale',
             'settings3D',
-            'recentActivity'
+            'recentActivity',
+            'destinationsFloor1',
+            'destinationsFloor2'
         ));
     }
 

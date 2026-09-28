@@ -105,6 +105,21 @@ class TelemetryController extends Controller
             }
         }
 
+        // Reverse Sanity Check: If a robot is marked 'Heading to Pickup' or 'Waiting for Item' but has NO pending delivery
+        $pickupRobots = Robot::whereIn('status', ['Heading to Pickup', 'Waiting for Item'])->get();
+        foreach ($pickupRobots as $r) {
+            $hasPending = Delivery::where('robot_id', $r->id)->where('status', 'Pending')->exists();
+            if (! $hasPending) {
+                $isFloor1 = ((int) ($r->floor ?? 1) === 1);
+                $curX = (float) ($r->current_x ?? 85.48);
+                $curY = (float) ($r->current_y ?? 51.07);
+                $d3D = $isFloor1 ? hypot($curX - 85.48, $curY - 51.07) : 999.0;
+                $d2D = $isFloor1 ? hypot($curX - 76.23, $curY - 64.42) : 999.0;
+                $isNear = ($d3D <= 3.5 || $d2D <= 3.5);
+                $r->update(['status' => ($isNear && $isFloor1) ? 'Idle' : 'Returning']);
+            }
+        }
+
         $isAutopilot = (bool) Cache::get('autopilot_enabled', false);
         if ($isAutopilot) {
             $this->dispatchAutopilotDeliveries();
@@ -264,6 +279,221 @@ class TelemetryController extends Controller
             'success' => true,
             'delivery' => $delivery->load('robot'),
         ]);
+    }
+
+    public function summonRobot(Request $request)
+    {
+        $request->validate([
+            'start_location' => 'required|string',
+            'destination_location' => 'required|string',
+            'item_name' => 'required|string|max:255',
+        ]);
+
+        $startLoc = trim($request->start_location);
+        $destLoc = trim($request->destination_location);
+        $itemName = trim($request->item_name);
+
+        if (strcasecmp($startLoc, $destLoc) === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Lokasi pengambilan tidak boleh sama dengan tujuan pengantaran.',
+            ], 422);
+        }
+
+        // Cari robot yang tersedia
+        // Prioritas 1: Siaga (Idle)
+        // Prioritas 2: Kembali (Returning)
+        // Filter: tidak dalam Maintenance / Charging / battery <= 20% / tidak ada active report
+        $activeReportRobotIds = Report::where('status', 'Active')->pluck('robot_id')->toArray();
+
+        $availableRobot = Robot::whereNotIn('id', $activeReportRobotIds)
+            ->where('battery_level', '>', 20)
+            ->where('status', 'Idle')
+            ->first();
+
+        $wasRedirected = false;
+
+        if (! $availableRobot) {
+            // Cek Prioritas 2: Kembali
+            $availableRobot = Robot::whereNotIn('id', $activeReportRobotIds)
+                ->where('battery_level', '>', 20)
+                ->where('status', 'Returning')
+                ->first();
+
+            if ($availableRobot) {
+                $wasRedirected = true;
+            }
+        }
+
+        if (! $availableRobot) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Semua robot sedang tidak tersedia. Silakan coba beberapa saat lagi.',
+            ], 422);
+        }
+
+        // Batalkan tugas pending / in progress lama pada robot ini jika ada
+        Delivery::where('robot_id', $availableRobot->id)
+            ->whereIn('status', ['In Progress', 'Pending'])
+            ->update([
+                'status' => 'Cancelled',
+                'completed_at' => Carbon::now(),
+            ]);
+
+        // Tentukan origin_location (titik awal robot saat dipanggil)
+        $originLoc = $request->origin_location;
+        if (! $originLoc) {
+            $originLoc = $this->resolveRobotNearestLocationName($availableRobot);
+        }
+
+        // Update robot status ke 'Heading to Pickup'
+        $availableRobot->update([
+            'status' => 'Heading to Pickup',
+        ]);
+
+        // Buat data Delivery dengan status Pending
+        $delivery = Delivery::create([
+            'robot_id' => $availableRobot->id,
+            'item_name' => $itemName,
+            'origin_location' => $originLoc,
+            'start_location' => $startLoc,
+            'destination_location' => $destLoc,
+            'status' => 'Pending',
+            'started_at' => Carbon::now(),
+        ]);
+
+        $message = $wasRedirected
+            ? "{$availableRobot->name} sedang kembali ke markas. Tujuan robot dialihkan ke " . Delivery::formatLocationName($startLoc) . "."
+            : "{$availableRobot->name} berhasil dipanggil dan sedang menuju ke " . Delivery::formatLocationName($startLoc) . ".";
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'redirected' => $wasRedirected,
+            'robot' => $availableRobot,
+            'delivery' => $delivery->load('robot'),
+        ]);
+    }
+
+    public function arrivePickup(Request $request, Delivery $delivery)
+    {
+        $robot = $delivery->robot;
+        if (! $robot) {
+            return response()->json(['success' => false, 'message' => 'Robot tidak ditemukan.'], 404);
+        }
+
+        // Update robot status ke 'Waiting for Item'
+        $robot->update([
+            'status' => 'Waiting for Item',
+            'current_x' => $request->input('current_x', $robot->current_x),
+            'current_y' => $request->input('current_y', $robot->current_y),
+            'floor' => $request->input('floor', $robot->floor ?? 1),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$robot->name} telah tiba di " . Delivery::formatLocationName($delivery->start_location) . ". Silakan masukkan barang.",
+            'robot' => $robot,
+            'delivery' => $delivery->load('robot'),
+        ]);
+    }
+
+    public function updateDeliveryDetails(Request $request, Delivery $delivery)
+    {
+        if ($delivery->status !== 'Pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya pengiriman yang belum berjalan yang dapat diubah.',
+            ], 422);
+        }
+
+        $request->validate([
+            'item_name' => 'required|string|max:255',
+            'destination_location' => 'required|string|max:255',
+        ]);
+
+        $newDest = trim($request->destination_location);
+        if (strcasecmp($delivery->start_location, $newDest) === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tujuan pengantaran tidak boleh sama dengan lokasi penjemputan.',
+            ], 422);
+        }
+
+        $delivery->update([
+            'item_name' => trim($request->item_name),
+            'destination_location' => $newDest,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rincian pengantaran berhasil diperbarui.',
+            'delivery' => $delivery->load('robot'),
+        ]);
+    }
+
+    public function dispatchDelivery(Request $request, Delivery $delivery)
+    {
+        $robot = $delivery->robot;
+        if (! $robot) {
+            return response()->json(['success' => false, 'message' => 'Robot tidak ditemukan.'], 404);
+        }
+
+        // Update delivery ke In Progress
+        $delivery->update([
+            'status' => 'In Progress',
+            'started_at' => Carbon::now(),
+        ]);
+
+        // Update robot ke Delivering
+        $robot->update([
+            'status' => 'Delivering',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$robot->name} mulai mengantar {$delivery->item_name} ke " . Delivery::formatLocationName($delivery->destination_location) . ".",
+            'robot' => $robot,
+            'delivery' => $delivery->load('robot'),
+        ]);
+    }
+
+    private function resolveRobotNearestLocationName(Robot $robot): string
+    {
+        $isFloor1 = ((int) ($robot->floor ?? 1) === 1);
+        $curX = (float) ($robot->current_x ?? 85.48);
+        $curY = (float) ($robot->current_y ?? 51.07);
+
+        if ($isFloor1) {
+            $d3D = hypot($curX - 85.48, $curY - 51.07);
+            $d2D = hypot($curX - 76.23, $curY - 64.42);
+            if ($d3D <= 3.5 || $d2D <= 3.5) {
+                return '1_Markas Robot';
+            }
+        }
+
+        $graphPath = base_path('graph_3d.json');
+        if (file_exists($graphPath)) {
+            $data = json_decode(file_get_contents($graphPath), true);
+            $locations = $data['locations'] ?? [];
+            $closest = null;
+            $minDist = 999.0;
+            foreach ($locations as $loc) {
+                if ((int) ($loc['floor'] ?? 1) !== (int) ($robot->floor ?? 1)) {
+                    continue;
+                }
+                $dist = hypot($curX - (float) ($loc['x'] ?? 0), $curY - (float) ($loc['y'] ?? 0));
+                if ($dist < $minDist) {
+                    $minDist = $dist;
+                    $closest = $loc;
+                }
+            }
+            if ($closest) {
+                return $closest['name'] ?? $closest['id'];
+            }
+        }
+
+        return '1_Markas Robot';
     }
 
     public function completeDelivery(Request $request, Delivery $delivery)

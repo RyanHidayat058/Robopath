@@ -35,6 +35,10 @@ Route::prefix('api')->name('api.')->group(function () {
     Route::get('/telemetry', [TelemetryController::class, 'getTelemetry'])->name('telemetry');
     Route::post('/robots/{robot}/telemetry', [TelemetryController::class, 'updateRobot'])->name('robots.telemetry');
     Route::post('/deliveries', [TelemetryController::class, 'startDelivery'])->name('deliveries.start');
+    Route::post('/deliveries/summon', [TelemetryController::class, 'summonRobot'])->name('deliveries.summon');
+    Route::post('/deliveries/{delivery}/arrive-pickup', [TelemetryController::class, 'arrivePickup'])->name('deliveries.arrive-pickup');
+    Route::put('/deliveries/{delivery}/update-details', [TelemetryController::class, 'updateDeliveryDetails'])->name('deliveries.update-details');
+    Route::post('/deliveries/{delivery}/dispatch', [TelemetryController::class, 'dispatchDelivery'])->name('deliveries.dispatch');
     Route::put('/deliveries/{delivery}/complete', [TelemetryController::class, 'completeDelivery'])->name('deliveries.complete');
     Route::post('/reports', [TelemetryController::class, 'reportIncident'])->name('reports.create');
     Route::put('/reports/{report}/resolve', [TelemetryController::class, 'resolveIncident'])->name('reports.resolve');
