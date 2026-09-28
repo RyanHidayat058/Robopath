@@ -13,7 +13,7 @@ class AuthController extends Controller
             return redirect()->route('dashboard');
         }
 
-        return view('auth.login');
+        return view('auth.masuk');
     }
 
     public function login(Request $request)

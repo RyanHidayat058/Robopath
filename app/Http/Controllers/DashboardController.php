@@ -102,7 +102,7 @@ class DashboardController extends Controller
             ->limit(30)
             ->get();
 
-        return view('deliveries_3d', compact(
+        return view('pengiriman_3d', compact(
             'viewMode',
             'robots',
             'activeDeliveries',
@@ -128,7 +128,7 @@ class DashboardController extends Controller
         $labelScale = $this->getLabelScale();
         $settings3D = $this->get3DSettings();
 
-        return view('bot_control_3d', compact(
+        return view('pusat_kontrol_3d', compact(
             'viewMode',
             'robots',
             'locations',
@@ -146,7 +146,7 @@ class DashboardController extends Controller
             ->orderBy('started_at', 'desc')
             ->paginate(10);
 
-        return view('history', compact('deliveries'));
+        return view('riwayat', compact('deliveries'));
     }
 
     public function reports()
@@ -154,7 +154,7 @@ class DashboardController extends Controller
         $reports = Report::with('robot')->orderBy('created_at', 'desc')->paginate(10);
         $robots = Robot::all();
 
-        return view('reports', compact('reports', 'robots'));
+        return view('laporan', compact('reports', 'robots'));
     }
 
     private function get3DLocationsData()

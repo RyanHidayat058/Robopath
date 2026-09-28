@@ -1,4 +1,4 @@
-@extends('layouts.layout')
+@extends('layouts.tata_letak')
 
 @section('title', 'ROBOPATH - Riwayat Pengiriman')
 @section('page_title', 'Catatan Pengiriman')
