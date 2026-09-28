@@ -923,9 +923,9 @@
 
 @section('scripts')
 <script>
-    const floor2Img = "{{ asset('images/floor2.jpeg') }}";
+    var floor2Img = "{{ asset('images/floor2.jpeg') }}";
 
-    const locations = {
+    var locations = {
         @foreach($locations as $id => $loc)
         '{{ $id }}': { 
             id: '{{ $id }}',
@@ -940,7 +940,7 @@
         @endforeach
     };
 
-    const adj = {
+    var adj = {
         @foreach($adj as $node => $neighbors)
         '{{ $node }}': [ @foreach($neighbors as $nbr) '{{ $nbr }}', @endforeach ],
         @endforeach
@@ -971,13 +971,13 @@
         return { dx, dy };
     }
 
-    let robots = @json($robots);
-    let activeDeliveries = @json($activeDeliveries);
-    let activeAlerts = @json($activeAlerts ?? []);
-    let isAutopilotEnabled = {{ Illuminate\Support\Facades\Cache::get('autopilot_enabled', false) ? 'true' : 'false' }};
+    var robots = @json($robots);
+    var activeDeliveries = @json($activeDeliveries);
+    var activeAlerts = @json($activeAlerts ?? []);
+    var isAutopilotEnabled = {{ Illuminate\Support\Facades\Cache::get('autopilot_enabled', false) ? 'true' : 'false' }};
     window.isAdmin = {{ (auth()->check() && auth()->user()->isAdmin()) ? 'true' : 'false' }};
-    let settings3D = @json($settings3D ?? []);
-    let current3DSettings = {
+    var settings3D = @json($settings3D ?? []);
+    var current3DSettings = {
         camera: {
             dist: parseFloat(settings3D?.camera?.dist ?? 5.0),
             fov: parseFloat(settings3D?.camera?.fov ?? 5.0),
@@ -998,20 +998,20 @@
         node_color: settings3D?.node_color ?? '#ff0000',
         initial_camera: settings3D?.initial_camera ?? null
     };
-    let settings3DSaveTimeout = null;
-    let serverClientOffset = 0;
-    let currentDashboardFloor = 1;
-    let isFullViewMode = false;
-    let currentFullViewFloor = 1;
+    var settings3DSaveTimeout = null;
+    var serverClientOffset = 0;
+    var currentDashboardFloor = 1;
+    var isFullViewMode = false;
+    var currentFullViewFloor = 1;
 
     // 3D Three.js State, Cache & Loader
     var floor2ModelUrl = window.floor2ModelUrl || "{{ asset('models/Lantai_2-final.glb') }}";
     var floor1ModelUrl = window.floor1ModelUrl || "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
     var robotModelUrl = window.robotModelUrl || "{{ asset('models/robot.glb') }}";
     var MODEL_CACHE_NAME = window.MODEL_CACHE_NAME || 'robopath-models-v1';
-    let threeStd = null;
-    let threeStdF1 = null;
-    let modelLoadedByFloor = { 1: false, 2: false };
+    var threeStd = null;
+    var threeStdF1 = null;
+    var modelLoadedByFloor = { 1: false, 2: false };
     // Viewer 3D yang sedang tampil sesuai lantai aktif
     function activeStdViewer(){ return Number(currentDashboardFloor) === 1 ? threeStdF1 : threeStd; }
     function allViewers(){ return [threeStd, threeStdF1].filter(v => !!v); }
@@ -1041,21 +1041,21 @@
         }
         return activeStdViewer();
     }
-    let active3DPanel = null;
-    let show3DRoomLabels = true;
-    let labelScaleMultiplier = {{ $labelScale ?? 1.0 }};
-    let labelScaleSaveTimeout = null;
+    var active3DPanel = null;
+    var show3DRoomLabels = true;
+    var labelScaleMultiplier = {{ $labelScale ?? 1.0 }};
+    var labelScaleSaveTimeout = null;
     // Lantai 2 Robot Monitoring state
-    let focusedRobotId = null;
-    let isFollowMode = false;
-    let showNetworkLines = false;
-    let isEditingRobot3D = false;
-    let robotTemplate = null;
-    let robotTemplateReady = false;
-    let robotTemplateLoading = false;
-    let robotTemplateCallbacks = [];
-    let robotTemplateTries = 0;
-    let robotTemplateFailed = false;
+    var focusedRobotId = null;
+    var isFollowMode = false;
+    var showNetworkLines = false;
+    var isEditingRobot3D = false;
+    var robotTemplate = null;
+    var robotTemplateReady = false;
+    var robotTemplateLoading = false;
+    var robotTemplateCallbacks = [];
+    var robotTemplateTries = 0;
+    var robotTemplateFailed = false;
 
     // Helper: Create sleek 2D-style robot icon sprite (white card + vector robot icon + colored border, compact)
     function create2DRobotMarkerSprite(robotId, robotName, robotColor) {
@@ -4995,7 +4995,7 @@
         });
     }
 
-    let lastAutopilotCheck = 0;
+    var lastAutopilotCheck = 0;
     function runAutopilotManager() {
         if (!isAutopilotEnabled) return;
 

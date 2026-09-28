@@ -568,13 +568,13 @@
 @section('scripts')
 <script>
     // State Initialization
-    let robots = @json($robots);
-    let activeDeliveries = @json($activeDeliveries);
-    let destinationsFloor1 = @json($destinationsFloor1 ?? []);
-    let destinationsFloor2 = @json($destinationsFloor2 ?? []);
-    let currentPendingSummon = null;
-    let summonApproachTimer = null;
-    let serverClientOffset = 0;
+    var robots = @json($robots);
+    var activeDeliveries = @json($activeDeliveries);
+    var destinationsFloor1 = @json($destinationsFloor1 ?? []);
+    var destinationsFloor2 = @json($destinationsFloor2 ?? []);
+    var currentPendingSummon = null;
+    var summonApproachTimer = null;
+    var serverClientOffset = 0;
 
     function formatLocationDisplay(loc) {
         if (!loc) return '-';

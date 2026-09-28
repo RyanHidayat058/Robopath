@@ -806,13 +806,6 @@
 
     // Guaranteed DOM Toast Notification (berjalan independen tanpa bergantung CDN SweetAlert)
     function showNotification(message, type = 'success') {
-        if (typeof Swal !== 'undefined' && window.showToast) {
-            try {
-                window.showToast(message, type);
-            } catch (e) {
-                console.warn('[Robopath] SweetAlert showToast fallback:', e);
-            }
-        }
         let container = document.getElementById('robopath-notification-container');
         if (!container) {
             container = document.createElement('div');
@@ -849,7 +842,9 @@
             setTimeout(() => toast.remove(), 350);
         }, 3500);
     }
-    var showToast = showNotification;
+    if (!window.showToast) {
+        window.showToast = showNotification;
+    }
 
     // === 3D Robot Avatar & Node Editor State ===
     var robotModelUrl = "{{ asset('models/robot.glb') }}";
@@ -3000,6 +2995,10 @@
                     else cardNode.classList.add('hidden');
                 }
             }
+
+            if (!activeBotViewer()) {
+                switchFloor(currentFloor || 1);
+            }
         } else {
             if (editorCard) {
                 editorCard.classList.remove('botctrl-fullmap-card');
@@ -3025,9 +3024,11 @@
 
         // Trigger resize on active viewer so aspect ratio and canvas fill screen instantly
         setTimeout(() => {
-            const vw = activeBotViewer();
-            if (vw && vw.resize) vw.resize();
+            allBotViewers().forEach(v => { if (v && v.resize) v.resize(); });
         }, 60);
+        setTimeout(() => {
+            allBotViewers().forEach(v => { if (v && v.resize) v.resize(); });
+        }, 200);
     }
 
     function toggleInspectorPanel(forceState) {
@@ -3428,7 +3429,7 @@
     function setEditTargetMode(mode) {
         currentEditTarget = mode;
 
-        // 1. Sync Top Bar Mode Tabs (Normal View)
+        // 1. Sync Top Bar Mode Tabs (Normal View & Topbar Container)
         const tabNode = document.getElementById('tab-mode-node');
         const tabRobot = document.getElementById('tab-mode-robot');
         if (tabNode && tabRobot) {
@@ -3438,6 +3439,17 @@
             } else {
                 tabRobot.className = "px-5 py-2.5 rounded-lg text-xs font-bold transition shadow-sm bg-[#3b4cb8] text-white flex items-center gap-2";
                 tabNode.className = "px-5 py-2.5 rounded-lg text-xs font-bold transition text-gray-600 hover:bg-gray-200 flex items-center gap-2";
+            }
+        }
+        const topBtnNode = document.getElementById('topbar-btn-edit-jalur');
+        const topBtnRobot = document.getElementById('topbar-btn-edit-robot');
+        if (topBtnNode && topBtnRobot) {
+            if (mode === 'node') {
+                topBtnNode.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-white text-[#3b4cb8] shadow-xs hover:bg-gray-50 active:scale-95";
+                topBtnRobot.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-700 hover:text-[#3b4cb8] hover:bg-white/80 active:scale-95";
+            } else {
+                topBtnRobot.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-white text-[#3b4cb8] shadow-xs hover:bg-gray-50 active:scale-95";
+                topBtnNode.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-700 hover:text-[#3b4cb8] hover:bg-white/80 active:scale-95";
             }
         }
 
@@ -4587,6 +4599,54 @@
     if (!window._fleetTelemetryInterval) {
         window._fleetTelemetryInterval = setInterval(fetchFleetTelemetry, 2500);
     }
+
+    // Explicit global bindings for SPA / DOM Event Handlers
+    window.adjustInspectRobotRotation = adjustInspectRobotRotation;
+    window.adjustLabelScale = adjustLabelScale;
+    window.adjustRobotElevation = adjustRobotElevation;
+    window.captureCurrentCameraForInitial = captureCurrentCameraForInitial;
+    window.changeRobotScale = changeRobotScale;
+    window.changeRobotStatus = changeRobotStatus;
+    window.closeAddNodeModal = closeAddNodeModal;
+    window.closeDeleteNodeModal = closeDeleteNodeModal;
+    window.closeInitialCameraModal = closeInitialCameraModal;
+    window.confirmDeleteNodeModal = confirmDeleteNodeModal;
+    window.disconnectEdge = disconnectEdge;
+    window.editRobotBattery = editRobotBattery;
+    window.fixRobotUnit = fixRobotUnit;
+    window.focusOnActiveSelection = focusOnActiveSelection;
+    window.handleEditJalurClick = handleEditJalurClick;
+    window.handleEditRobotClick = handleEditRobotClick;
+    window.handleEditRuanganClick = handleEditRuanganClick;
+    window.handleFullMapSave = handleFullMapSave;
+    window.lockRobotElevation = lockRobotElevation;
+    window.openInitialCameraModal = openInitialCameraModal;
+    window.previewInitialCamera = previewInitialCamera;
+    window.resetActiveRobotPosition = resetActiveRobotPosition;
+    window.resetInitialCameraToDefault = resetInitialCameraToDefault;
+    window.resetSystem = resetSystem;
+    window.saveCurrentCameraAsInitial = saveCurrentCameraAsInitial;
+    window.saveGraphToServer = saveGraphToServer;
+    window.saveInitialCameraSettings = saveInitialCameraSettings;
+    window.saveRobotPosition = saveRobotPosition;
+    window.selectInitialCamFloor = selectInitialCamFloor;
+    window.setActiveRobotFloor = setActiveRobotFloor;
+    window.setEditTargetMode = setEditTargetMode;
+    window.setEditorTool = setEditorTool;
+    window.simulateUnitIssue = simulateUnitIssue;
+    window.switchFloor = switchFloor;
+    window.toggleFullMap = toggleFullMap;
+    window.toggleInspectorPanel = toggleInspectorPanel;
+    window.toggleShowHiddenDots = toggleShowHiddenDots;
+    window.toggleShowRobots = toggleShowRobots;
+    window.zoom3DCamera = zoom3DCamera;
+    window.fetchFleetTelemetry = fetchFleetTelemetry;
+    window.inspectRobot = inspectRobot;
+    window.inspectNode = inspectNode;
+    window.clearInspector = clearInspector;
+    window.reset3DCameraView = reset3DCameraView;
+    window.syncFullMapControls = syncFullMapControls;
+    window.toggleEditDropdown = toggleEditDropdown;
 
     function initPusatKontrolUI() {
         try { syncRobotVisibilityUI(); } catch (e) {}
