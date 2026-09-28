@@ -331,6 +331,9 @@
                         <button type="button" onclick="toggle3DControlPanel('camera')" id="fullview-btn-camera" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="Pengaturan Sudut & Zoom Kamera">
                             <i class="fa-solid fa-video text-sky-400"></i> <span>Kamera</span>
                         </button>
+                        <button type="button" onclick="saveCurrentDashboardCameraAsInitial()" class="bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-500/50 text-indigo-300 hover:text-white font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0 active:scale-95 cursor-pointer shadow-xs" title="Simpan posisi & sudut kamera lantai ini sebagai tampilan awal">
+                            <i class="fa-solid fa-camera text-indigo-400"></i> <span>Simpan Kamera</span>
+                        </button>
                         <button type="button" onclick="toggle3DControlPanel('light')" id="fullview-btn-light" class="bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-200 font-bold px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0" title="Pengaturan Pencahayaan, Shader & Bayangan Ruangan">
                             <i class="fa-solid fa-sun text-amber-400"></i> <span>Cahaya</span>
                         </button>
@@ -417,6 +420,10 @@
                         <!-- Camera Preset / Edit Button -->
                         <button onclick="toggle3DControlPanel('camera')" class="bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition">
                             <i class="fa-solid fa-video text-sky-400"></i> Kamera
+                        </button>
+                        <!-- Quick Save Initial Camera Button -->
+                        <button type="button" onclick="saveCurrentDashboardCameraAsInitial()" class="bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-500/50 text-indigo-300 hover:text-white backdrop-blur-md px-2.5 py-1.5 rounded-xl text-xs font-bold shadow-lg flex items-center gap-1.5 transition active:scale-95 cursor-pointer" title="Simpan posisi & sudut kamera lantai ini sebagai tampilan awal">
+                            <i class="fa-solid fa-camera text-indigo-400"></i> Simpan Kamera
                         </button>
                         <!-- Lighting Control Button -->
                         <button onclick="toggle3DControlPanel('light')" class="bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-xs font-bold border border-white/10 shadow-lg flex items-center gap-1.5 transition" title="Pengaturan Pencahayaan, Shader & Bayangan Ruangan">
@@ -1877,6 +1884,10 @@
             getModelSize: () => modelSize,
             getDefaultCamPos: () => defaultCamPos,
             getDefaultCamTarget: () => defaultCamTarget,
+            setDefaultCamera: (pos, tgt) => {
+                defaultCamPos.copy(pos);
+                defaultCamTarget.copy(tgt);
+            },
             resize: onResize,
             destroy: () => {
                 if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -2638,6 +2649,10 @@
             position: { x: posX, y: posY, z: posZ },
             target: { x: tgtX, y: tgtY, z: tgtZ }
         };
+
+        if (typeof v.setDefaultCamera === 'function') {
+            v.setDefaultCamera(new THREE.Vector3(posX, posY, posZ), new THREE.Vector3(tgtX, tgtY, tgtZ));
+        }
 
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
         try {
