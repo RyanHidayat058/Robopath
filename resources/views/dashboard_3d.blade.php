@@ -583,6 +583,11 @@
         </div>
         <input id="input-cam-fov" type="range" min="0" max="10" step="0.1" value="{{ $settings3D['camera']['fov'] ?? 5.0 }}" oninput="updateCameraFov(this.value)" class="w-full accent-sky-400">
     </div>
+    @if(auth()->check() && auth()->user()->isAdmin())
+    <button type="button" onclick="saveCurrentDashboardCameraAsInitial()" class="w-full bg-indigo-600 hover:bg-indigo-500 py-2 rounded-xl text-[11px] font-bold text-white transition flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/30 active:scale-95 cursor-pointer" title="Simpan sudut pandang kamera saat ini sebagai tampilan awal denah">
+        <i class="fa-solid fa-camera"></i> Simpan Sebagai Kamera Awal
+    </button>
+    @endif
     <button type="button" onclick="reset3DCamera()" class="w-full bg-slate-800 hover:bg-slate-700 py-1.5 rounded-lg text-[11px] font-bold border border-white/10 text-gray-300 transition">
         <i class="fa-solid fa-rotate-left mr-1"></i> Reset Kamera Bawaan
     </button>
@@ -2604,6 +2609,82 @@
             if (distInput) distInput.value = '5.0';
             if (fovInput) fovInput.value = '5.0';
             save3DSettingsDebounced('camera-settings-status');
+        }
+    }
+
+    async function saveCurrentDashboardCameraAsInitial() {
+        const v = activeStdViewer();
+        if (!v || !v.camera || !v.controls) {
+            if (window.showWarningAlert) window.showWarningAlert('Viewer Belum Siap', 'Peta 3D belum siap untuk disimpan.');
+            return;
+        }
+        const fl = v.floor || currentDashboardFloor;
+        const cPos = v.camera.position;
+        const cTgt = v.controls.target;
+
+        const posX = parseFloat(Number(cPos.x).toFixed(2));
+        const posY = parseFloat(Number(cPos.y).toFixed(2));
+        const posZ = parseFloat(Number(cPos.z).toFixed(2));
+        const tgtX = parseFloat(Number(cTgt.x).toFixed(2));
+        const tgtY = parseFloat(Number(cTgt.y).toFixed(2));
+        const tgtZ = parseFloat(Number(cTgt.z).toFixed(2));
+
+        if (!current3DSettings.initial_camera || typeof current3DSettings.initial_camera !== 'object') {
+            current3DSettings.initial_camera = {};
+        }
+
+        const floorKey = 'floor_' + fl;
+        current3DSettings.initial_camera[floorKey] = {
+            position: { x: posX, y: posY, z: posZ },
+            target: { x: tgtX, y: tgtY, z: tgtZ }
+        };
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        try {
+            const res = await fetch('/api/settings/label-scale', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ scale: labelScaleMultiplier, settings_3d: current3DSettings })
+            });
+            const data = await res.json();
+            if (data.success) {
+                const htmlMsg = `
+                    <div style="text-align: left; background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 12px; color: #334155; margin-top: 8px;">
+                        <div><strong style="font-family: sans-serif; color: #4f46e5;">Lantai:</strong> Lantai ${fl}</div>
+                        <div style="margin-top: 4px;"><strong style="font-family: sans-serif; color: #0284c7;">Posisi Kamera:</strong> X: ${posX}, Y: ${posY}, Z: ${posZ}</div>
+                        <div style="margin-top: 4px;"><strong style="font-family: sans-serif; color: #d97706;">Target Fokus:</strong> X: ${tgtX}, Y: ${tgtY}, Z: ${tgtZ}</div>
+                    </div>
+                    <p style="font-size: 12px; color: #64748b; margin-top: 10px; font-family: sans-serif;">Sudut pandang ini akan langsung digunakan setiap kali denah Lantai ${fl} selesai dimuat dan dirender.</p>
+                `;
+
+                if (window.RobopathSwal) {
+                    window.RobopathSwal.fire({
+                        icon: 'success',
+                        title: `Kamera Awal Lantai ${fl} Berhasil Disimpan!`,
+                        html: htmlMsg,
+                        confirmButtonText: 'Selesai',
+                        timer: 5000,
+                        timerProgressBar: true
+                    });
+                } else if (window.showSuccessAlert) {
+                    window.showSuccessAlert(`Kamera Awal Lantai ${fl} Disimpan!`, `Posisi: (${posX}, ${posY}, ${posZ})`);
+                }
+
+                if (window.showToast) {
+                    window.showToast(`Kamera awal Lantai ${fl} berhasil disimpan!`, 'success');
+                }
+            } else {
+                throw new Error(data.message || 'Gagal menyimpan pengaturan.');
+            }
+        } catch (err) {
+            console.error('Error saving initial camera on dashboard:', err);
+            if (window.showErrorAlert) {
+                window.showErrorAlert('Gagal Menyimpan Kamera', 'Terjadi kesalahan saat menyimpan: ' + (err.message || err));
+            }
         }
     }
 

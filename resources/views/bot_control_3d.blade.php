@@ -213,10 +213,15 @@
                             <i class="fa-solid fa-eye text-sky-400" id="fullmap-icon-toggle-hidden"></i> <span id="fullmap-text-toggle-hidden">Transit: Tampil</span>
                         </button>
 
-                        <!-- Atur Kamera Awal -->
-                        <button type="button" onclick="openInitialCameraModal()" id="fullmap-btn-initial-cam" class="bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 text-indigo-300 font-bold px-2.5 sm:px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0 active:scale-95 cursor-pointer" title="Atur Sudut Pandang Kamera Awal (View Saat Denah Dimuat)">
-                            <i class="fa-solid fa-camera text-indigo-400"></i> <span>Kamera Awal</span>
-                        </button>
+                        <!-- Simpan Kamera Awal Langsung & Tombol Manual -->
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button type="button" onclick="saveCurrentCameraAsInitial()" id="fullmap-btn-initial-cam" class="bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-500/50 text-indigo-300 hover:text-white font-bold px-2.5 sm:px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap shrink-0 active:scale-95 cursor-pointer shadow-xs" title="Simpan posisi & sudut kamera saat ini sebagai tampilan awal denah">
+                                <i class="fa-solid fa-camera text-indigo-400"></i> <span>Simpan Kamera Awal</span>
+                            </button>
+                            <button type="button" onclick="openInitialCameraModal()" class="w-7 h-7 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 hover:text-gray-200 flex items-center justify-center text-xs transition shrink-0 active:scale-95 cursor-pointer" title="Atur Koordinat Kamera Awal Secara Manual">
+                                <i class="fa-solid fa-sliders"></i>
+                            </button>
+                        </div>
 
                         <!-- Label Size Scale -->
                         <div class="flex items-center gap-1 bg-slate-900/90 border border-white/10 px-2 py-1 rounded-xl text-xs font-bold whitespace-nowrap shrink-0" title="Sesuaikan Ukuran Label Teks">
@@ -320,8 +325,11 @@
                         <button type="button" onclick="focusOnActiveSelection()" title="Fokus Kamera ke Node / Robot Terpilih" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-amber-400 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
                             <i class="fa-solid fa-crosshairs"></i>
                         </button>
-                        <button type="button" onclick="openInitialCameraModal()" title="Atur Posisi Kamera Awal Saat Peta Dimuat" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-indigo-300 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95 cursor-pointer">
-                            <i class="fa-solid fa-camera"></i>
+                        <button type="button" onclick="saveCurrentCameraAsInitial()" title="Simpan Posisi & Sudut Kamera Saat Ini Sebagai Tampilan Awal" class="px-2 h-8 rounded-lg bg-indigo-950/90 hover:bg-indigo-900 text-indigo-300 hover:text-white flex items-center gap-1.5 text-xs font-bold shadow border border-indigo-500/40 transition backdrop-blur-sm active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-camera text-indigo-400"></i> <span class="text-[11px] hidden sm:inline">Simpan Kamera</span>
+                        </button>
+                        <button type="button" onclick="openInitialCameraModal()" title="Pengaturan Manual Koordinat Kamera Awal" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-gray-400 hover:text-gray-200 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95 cursor-pointer">
+                            <i class="fa-solid fa-sliders"></i>
                         </button>
                         <button type="button" onclick="toggleFullMap()" id="btn-floating-fullmap" title="Full Map 3D / Layar Penuh" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-sky-400 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
                             <i class="fa-solid fa-expand" id="icon-floating-fullmap"></i>
@@ -422,9 +430,14 @@
 
                     <!-- Bottom Action Buttons in Node Inspector -->
                     <div class="pt-2 border-t border-gray-100 space-y-2">
-                        <button type="button" onclick="openInitialCameraModal()" class="w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-2 transition cursor-pointer">
-                            <i class="fa-solid fa-camera text-indigo-600"></i> Atur Kamera Awal 3D
-                        </button>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="saveCurrentCameraAsInitial()" class="flex-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95" title="Simpan sudut kamera saat ini sebagai tampilan awal denah">
+                                <i class="fa-solid fa-camera text-indigo-600"></i> Simpan Kamera Awal
+                            </button>
+                            <button type="button" onclick="openInitialCameraModal()" class="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-600 flex items-center justify-center text-xs transition cursor-pointer active:scale-95" title="Atur Koordinat Manual">
+                                <i class="fa-solid fa-sliders"></i>
+                            </button>
+                        </div>
                         <button type="button" onclick="saveGraphToServer()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow transition cursor-pointer">
                             <i class="fa-solid fa-floppy-disk"></i> Simpan Denah
                         </button>
@@ -818,7 +831,7 @@
         if (!container) {
             container = document.createElement('div');
             container.id = 'robopath-notification-container';
-            container.className = 'fixed top-5 right-5 z-[999999] flex flex-col gap-2 pointer-events-none';
+            container.className = 'fixed top-5 right-5 z-[9999999] flex flex-col gap-2 pointer-events-none';
             document.body.appendChild(container);
         }
         const toast = document.createElement('div');
@@ -2101,14 +2114,23 @@
                     const floorKey = 'floor_' + floorNum;
                     const customInitCam = current3DSettings.initial_camera?.[floorKey] || current3DSettings.initial_camera;
                     if (customInitCam && customInitCam.position && customInitCam.target) {
-                        _defaultCamTarget.set(customInitCam.target.x, customInitCam.target.y, customInitCam.target.z);
-                        _defaultCamPos.set(customInitCam.position.x, customInitCam.position.y, customInitCam.position.z);
+                        _defaultCamTarget.set(
+                            parseFloat(customInitCam.target.x),
+                            parseFloat(customInitCam.target.y),
+                            parseFloat(customInitCam.target.z)
+                        );
+                        _defaultCamPos.set(
+                            parseFloat(customInitCam.position.x),
+                            parseFloat(customInitCam.position.y),
+                            parseFloat(customInitCam.position.z)
+                        );
                     } else {
                         _defaultCamTarget.set(3.8, 0.5, 0.5);
                         _defaultCamPos.set(3.8, 7.5, 9.5);
                     }
                     camera.position.copy(_defaultCamPos);
                     controls.target.copy(_defaultCamTarget);
+                    camera.lookAt(_defaultCamTarget);
                     controls.update();
                 } catch(parseErr) {
                     console.error('[Robopath BotCtrl 3D] Model setup error:', parseErr);
@@ -2215,14 +2237,23 @@
             const floorKey = 'floor_' + floorNum;
             const customInitCam = current3DSettings.initial_camera?.[floorKey] || current3DSettings.initial_camera;
             if (customInitCam && customInitCam.position && customInitCam.target) {
-                _defaultCamTarget.set(customInitCam.target.x, customInitCam.target.y, customInitCam.target.z);
-                _defaultCamPos.set(customInitCam.position.x, customInitCam.position.y, customInitCam.position.z);
+                _defaultCamTarget.set(
+                    parseFloat(customInitCam.target.x),
+                    parseFloat(customInitCam.target.y),
+                    parseFloat(customInitCam.target.z)
+                );
+                _defaultCamPos.set(
+                    parseFloat(customInitCam.position.x),
+                    parseFloat(customInitCam.position.y),
+                    parseFloat(customInitCam.position.z)
+                );
             } else {
                 _defaultCamTarget.set(3.8, 0.5, 0.5);
                 _defaultCamPos.set(3.8, 7.5, 9.5);
             }
             camera.position.copy(_defaultCamPos);
             controls.target.copy(_defaultCamTarget);
+            camera.lookAt(_defaultCamTarget);
             controls.update();
         }
 
@@ -4256,12 +4287,105 @@
         }
     }
 
-    // === Pengaturan Kamera Awal 3D Modal Logic ===
+    // === Pengaturan Kamera Awal 3D Logic ===
     let initialCamModalFloor = 1;
+
+    async function saveCurrentCameraAsInitial(targetFloor = null) {
+        const fl = targetFloor !== null ? Number(targetFloor) : (Number(currentFloor) || 1);
+        const targetViewer = (fl === 1) ? threeBotCtrlF1 : threeBotCtrl;
+        const vw = targetViewer || activeBotViewer();
+
+        if (!vw || !vw.camera || !vw.controls) {
+            if (window.showWarningAlert) {
+                window.showWarningAlert('Viewer Belum Siap', 'Peta 3D masih memuat aset. Silakan tunggu hingga model 3D selesai dimuat.');
+            } else {
+                showNotification('Viewer 3D belum siap untuk disimpan.', 'warning');
+            }
+            return;
+        }
+
+        const cPos = vw.camera.position;
+        const cTgt = vw.controls.target;
+
+        const posX = parseFloat(Number(cPos.x).toFixed(2));
+        const posY = parseFloat(Number(cPos.y).toFixed(2));
+        const posZ = parseFloat(Number(cPos.z).toFixed(2));
+        const tgtX = parseFloat(Number(cTgt.x).toFixed(2));
+        const tgtY = parseFloat(Number(cTgt.y).toFixed(2));
+        const tgtZ = parseFloat(Number(cTgt.z).toFixed(2));
+
+        if (!current3DSettings.initial_camera || typeof current3DSettings.initial_camera !== 'object') {
+            current3DSettings.initial_camera = {};
+        }
+
+        const floorKey = 'floor_' + fl;
+        current3DSettings.initial_camera[floorKey] = {
+            position: { x: posX, y: posY, z: posZ },
+            target: { x: tgtX, y: tgtY, z: tgtZ }
+        };
+
+        if (typeof vw.setDefaultCamera === 'function') {
+            vw.setDefaultCamera(new THREE.Vector3(posX, posY, posZ), new THREE.Vector3(tgtX, tgtY, tgtZ));
+        }
+
+        const elPosX = document.getElementById('initcam-pos-x');
+        const elPosY = document.getElementById('initcam-pos-y');
+        const elPosZ = document.getElementById('initcam-pos-z');
+        const elTgtX = document.getElementById('initcam-tgt-x');
+        const elTgtY = document.getElementById('initcam-tgt-y');
+        const elTgtZ = document.getElementById('initcam-tgt-z');
+        if (elPosX) elPosX.value = posX.toFixed(2);
+        if (elPosY) elPosY.value = posY.toFixed(2);
+        if (elPosZ) elPosZ.value = posZ.toFixed(2);
+        if (elTgtX) elTgtX.value = tgtX.toFixed(2);
+        if (elTgtY) elTgtY.value = tgtY.toFixed(2);
+        if (elTgtZ) elTgtZ.value = tgtZ.toFixed(2);
+
+        try {
+            await save3DSettingsToServer();
+
+            const htmlMsg = `
+                <div style="text-align: left; background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 12px; color: #334155; margin-top: 8px;">
+                    <div><strong style="font-family: sans-serif; color: #4f46e5;">Lantai:</strong> Lantai ${fl}</div>
+                    <div style="margin-top: 4px;"><strong style="font-family: sans-serif; color: #0284c7;">Posisi Kamera:</strong> X: ${posX}, Y: ${posY}, Z: ${posZ}</div>
+                    <div style="margin-top: 4px;"><strong style="font-family: sans-serif; color: #d97706;">Target Fokus:</strong> X: ${tgtX}, Y: ${tgtY}, Z: ${tgtZ}</div>
+                </div>
+                <p style="font-size: 12px; color: #64748b; margin-top: 10px; font-family: sans-serif;">Sudut pandang ini akan langsung digunakan setiap kali denah Lantai ${fl} selesai dimuat dan dirender.</p>
+            `;
+
+            if (window.RobopathSwal) {
+                window.RobopathSwal.fire({
+                    icon: 'success',
+                    title: `Kamera Awal Lantai ${fl} Berhasil Disimpan!`,
+                    html: htmlMsg,
+                    confirmButtonText: 'Selesai',
+                    timer: 5000,
+                    timerProgressBar: true
+                });
+            } else if (window.showSuccessAlert) {
+                window.showSuccessAlert(`Kamera Awal Lantai ${fl} Berhasil Disimpan!`, `Posisi: (${posX}, ${posY}, ${posZ})`);
+            } else {
+                alert(`✓ Kamera Awal Lantai ${fl} Berhasil Disimpan!\nPosisi: X: ${posX}, Y: ${posY}, Z: ${posZ}\nTarget: X: ${tgtX}, Y: ${tgtY}, Z: ${tgtZ}`);
+            }
+
+            if (window.showToast) {
+                window.showToast(`Kamera awal Lantai ${fl} tersimpan!`, 'success');
+            }
+        } catch (err) {
+            console.error('Error saving initial camera:', err);
+            if (window.showErrorAlert) {
+                window.showErrorAlert('Gagal Menyimpan Kamera', 'Terjadi kesalahan saat menyimpan ke server: ' + (err.message || err));
+            } else {
+                alert('Gagal menyimpan kamera awal: ' + (err.message || err));
+            }
+        }
+    }
 
     function openInitialCameraModal() {
         initialCamModalFloor = Number(currentFloor) || 1;
         selectInitialCamFloor(initialCamModalFloor);
+        // Otomatis salin sudut pandang kamera yang sedang aktif di layar saat modal dibuka
+        captureCurrentCameraForInitial();
         const modal = document.getElementById('modal-initial-camera-3d');
         if (modal) modal.classList.remove('hidden');
     }
@@ -4343,7 +4467,7 @@
         if (elTgtY) elTgtY.value = Number(cTgt.y).toFixed(2);
         if (elTgtZ) elTgtZ.value = Number(cTgt.z).toFixed(2);
 
-        showNotification(`Sudut kamera saat ini berhasil disalin untuk Lantai ${initialCamModalFloor}.`, 'info');
+        showNotification(`Sudut kamera saat ini disalin untuk Lantai ${initialCamModalFloor}.`, 'info');
     }
 
     function previewInitialCamera() {
@@ -4403,7 +4527,8 @@
         const tgtZ = parseFloat(document.getElementById('initcam-tgt-z')?.value);
 
         if (isNaN(posX) || isNaN(posY) || isNaN(posZ) || isNaN(tgtX) || isNaN(tgtY) || isNaN(tgtZ)) {
-            showNotification('Koordinat kamera tidak valid.', 'error');
+            if (window.showErrorAlert) window.showErrorAlert('Koordinat Tidak Valid', 'Pastikan semua nilai posisi dan target kamera terisi angka yang benar.');
+            else showNotification('Koordinat kamera tidak valid.', 'error');
             return;
         }
 
@@ -4434,11 +4559,40 @@
         closeInitialCameraModal();
 
         try {
-            await save3DSettingsToServer(() => {
-                showNotification(`Kamera awal Lantai ${initialCamModalFloor} berhasil disimpan ke server.`, 'success');
-            });
+            await save3DSettingsToServer();
+
+            const htmlMsg = `
+                <div style="text-align: left; background: #f8fafc; padding: 12px; border-radius: 12px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 12px; color: #334155; margin-top: 8px;">
+                    <div><strong style="font-family: sans-serif; color: #4f46e5;">Lantai:</strong> Lantai ${initialCamModalFloor}</div>
+                    <div style="margin-top: 4px;"><strong style="font-family: sans-serif; color: #0284c7;">Posisi Kamera:</strong> X: ${posX}, Y: ${posY}, Z: ${posZ}</div>
+                    <div style="margin-top: 4px;"><strong style="font-family: sans-serif; color: #d97706;">Target Fokus:</strong> X: ${tgtX}, Y: ${tgtY}, Z: ${tgtZ}</div>
+                </div>
+                <p style="font-size: 12px; color: #64748b; margin-top: 10px; font-family: sans-serif;">Sudut pandang ini akan langsung digunakan setiap kali denah Lantai ${initialCamModalFloor} selesai dimuat dan dirender.</p>
+            `;
+
+            if (window.RobopathSwal) {
+                window.RobopathSwal.fire({
+                    icon: 'success',
+                    title: `Kamera Awal Lantai ${initialCamModalFloor} Berhasil Disimpan!`,
+                    html: htmlMsg,
+                    confirmButtonText: 'Selesai',
+                    timer: 5000,
+                    timerProgressBar: true
+                });
+            } else if (window.showSuccessAlert) {
+                window.showSuccessAlert(`Kamera Awal Lantai ${initialCamModalFloor} Berhasil Disimpan!`, `Posisi: (${posX}, ${posY}, ${posZ})`);
+            }
+
+            if (window.showToast) {
+                window.showToast(`Kamera awal Lantai ${initialCamModalFloor} berhasil disimpan!`, 'success');
+            }
         } catch (err) {
-            showNotification(`Gagal menyimpan kamera awal: ${err.message || err}`, 'error');
+            console.error('Error saving initial camera:', err);
+            if (window.showErrorAlert) {
+                window.showErrorAlert('Gagal Menyimpan Kamera', 'Terjadi kendala saat menyimpan ke server: ' + (err.message || err));
+            } else {
+                alert('Gagal menyimpan kamera awal: ' + (err.message || err));
+            }
         }
     }
 

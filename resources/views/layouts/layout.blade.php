@@ -16,6 +16,9 @@
         html, body {
             background-color: #f9fafb;
         }
+        .swal2-container {
+            z-index: 9999999 !important;
+        }
     </style>
 
     <!-- Three.js 3D Rendering Engine & Draco Loaders (Served Locally for Instant Load) -->
