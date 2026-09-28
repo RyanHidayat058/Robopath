@@ -70,7 +70,7 @@ class ViewModeToggleTest extends TestCase
         $resDeliveries = $this->actingAs($this->karyawan)->get('/deliveries');
         $this->assertTrue(in_array($resDeliveries->status(), [403, 302]));
 
-        $resBotControl = $this->actingAs($this->karyawan)->get('/bot-control');
+        $resBotControl = $this->actingAs($this->karyawan)->get('/pusat-kontrol');
         $this->assertTrue(in_array($resBotControl->status(), [403, 302]));
 
         $resHistory = $this->actingAs($this->karyawan)->get('/history');

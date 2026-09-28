@@ -346,7 +346,7 @@
                 <a href="{{ route('bot-control') }}" 
                    class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('bot-control') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-sliders text-lg {{ Route::is('bot-control') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
-                    <span class="text-sm">Kontrol Robot</span>
+                    <span class="text-sm">Pusat Kontrol</span>
                 </a>
                 @endif
             </nav>
@@ -573,7 +573,7 @@
                                 notifiedAlertIds.add(a.id);
                                 if (lastKnownAlertCount !== null) {
                                     // New alert came in while admin is viewing!
-                                    window.showToast(`Laporan Baru: Robot ${a.robot?.name || ''} mengalami ${a.issue_type}! Cek Kontrol Bot.`, 'warning');
+                                    window.showToast(`Laporan Baru: Robot ${a.robot?.name || ''} mengalami ${a.issue_type}! Cek Pusat Kontrol.`, 'warning');
                                 }
                             }
                         });

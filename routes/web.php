@@ -19,7 +19,8 @@ Route::middleware('auth')->group(function () {
     // Admin-only Routes (Karyawan restricted)
     Route::middleware('role:admin')->group(function () {
         Route::get('/deliveries', [DashboardController::class, 'deliveries'])->name('deliveries');
-        Route::get('/bot-control', [DashboardController::class, 'botControl'])->name('bot-control');
+        Route::get('/pusat-kontrol', [DashboardController::class, 'botControl'])->name('bot-control');
+        Route::redirect('/bot-control', '/pusat-kontrol', 301);
         Route::get('/history', [DashboardController::class, 'history'])->name('history');
     });
 });

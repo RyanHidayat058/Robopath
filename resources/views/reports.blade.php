@@ -216,14 +216,14 @@
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                succDiv.textContent = 'Laporan kendala berhasil dikirim! Notifikasi telah diteruskan ke Admin untuk ditinjau di menu Kontrol Bot.';
+                succDiv.textContent = 'Laporan kendala berhasil dikirim! Notifikasi telah diteruskan ke Admin untuk ditinjau di menu Pusat Kontrol.';
                 succDiv.classList.remove('hidden');
                 document.getElementById('incident-form').reset();
                 
                 if (window.RobopathSwal) {
                     window.RobopathSwal.fire({
                         title: 'Laporan Berhasil Terkirim!',
-                        text: 'Laporan kendala telah dicatat dan notifikasi diteruskan ke Admin. Status robot saat ini tetap siaga sampai Admin memutuskan untuk mengubahnya ke mode Perbaikan di Kontrol Bot.',
+                        text: 'Laporan kendala telah dicatat dan notifikasi diteruskan ke Admin. Status robot saat ini tetap siaga sampai Admin memutuskan untuk mengubahnya ke mode Perbaikan di Pusat Kontrol.',
                         icon: 'success',
                         confirmButtonText: 'Mengerti'
                     }).then(() => {

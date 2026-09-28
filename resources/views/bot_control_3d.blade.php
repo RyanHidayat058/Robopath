@@ -1,7 +1,7 @@
 @extends('layouts.layout')
 
-@section('title', 'ROBOPATH - Kontrol Bot')
-@section('page_title', 'Kontrol Bot')
+@section('title', 'ROBOPATH - Pusat Kontrol')
+@section('page_title', 'Pusat Kontrol')
 @section('page_subtitle', 'Pusat kendali robot, perbaikan, dan editor jalur robot')
 
 @section('topbar_actions')
@@ -325,12 +325,6 @@
                         <button type="button" onclick="focusOnActiveSelection()" title="Fokus Kamera ke Node / Robot Terpilih" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-amber-400 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
                             <i class="fa-solid fa-crosshairs"></i>
                         </button>
-                        <button type="button" onclick="saveCurrentCameraAsInitial()" title="Simpan Posisi & Sudut Kamera Saat Ini Sebagai Tampilan Awal" class="px-2 h-8 rounded-lg bg-indigo-950/90 hover:bg-indigo-900 text-indigo-300 hover:text-white flex items-center gap-1.5 text-xs font-bold shadow border border-indigo-500/40 transition backdrop-blur-sm active:scale-95 cursor-pointer">
-                            <i class="fa-solid fa-camera text-indigo-400"></i> <span class="text-[11px] hidden sm:inline">Simpan Kamera</span>
-                        </button>
-                        <button type="button" onclick="openInitialCameraModal()" title="Pengaturan Manual Koordinat Kamera Awal" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-gray-400 hover:text-gray-200 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95 cursor-pointer">
-                            <i class="fa-solid fa-sliders"></i>
-                        </button>
                         <button type="button" onclick="toggleFullMap()" id="btn-floating-fullmap" title="Full Map 3D / Layar Penuh" class="w-8 h-8 rounded-lg bg-slate-900/85 hover:bg-slate-800 text-sky-400 flex items-center justify-center text-xs shadow border border-white/10 transition backdrop-blur-sm active:scale-95">
                             <i class="fa-solid fa-expand" id="icon-floating-fullmap"></i>
                         </button>
@@ -429,15 +423,7 @@
                     </div>
 
                     <!-- Bottom Action Buttons in Node Inspector -->
-                    <div class="pt-2 border-t border-gray-100 space-y-2">
-                        <div class="flex items-center gap-1.5">
-                            <button type="button" onclick="saveCurrentCameraAsInitial()" class="flex-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95" title="Simpan sudut kamera saat ini sebagai tampilan awal denah">
-                                <i class="fa-solid fa-camera text-indigo-600"></i> Simpan Kamera Awal
-                            </button>
-                            <button type="button" onclick="openInitialCameraModal()" class="w-8 h-8 rounded-xl bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-600 flex items-center justify-center text-xs transition cursor-pointer active:scale-95" title="Atur Koordinat Manual">
-                                <i class="fa-solid fa-sliders"></i>
-                            </button>
-                        </div>
+                    <div class="pt-2 border-t border-gray-100">
                         <button type="button" onclick="saveGraphToServer()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow transition cursor-pointer">
                             <i class="fa-solid fa-floppy-disk"></i> Simpan Denah
                         </button>

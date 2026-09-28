@@ -339,7 +339,7 @@ class TelemetryController extends Controller
         $robot = Robot::find($request->robot_id);
 
         // Jangan otomatis ubah robot ke Maintenance/Charging saat dilaporkan.
-        // Robot tetap pada status aslinya (misal Idle), nanti admin yang menentukan dan mengubahnya di Kontrol Bot.
+        // Robot tetap pada status aslinya (misal Idle), nanti admin yang menentukan dan mengubahnya di Pusat Kontrol.
 
         return response()->json([
             'success' => true,

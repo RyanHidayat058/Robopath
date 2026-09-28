@@ -33,7 +33,7 @@ class RoleAndIncidentTest extends TestCase
 
         // Admin-only routes are restricted
         $this->actingAs($karyawan)->get('/deliveries')->assertRedirect('/');
-        $this->actingAs($karyawan)->get('/bot-control')->assertRedirect('/');
+        $this->actingAs($karyawan)->get('/pusat-kontrol')->assertRedirect('/');
         $this->actingAs($karyawan)->get('/history')->assertRedirect('/');
 
         // JSON requests receive 403
@@ -49,7 +49,8 @@ class RoleAndIncidentTest extends TestCase
         $dashboard->assertSee('id="autopilot-btn"', false);
 
         $this->actingAs($admin)->get('/deliveries')->assertStatus(200);
-        $this->actingAs($admin)->get('/bot-control')->assertStatus(200);
+        $this->actingAs($admin)->get('/pusat-kontrol')->assertStatus(200);
+        $this->actingAs($admin)->get('/bot-control')->assertRedirect('/pusat-kontrol');
         $this->actingAs($admin)->get('/reports')->assertStatus(200);
         $this->actingAs($admin)->get('/history')->assertStatus(200);
     }

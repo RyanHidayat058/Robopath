@@ -3896,7 +3896,7 @@
                     currentLocName = `Tertahan di ${resolveLocationName(coords.x, coords.y, floorNum)}`;
                 }
             } else if (robotAlert && robot.status === 'Idle') {
-                taskText = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1 animate-bounce"></i> Ada Laporan: ${robotAlert.issue_type} (Tinjau di Kontrol Bot)</span>`;
+                taskText = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1 animate-bounce"></i> Ada Laporan: ${robotAlert.issue_type} (Tinjau di Pusat Kontrol)</span>`;
             } else if (robot.status === 'Charging') {
                 coords = { x: baseLoc.x, y: baseLoc.y };
                 floorNum = 1;
@@ -4316,11 +4316,11 @@
                 const alertType = r.activeAlert ? r.activeAlert.issue_type : (r.battery_level <= 10 ? 'Baterai Habis' : 'Perbaikan');
                 return `${r.name}: ${alertType} (${r.activeAlert?.description || 'Pengantaran mandek'})`;
             }).join(' | ');
-            bannerText.innerHTML = `⚠️ ${descriptions}. <strong>Cepat perbaiki agar robot dapat kembali bekerja!</strong>`;
+            bannerText.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-300 mr-1.5"></i> ${descriptions}. <strong>Cepat perbaiki agar robot dapat kembali bekerja!</strong>`;
         } else if (alertRobots.length > 0) {
             banner.classList.remove('hidden');
             const descriptions = alertRobots.map(r => `${r.name}: ${r.activeAlert.issue_type} (${r.activeAlert.description || 'Laporan baru'})`).join(' | ');
-            bannerText.innerHTML = `⚠️ <strong>Pemberitahuan Admin:</strong> Terdapat laporan kendala untuk ${descriptions}. <a href="/bot-control" class="underline font-bold text-amber-200 hover:text-white ml-1">Buka Kontrol Bot untuk kelola status &rarr;</a>`;
+            bannerText.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-300 mr-1.5"></i> <strong>Pemberitahuan Admin:</strong> Terdapat laporan kendala untuk ${descriptions}. <a href="/pusat-kontrol" class="underline font-bold text-amber-200 hover:text-white ml-1">Buka Pusat Kontrol untuk kelola status &rarr;</a>`;
         } else {
             banner.classList.add('hidden');
         }
