@@ -270,4 +270,39 @@ class RobotSummonDeliveryTest extends TestCase
         $this->assertEquals('Returning', $robot->status);
         $this->assertEquals('Completed', $delivery->status);
     }
+
+    public function test_karyawan_can_access_and_summon_delivery(): void
+    {
+        $karyawan = User::factory()->create(['role' => 'karyawan']);
+
+        $robot = Robot::create([
+            'name' => 'Robot Alpha',
+            'status' => 'Idle',
+            'battery_level' => 100,
+            'current_x' => 85.48,
+            'current_y' => 51.07,
+            'floor' => 1,
+        ]);
+
+        // Karyawan can access /pengiriman
+        $pageResponse = $this->actingAs($karyawan)->get('/pengiriman');
+        $pageResponse->assertStatus(200);
+
+        // Karyawan can summon robot
+        $summonResponse = $this->actingAs($karyawan)->postJson('/api/deliveries/summon', [
+            'start_location' => '1_Resepsionis',
+            'destination_location' => '1_Ruang Meeting 1',
+            'item_name' => 'Berkas Karyawan',
+        ]);
+
+        $summonResponse->assertStatus(200);
+        $summonResponse->assertJson(['success' => true]);
+
+        $this->assertDatabaseHas('deliveries', [
+            'item_name' => 'Berkas Karyawan',
+            'start_location' => '1_Resepsionis',
+            'destination_location' => '1_Ruang Meeting 1',
+            'status' => 'Pending',
+        ]);
+    }
 }

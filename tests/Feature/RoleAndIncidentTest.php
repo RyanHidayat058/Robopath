@@ -27,17 +27,19 @@ class RoleAndIncidentTest extends TestCase
         $dashboard->assertStatus(200);
         $dashboard->assertDontSee('id="autopilot-btn"', false);
 
-        // Karyawan can access reports
+        // Karyawan can access reports and deliveries
         $reports = $this->actingAs($karyawan)->get('/laporan');
         $reports->assertStatus(200);
 
+        $deliveries = $this->actingAs($karyawan)->get('/pengiriman');
+        $deliveries->assertStatus(200);
+
         // Admin-only routes are restricted
-        $this->actingAs($karyawan)->get('/pengiriman')->assertRedirect('/');
         $this->actingAs($karyawan)->get('/pusat-kontrol')->assertRedirect('/');
         $this->actingAs($karyawan)->get('/riwayat')->assertRedirect('/');
 
         // JSON requests receive 403
-        $this->actingAs($karyawan)->getJson('/pengiriman')->assertStatus(403);
+        $this->actingAs($karyawan)->getJson('/pusat-kontrol')->assertStatus(403);
     }
 
     public function test_admin_can_access_all_routes(): void

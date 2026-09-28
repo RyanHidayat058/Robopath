@@ -17,12 +17,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/laporan', [DashboardController::class, 'reports'])->name('reports');
     Route::redirect('/reports', '/laporan', 301);
 
+    Route::get('/pengiriman', [DashboardController::class, 'deliveries'])->name('deliveries');
+    Route::redirect('/deliveries', '/pengiriman', 301);
+    Route::redirect('/pengantaran', '/pengiriman', 301);
+
     // Admin-only Routes (Karyawan restricted)
     Route::middleware('role:admin')->group(function () {
-        Route::get('/pengiriman', [DashboardController::class, 'deliveries'])->name('deliveries');
-        Route::redirect('/deliveries', '/pengiriman', 301);
-        Route::redirect('/pengantaran', '/pengiriman', 301);
-
         Route::get('/pusat-kontrol', [DashboardController::class, 'botControl'])->name('bot-control');
         Route::redirect('/bot-control', '/pusat-kontrol', 301);
 

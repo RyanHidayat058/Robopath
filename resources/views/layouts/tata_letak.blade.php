@@ -319,13 +319,11 @@
                     <span class="text-sm">Dashboard</span>
                 </a>
 
-                @if(auth()->check() && auth()->user()->isAdmin())
                 <a href="{{ route('deliveries') }}" 
                    class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('deliveries') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-route text-lg {{ Route::is('deliveries') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
                     <span class="text-sm">Pengiriman</span>
                 </a>
-                @endif
 
                 <a href="{{ route('reports') }}" 
                    class="flex items-center justify-between px-4 py-3 rounded transition duration-200 group {{ Route::is('reports') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">

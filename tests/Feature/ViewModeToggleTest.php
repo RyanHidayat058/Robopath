@@ -66,10 +66,11 @@ class ViewModeToggleTest extends TestCase
         $resReports = $this->actingAs($this->karyawan)->get('/laporan');
         $resReports->assertStatus(200);
 
-        // Karyawan is blocked from other admin routes
+        // Karyawan can access pengiriman
         $resDeliveries = $this->actingAs($this->karyawan)->get('/pengiriman');
-        $this->assertTrue(in_array($resDeliveries->status(), [403, 302]));
+        $resDeliveries->assertStatus(200);
 
+        // Karyawan is blocked from admin-only routes
         $resBotControl = $this->actingAs($this->karyawan)->get('/pusat-kontrol');
         $this->assertTrue(in_array($resBotControl->status(), [403, 302]));
 
