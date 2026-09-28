@@ -14,14 +14,20 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::middleware('auth')->group(function () {
     // Accessible by all authenticated roles (Admin & Karyawan)
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/reports', [DashboardController::class, 'reports'])->name('reports');
+    Route::get('/laporan', [DashboardController::class, 'reports'])->name('reports');
+    Route::redirect('/reports', '/laporan', 301);
 
     // Admin-only Routes (Karyawan restricted)
     Route::middleware('role:admin')->group(function () {
-        Route::get('/deliveries', [DashboardController::class, 'deliveries'])->name('deliveries');
+        Route::get('/pengiriman', [DashboardController::class, 'deliveries'])->name('deliveries');
+        Route::redirect('/deliveries', '/pengiriman', 301);
+        Route::redirect('/pengantaran', '/pengiriman', 301);
+
         Route::get('/pusat-kontrol', [DashboardController::class, 'botControl'])->name('bot-control');
         Route::redirect('/bot-control', '/pusat-kontrol', 301);
-        Route::get('/history', [DashboardController::class, 'history'])->name('history');
+
+        Route::get('/riwayat', [DashboardController::class, 'history'])->name('history');
+        Route::redirect('/history', '/riwayat', 301);
     });
 });
 

@@ -63,17 +63,17 @@ class ViewModeToggleTest extends TestCase
         $resDashboard->assertDontSee('id="autopilot-btn"', false);
 
         // Karyawan can access reports
-        $resReports = $this->actingAs($this->karyawan)->get('/reports');
+        $resReports = $this->actingAs($this->karyawan)->get('/laporan');
         $resReports->assertStatus(200);
 
         // Karyawan is blocked from other admin routes
-        $resDeliveries = $this->actingAs($this->karyawan)->get('/deliveries');
+        $resDeliveries = $this->actingAs($this->karyawan)->get('/pengiriman');
         $this->assertTrue(in_array($resDeliveries->status(), [403, 302]));
 
         $resBotControl = $this->actingAs($this->karyawan)->get('/pusat-kontrol');
         $this->assertTrue(in_array($resBotControl->status(), [403, 302]));
 
-        $resHistory = $this->actingAs($this->karyawan)->get('/history');
+        $resHistory = $this->actingAs($this->karyawan)->get('/riwayat');
         $this->assertTrue(in_array($resHistory->status(), [403, 302]));
     }
 

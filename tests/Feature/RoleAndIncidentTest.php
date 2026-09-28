@@ -28,16 +28,16 @@ class RoleAndIncidentTest extends TestCase
         $dashboard->assertDontSee('id="autopilot-btn"', false);
 
         // Karyawan can access reports
-        $reports = $this->actingAs($karyawan)->get('/reports');
+        $reports = $this->actingAs($karyawan)->get('/laporan');
         $reports->assertStatus(200);
 
         // Admin-only routes are restricted
-        $this->actingAs($karyawan)->get('/deliveries')->assertRedirect('/');
+        $this->actingAs($karyawan)->get('/pengiriman')->assertRedirect('/');
         $this->actingAs($karyawan)->get('/pusat-kontrol')->assertRedirect('/');
-        $this->actingAs($karyawan)->get('/history')->assertRedirect('/');
+        $this->actingAs($karyawan)->get('/riwayat')->assertRedirect('/');
 
         // JSON requests receive 403
-        $this->actingAs($karyawan)->getJson('/deliveries')->assertStatus(403);
+        $this->actingAs($karyawan)->getJson('/pengiriman')->assertStatus(403);
     }
 
     public function test_admin_can_access_all_routes(): void
@@ -48,11 +48,14 @@ class RoleAndIncidentTest extends TestCase
         $dashboard->assertStatus(200);
         $dashboard->assertSee('id="autopilot-btn"', false);
 
-        $this->actingAs($admin)->get('/deliveries')->assertStatus(200);
+        $this->actingAs($admin)->get('/pengiriman')->assertStatus(200);
+        $this->actingAs($admin)->get('/deliveries')->assertRedirect('/pengiriman');
         $this->actingAs($admin)->get('/pusat-kontrol')->assertStatus(200);
         $this->actingAs($admin)->get('/bot-control')->assertRedirect('/pusat-kontrol');
-        $this->actingAs($admin)->get('/reports')->assertStatus(200);
-        $this->actingAs($admin)->get('/history')->assertStatus(200);
+        $this->actingAs($admin)->get('/laporan')->assertStatus(200);
+        $this->actingAs($admin)->get('/reports')->assertRedirect('/laporan');
+        $this->actingAs($admin)->get('/riwayat')->assertStatus(200);
+        $this->actingAs($admin)->get('/history')->assertRedirect('/riwayat');
     }
 
     public function test_simulate_issue_and_fix_flow(): void
