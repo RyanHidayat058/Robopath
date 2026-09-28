@@ -124,4 +124,35 @@ class ViewModeToggleTest extends TestCase
             ]
         ]);
     }
+
+    public function test_pusat_kontrol_renders_full_controls_and_editor_map(): void
+    {
+        $response = $this->actingAs($this->admin)->get('/pusat-kontrol');
+        $response->assertStatus(200);
+
+        // Bar kontrol atas lengkap
+        $response->assertSee('id="top-control-bar"', false);
+        $response->assertSee('id="tab-floor-1"', false);
+        $response->assertSee('id="tab-floor-2"', false);
+        $response->assertSee('id="tab-mode-node"', false);
+        $response->assertSee('id="tab-mode-robot"', false);
+        $response->assertSee('id="toolbar-node-tools"', false);
+        $response->assertSee('id="toolbar-robot-tools"', false);
+        $response->assertSee('id="btn-toggle-robots"', false);
+
+        // Kanvas peta 3D tampil di normal view (tidak tersembunyi)
+        $response->assertSee('id="editor-map-card"', false);
+        $response->assertSee('id="editor-map-container"', false);
+        $content = $response->getContent();
+        $this->assertDoesNotMatchRegularExpression('/id="editor-map-card"[^>]*class="[^"]*hidden/', $content);
+
+        // Workspace inspektur dan kontrol armada
+        $response->assertSee('id="bottom-controls-grid"', false);
+        $response->assertSee('id="section-node-controls"', false);
+        $response->assertSee('id="node-inspector-card"', false);
+        $response->assertSee('id="section-robot-controls"', false);
+        $response->assertSee('id="robot-control-card"', false);
+        $response->assertSee('id="fleet-control-card"', false);
+        $response->assertSee('id="fleet-control-list"', false);
+    }
 }
