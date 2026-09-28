@@ -714,21 +714,46 @@
         document.getElementById('menuju-posisi-robot').textContent = robot?.position_name || 'Dalam Perjalanan';
 
         const pBar = document.getElementById('menuju-progress-bar');
-        pBar.style.width = '30%';
+        pBar.style.width = '10%';
 
-        if (summonApproachTimer) clearTimeout(summonApproachTimer);
+        if (summonApproachTimer) {
+            clearInterval(summonApproachTimer);
+            summonApproachTimer = null;
+        }
         
-        // Simulasikan pergerakan menuju lokasi jemput (selesai dalam 5 detik)
-        setTimeout(() => { if (pBar) pBar.style.width = '65%'; }, 2000);
-        summonApproachTimer = setTimeout(() => {
-            if (pBar) pBar.style.width = '100%';
-            simulateRobotArrivalNow();
-        }, 5000);
+        // Pergerakan menuju titik jemput realistis (~20 detik sesuai peta 3D)
+        const startedTimeMs = delivery.started_at ? new Date(delivery.started_at).getTime() : Date.now();
+        const estimatedDurationMs = 20000;
+
+        const updateApproachProgress = () => {
+            const now = Date.now();
+            const elapsed = Math.max(0, now - startedTimeMs);
+            const ratio = Math.min(Math.max(elapsed / estimatedDurationMs, 0.1), 0.95);
+            if (pBar) {
+                pBar.style.width = `${Math.round(ratio * 100)}%`;
+            }
+
+            if (elapsed >= estimatedDurationMs) {
+                if (summonApproachTimer) {
+                    clearInterval(summonApproachTimer);
+                    summonApproachTimer = null;
+                }
+                if (currentPendingSummon && currentPendingSummon.status === 'Pending') {
+                    simulateRobotArrivalNow();
+                }
+            }
+        };
+
+        updateApproachProgress();
+        summonApproachTimer = setInterval(updateApproachProgress, 500);
     }
 
     // Robot Tiba di Lokasi Jemput -> Pindah ke Sub-State: Robot Telah Tiba
     function simulateRobotArrivalNow() {
-        if (summonApproachTimer) clearTimeout(summonApproachTimer);
+        if (summonApproachTimer) {
+            clearInterval(summonApproachTimer);
+            summonApproachTimer = null;
+        }
         if (!currentPendingSummon) return;
 
         const deliveryId = currentPendingSummon.id;
@@ -927,13 +952,24 @@
 
             // Sinkronkan state pemanggilan jika ada delivery berstatus Pending untuk sesi ini
             const activePending = activeDeliveries.find(d => d.status === 'Pending');
-            if (activePending && (!currentPendingSummon || currentPendingSummon.id !== activePending.id)) {
+            if (activePending) {
                 currentPendingSummon = activePending;
                 const bot = robots.find(r => Number(r.id) === Number(activePending.robot_id));
+                const isTibaVisible = !document.getElementById('section-robot-tiba').classList.contains('hidden');
+                const isMenujuVisible = !document.getElementById('section-robot-menuju').classList.contains('hidden');
+
                 if (bot && bot.status === 'Waiting for Item') {
-                    showSubStateWaitingForItem(activePending, bot);
+                    if (summonApproachTimer) {
+                        clearInterval(summonApproachTimer);
+                        summonApproachTimer = null;
+                    }
+                    if (!isTibaVisible) {
+                        showSubStateWaitingForItem(activePending, bot);
+                    }
                 } else if (bot && bot.status === 'Heading to Pickup') {
-                    showSubStateHeadingToPickup(activePending, bot);
+                    if (!isMenujuVisible) {
+                        showSubStateHeadingToPickup(activePending, bot);
+                    }
                 }
             } else if (!activePending && currentPendingSummon && currentPendingSummon.status === 'Pending') {
                 resetSummonViewToDefault();
@@ -1144,5 +1180,9 @@
         fetchData();
         setInterval(fetchData, 2000);
     });
+
+    window.onPengirimanViewActivated = function() {
+        fetchData();
+    };
 </script>
 @endsection

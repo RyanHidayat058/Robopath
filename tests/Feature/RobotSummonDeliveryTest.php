@@ -305,4 +305,70 @@ class RobotSummonDeliveryTest extends TestCase
             'status' => 'Pending',
         ]);
     }
+
+    public function test_autopilot_toggle_does_not_cancel_pending_user_summon_delivery(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $robot = Robot::create([
+            'name' => 'Robot Alpha',
+            'status' => 'Heading to Pickup',
+            'battery_level' => 100,
+            'current_x' => 85.48,
+            'current_y' => 51.07,
+            'floor' => 1,
+        ]);
+
+        $delivery = Delivery::create([
+            'robot_id' => $robot->id,
+            'item_name' => 'Paket Pengguna',
+            'origin_location' => '1_Markas Robot',
+            'start_location' => '1_Resepsionis',
+            'destination_location' => '1_Ruang Meeting 1',
+            'status' => 'Pending',
+            'started_at' => Carbon::now(),
+        ]);
+
+        // Toggle autopilot off
+        $response = $this->actingAs($admin)->postJson('/api/system/autopilot', ['enabled' => false]);
+        $response->assertStatus(200);
+
+        // Verify delivery is STILL Pending and robot is NOT reset to Idle
+        $delivery->refresh();
+        $robot->refresh();
+        $this->assertEquals('Pending', $delivery->status);
+        $this->assertEquals('Heading to Pickup', $robot->status);
+    }
+
+    public function test_autopilot_dispatch_ignores_robot_with_pending_delivery(): void
+    {
+        $robot = Robot::create([
+            'name' => 'Robot Alpha',
+            'status' => 'Waiting for Item',
+            'battery_level' => 100,
+            'current_x' => 85.48,
+            'current_y' => 51.07,
+            'floor' => 1,
+        ]);
+
+        $delivery = Delivery::create([
+            'robot_id' => $robot->id,
+            'item_name' => 'Paket Rahasia',
+            'origin_location' => '1_Markas Robot',
+            'start_location' => '1_Resepsionis',
+            'destination_location' => '1_Ruang Meeting 1',
+            'status' => 'Pending',
+            'started_at' => Carbon::now(),
+        ]);
+
+        \Illuminate\Support\Facades\Cache::put('autopilot_enabled', true);
+
+        $telemetryController = app(\App\Http\Controllers\TelemetryController::class);
+        $telemetryController->dispatchAutopilotDeliveries();
+
+        // Must still only have 1 delivery, which is our pending summon delivery
+        $this->assertEquals(1, Delivery::count());
+        $this->assertEquals('Pending', $delivery->fresh()->status);
+        $this->assertEquals('Waiting for Item', $robot->fresh()->status);
+    }
 }

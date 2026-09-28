@@ -3593,7 +3593,7 @@
     }
 
     function getDeliveryMission(delivery, robot) {
-        if (delivery._cachedMission) {
+        if (delivery._cachedMission && delivery._cachedMissionStatus === delivery.status) {
             return delivery._cachedMission;
         }
 
@@ -3620,34 +3620,32 @@
         const validStart = (startNodeId && locations[startNodeId]) ? startNodeId : Object.keys(locations)[0];
         const validDest = (destNodeId && locations[destNodeId]) ? destNodeId : Object.keys(locations)[1];
 
-        const pickupStage = {
-            type: 'pickup',
-            nodeId: validStart,
-            floor: locations[validStart]?.floor || 1,
-            durationMs: 3000
-        };
-
-        const dropoffStage = {
-            type: 'dropoff',
-            nodeId: validDest,
-            floor: locations[validDest]?.floor || 1,
-            durationMs: 3000
-        };
-
+        const isPendingSummon = (delivery.status === 'Pending');
         let rawStages = [];
-        if (originNodeId !== validStart) {
-            rawStages = [
-                ...planRouteBetween(originNodeId, validStart),
-                pickupStage,
-                ...planRouteBetween(validStart, validDest),
-                dropoffStage
-            ];
+
+        if (isPendingSummon) {
+            // Tahap 1: Robot menuju titik penjemputan barang
+            if (originNodeId !== validStart) {
+                rawStages = planRouteBetween(originNodeId, validStart);
+            }
         } else {
-            rawStages = [
-                pickupStage,
-                ...planRouteBetween(validStart, validDest),
-                dropoffStage
-            ];
+            // Tahap 2: Robot mengantar dari titik jemput (atau posisi robot saat ini) ke tujuan akhir
+            const fromNodeId = (originNodeId && originNodeId !== baseId) ? originNodeId : validStart;
+            const dropoffStage = {
+                type: 'dropoff',
+                nodeId: validDest,
+                floor: locations[validDest]?.floor || 1,
+                durationMs: 3000
+            };
+
+            if (fromNodeId !== validDest) {
+                rawStages = [
+                    ...planRouteBetween(fromNodeId, validDest),
+                    dropoffStage
+                ];
+            } else {
+                rawStages = [dropoffStage];
+            }
         }
 
         const consolidatedStages = [];
@@ -3682,12 +3680,14 @@
             originId: originNodeId,
             startId: validStart,
             destId: validDest,
-            pickupStartMs: pickupStage.startMs,
+            isPendingSummon: isPendingSummon,
+            pickupStartMs: isPendingSummon ? 0 : null,
             stages: consolidatedStages,
             totalDurationMs: accumulatedMs
         };
 
         delivery._cachedMission = mission;
+        delivery._cachedMissionStatus = delivery.status;
         return mission;
     }
 
@@ -3756,10 +3756,13 @@
                     if (stageFloor !== floorNum) return;
 
                     const stageEndMs = st.startMs + st.durationMs;
-                    if (elapsedMs >= stageEndMs && !isPending) return;
+                    if (elapsedMs >= stageEndMs) return;
 
-                    const isCurrentActive = !isPending && (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
-                    const isFutureStage = isPending || (elapsedMs < st.startMs);
+                    const isWaiting = (robot.status === 'Waiting for Item');
+                    if (isWaiting) return;
+
+                    const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
+                    const isFutureStage = (elapsedMs < st.startMs);
 
                     if (isCurrentActive && robotFloor === floorNum) {
                         const curSeg = robot.currentSegIdx || 0;
@@ -3865,6 +3868,9 @@
 
     function runSimulationStep() {
         if (document.hidden) return;
+        const container = document.getElementById('std-3d-canvas-container');
+        if (container && container.offsetParent === null) return;
+
         const now = new Date(new Date().getTime() + serverClientOffset);
 
         // (2D overlay/SVG dihapus — kedua lantai murni 3D; avatar & path digambar di scene)
@@ -3876,7 +3882,7 @@
             // Check if robot has active issue / alert
             const robotAlert = activeAlerts.find(a => Number(a.robot_id) === Number(robot.id) && a.status === 'Active');
             const isMaintenance = robot.status === 'Maintenance';
-            const hasIssue = isMaintenance || (robot.status === 'Charging' && robot.battery_level <= 10) || (delivery && delivery.status === 'Pending');
+            const hasIssue = isMaintenance || (robot.status === 'Charging' && robot.battery_level <= 10);
             robot.hasIssue = hasIssue;
             robot.activeAlert = robotAlert;
 
@@ -3927,120 +3933,208 @@
                     }
                 }
             } else if (robot.status === 'Maintenance') {
-                taskText = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Maintenance required</span>';
+                taskText = '<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Perbaikan Diperlukan</span>';
             }
             
-            if (delivery && delivery.status === 'In Progress' && !hasIssue && robot.status !== 'Charging' && !robot.isLowBatteryReturning) {
-                robot.status = 'Delivering';
+            if (delivery && !hasIssue && robot.status !== 'Charging' && !robot.isLowBatteryReturning) {
+                const isPending = (delivery.status === 'Pending');
+                const isWaitingForItem = (robot.status === 'Waiting for Item');
+
                 robot.returnMission = null;
                 robot.isReturning = false;
                 robot.needsReturnToBase = false;
+
                 const mission = getDeliveryMission(delivery, robot);
-                
-                if (mission.stages && mission.stages.length > 0) {
-                    const startedTime = parseServerDate(delivery.started_at);
-                    const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
-                    let angle = 0;
-                    
-                    if (elapsedMs >= mission.totalDurationMs) {
-                        const lastStage = mission.stages[mission.stages.length - 1];
-                        const lastNodeId = (lastStage.type === 'travel' && lastStage.path) ? lastStage.path[lastStage.path.length - 1] : mission.destId;
-                        const destLoc = locations[lastNodeId] || locations[mission.destId];
-                        if (destLoc) {
-                            coords = destLoc;
-                            floorNum = destLoc.floor || 1;
+
+                if (isPending) {
+                    if (isWaitingForItem) {
+                        // Robot sudah tiba di titik jemput dan sedang menunggu barang dimuat oleh user
+                        const pickupLoc = locations[mission.startId] || locations[delivery.start_location];
+                        if (pickupLoc) {
+                            coords = pickupLoc;
+                            floorNum = pickupLoc.floor || 1;
                         }
-                        taskText = `Delivered ${delivery.item_name} to ${locations[mission.destId]?.name || delivery.destination_location}`;
-                        currentLocName = locations[mission.destId]?.name || delivery.destination_location;
-                        completeDeliveryAPI(delivery.id, coords.x, coords.y, floorNum);
+                        const startDisplayName = locations[mission.startId]?.name || delivery.start_location;
+                        taskText = `<span class="text-orange-600 font-bold"><i class="fa-solid fa-box-open mr-1 animate-pulse"></i> Menunggu barang dimuat di ${startDisplayName}</span>`;
+                        currentLocName = startDisplayName;
+                        robot.current_x = coords.x;
+                        robot.current_y = coords.y;
+                        robot.floor = floorNum;
                     } else {
-                        let activeStage = null;
-                        for (let st of mission.stages) {
-                            if (elapsedMs >= st.startMs && elapsedMs < st.startMs + st.durationMs) {
-                                activeStage = st;
-                                break;
-                            }
-                        }
-                        if (!activeStage) {
-                            activeStage = mission.stages[mission.stages.length - 1];
-                        }
+                        // Robot sedang dalam perjalanan menuju titik jemput
+                        robot.status = 'Heading to Pickup';
+                        const startedTime = parseServerDate(delivery.started_at);
+                        const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
+                        let angle = 0;
 
-                        const stageElapsed = Math.max(0, elapsedMs - activeStage.startMs);
-                        const stageRatio = Math.max(0, Math.min(stageElapsed / activeStage.durationMs, 1.0));
+                        if (mission.stages && mission.stages.length > 0) {
+                            if (elapsedMs >= mission.totalDurationMs) {
+                                // Tiba di lokasi penjemputan!
+                                const pickupLoc = locations[mission.startId] || locations[delivery.start_location];
+                                if (pickupLoc) {
+                                    coords = pickupLoc;
+                                    floorNum = pickupLoc.floor || 1;
+                                }
+                                robot.status = 'Waiting for Item';
+                                const startDisplayName = locations[mission.startId]?.name || delivery.start_location;
+                                taskText = `<span class="text-orange-600 font-bold"><i class="fa-solid fa-box-open mr-1 animate-pulse"></i> Menunggu barang dimuat di ${startDisplayName}</span>`;
+                                currentLocName = startDisplayName;
 
-                        if (activeStage.type === 'stairs') {
-                            const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
-                            const isSecondHalf = stageRatio >= 0.5;
-                            floorNum = isSecondHalf ? activeStage.toFloor : activeStage.fromFloor;
-                            const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
-                            coords = locations[currentNodeId] || coords;
-                            angle = 0;
-                            taskText = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-stairs animate-bounce mr-1"></i> Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...</span>`;
-                            currentLocName = `Tangga (Transit Lantai ${activeStage.toFloor})`;
-                            robot.currentSegIdx = 0;
-                        } else if (activeStage.type === 'pickup') {
-                            const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
-                            const locNode = locations[activeStage.nodeId] || locations[mission.startId];
-                            if (locNode) {
-                                coords = locNode;
-                                floorNum = locNode.floor || 1;
-                            }
-                            angle = 0;
-                            taskText = `<span class="text-blue-600 font-bold"><i class="fa-solid fa-box-open animate-bounce mr-1"></i> Mengambil ${delivery.item_name} di ${locations[mission.startId]?.name || delivery.start_location} (${remainingSec}s)...</span>`;
-                            currentLocName = locations[mission.startId]?.name || delivery.start_location;
-                            robot.currentSegIdx = 0;
-                        } else if (activeStage.type === 'dropoff') {
-                            const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
-                            const locNode = locations[activeStage.nodeId] || locations[mission.destId];
-                            if (locNode) {
-                                coords = locNode;
-                                floorNum = locNode.floor || 1;
-                            }
-                            angle = 0;
-                            taskText = `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-dolly animate-bounce mr-1"></i> Menyerahkan ${delivery.item_name} di ${locations[mission.destId]?.name || delivery.destination_location} (${remainingSec}s)...</span>`;
-                            currentLocName = locations[mission.destId]?.name || delivery.destination_location;
-                            robot.currentSegIdx = 0;
-                        } else {
-                            floorNum = activeStage.floor || 1;
-                            const path = activeStage.path || [];
-                            const along = interpolateAlongPath(path, stageRatio);
-                            if (along) {
-                                coords = along.coords;
-                                angle = along.angle;
-                                robot.currentSegIdx = along.segIdx;
-                            }
-                            const isHeadingToPickup = mission.pickupStartMs && activeStage.startMs < mission.pickupStartMs;
-                            if (isHeadingToPickup) {
-                                taskText = `Menuju titik ambil: ${locations[mission.startId]?.name || delivery.start_location}`;
+                                // Kirim notifikasi tiba ke backend
+                                if (!delivery._arriveApiSent) {
+                                    delivery._arriveApiSent = true;
+                                    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                                    fetch(`/api/deliveries/${delivery.id}/arrive-pickup`, {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': csrf,
+                                            'Accept': 'application/json'
+                                        },
+                                        body: JSON.stringify({
+                                            current_x: coords.x,
+                                            current_y: coords.y,
+                                            floor: floorNum
+                                        })
+                                    })
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        if (data.success && data.robot) {
+                                            robot.status = data.robot.status;
+                                        }
+                                    })
+                                    .catch(err => console.error('Error arrive pickup from 3D:', err));
+                                }
                             } else {
-                                taskText = `Mengantar ${delivery.item_name} ke ${locations[mission.destId]?.name || delivery.destination_location}`;
-                            }
-                            currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
+                                let activeStage = null;
+                                for (let st of mission.stages) {
+                                    if (elapsedMs >= st.startMs && elapsedMs < st.startMs + st.durationMs) {
+                                        activeStage = st;
+                                        break;
+                                    }
+                                }
+                                if (!activeStage) activeStage = mission.stages[mission.stages.length - 1];
 
-                            // --- BATTERY DRAIN WHILE MOVING ---
-                            const nowTime = now.getTime();
-                            if (!robot.lastBatteryTick) robot.lastBatteryTick = nowTime;
-                            if (nowTime - robot.lastBatteryTick >= 3500) {
-                                robot.lastBatteryTick = nowTime;
-                                robot.battery_level = Math.max(0, (Number(robot.battery_level) || 100) - 1);
-                                syncRobotPosition(robot.id, coords.x, coords.y, floorNum, robot.status, robot.battery_level);
-                                
-                                // Low Battery Threshold (<= 20%) -> Auto pause & return to base for charging
-                                if (robot.battery_level <= 20 && !robot.isLowBatteryReturning && robot.status !== 'Charging') {
-                                    triggerLowBatteryReturn(robot, delivery, coords, floorNum, elapsedMs);
-                                    return;
+                                const stageElapsed = Math.max(0, elapsedMs - activeStage.startMs);
+                                const stageRatio = Math.max(0, Math.min(stageElapsed / activeStage.durationMs, 1.0));
+
+                                if (activeStage.type === 'stairs') {
+                                    const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
+                                    const isSecondHalf = stageRatio >= 0.5;
+                                    floorNum = isSecondHalf ? activeStage.toFloor : activeStage.fromFloor;
+                                    const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
+                                    coords = locations[currentNodeId] || coords;
+                                    angle = 0;
+                                    taskText = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-stairs animate-bounce mr-1"></i> Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...</span>`;
+                                    currentLocName = `Tangga (Transit Lantai ${activeStage.toFloor})`;
+                                    robot.currentSegIdx = 0;
+                                } else {
+                                    floorNum = activeStage.floor || 1;
+                                    const path = activeStage.path || [];
+                                    const along = interpolateAlongPath(path, stageRatio);
+                                    if (along) {
+                                        coords = along.coords;
+                                        angle = along.angle;
+                                        robot.currentSegIdx = along.segIdx;
+                                    }
+                                    const startDisplayName = locations[mission.startId]?.name || delivery.start_location;
+                                    taskText = `Menuju titik ambil: ${startDisplayName}`;
+                                    currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
                                 }
                             }
+                        } else {
+                            const pickupLoc = locations[mission.startId] || locations[delivery.start_location];
+                            if (pickupLoc) {
+                                coords = pickupLoc;
+                                floorNum = pickupLoc.floor || 1;
+                            }
+                            robot.status = 'Waiting for Item';
+                            const startDisplayName = locations[mission.startId]?.name || delivery.start_location;
+                            taskText = `<span class="text-orange-600 font-bold"><i class="fa-solid fa-box-open mr-1 animate-pulse"></i> Menunggu barang dimuat di ${startDisplayName}</span>`;
+                            currentLocName = startDisplayName;
+                        }
 
-                            // --- AUTONOMOUS COLLISION / CRASH SIMULATION ---
-                            if (!robot.lastCrashCheck) robot.lastCrashCheck = nowTime;
-                            if (!robot.lastCrashTime) robot.lastCrashTime = 0;
-                            if (nowTime - robot.lastCrashCheck >= 12000) {
-                                robot.lastCrashCheck = nowTime;
-                                if (nowTime - robot.lastCrashTime >= 45000 && elapsedMs > 5000 && elapsedMs < (mission.totalDurationMs - 5000)) {
-                                    if (Math.random() < 0.07) {
-                                        robot.lastCrashTime = nowTime;
-                                        triggerAutonomousCrash(robot, delivery, coords, floorNum, elapsedMs);
+                        robot.current_x = coords.x;
+                        robot.current_y = coords.y;
+                        robot.floor = floorNum;
+                        robot.rotation = angle;
+                    }
+                } else if (delivery.status === 'In Progress') {
+                    robot.status = 'Delivering';
+                    if (mission.stages && mission.stages.length > 0) {
+                        const startedTime = parseServerDate(delivery.started_at);
+                        const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
+                        let angle = 0;
+
+                        if (elapsedMs >= mission.totalDurationMs) {
+                            const lastStage = mission.stages[mission.stages.length - 1];
+                            const lastNodeId = (lastStage.type === 'travel' && lastStage.path) ? lastStage.path[lastStage.path.length - 1] : mission.destId;
+                            const destLoc = locations[lastNodeId] || locations[mission.destId];
+                            if (destLoc) {
+                                coords = destLoc;
+                                floorNum = destLoc.floor || 1;
+                            }
+                            taskText = `Berhasil mengantar ${delivery.item_name} ke ${locations[mission.destId]?.name || delivery.destination_location}`;
+                            currentLocName = locations[mission.destId]?.name || delivery.destination_location;
+                            completeDeliveryAPI(delivery.id, coords.x, coords.y, floorNum);
+                        } else {
+                            let activeStage = null;
+                            for (let st of mission.stages) {
+                                if (elapsedMs >= st.startMs && elapsedMs < st.startMs + st.durationMs) {
+                                    activeStage = st;
+                                    break;
+                                }
+                            }
+                            if (!activeStage) {
+                                activeStage = mission.stages[mission.stages.length - 1];
+                            }
+
+                            const stageElapsed = Math.max(0, elapsedMs - activeStage.startMs);
+                            const stageRatio = Math.max(0, Math.min(stageElapsed / activeStage.durationMs, 1.0));
+
+                            if (activeStage.type === 'stairs') {
+                                const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
+                                const isSecondHalf = stageRatio >= 0.5;
+                                floorNum = isSecondHalf ? activeStage.toFloor : activeStage.fromFloor;
+                                const currentNodeId = isSecondHalf ? activeStage.toNode : activeStage.fromNode;
+                                coords = locations[currentNodeId] || coords;
+                                angle = 0;
+                                taskText = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-stairs animate-bounce mr-1"></i> Transit Tangga ke Lantai ${activeStage.toFloor} (${remainingSec}s)...</span>`;
+                                currentLocName = `Tangga (Transit Lantai ${activeStage.toFloor})`;
+                                robot.currentSegIdx = 0;
+                            } else if (activeStage.type === 'dropoff') {
+                                const remainingSec = Math.max(1, Math.ceil((activeStage.durationMs - stageElapsed) / 1000));
+                                const locNode = locations[activeStage.nodeId] || locations[mission.destId];
+                                if (locNode) {
+                                    coords = locNode;
+                                    floorNum = locNode.floor || 1;
+                                }
+                                angle = 0;
+                                taskText = `<span class="text-emerald-600 font-bold"><i class="fa-solid fa-dolly animate-bounce mr-1"></i> Menyerahkan ${delivery.item_name} di ${locations[mission.destId]?.name || delivery.destination_location} (${remainingSec}s)...</span>`;
+                                currentLocName = locations[mission.destId]?.name || delivery.destination_location;
+                                robot.currentSegIdx = 0;
+                            } else {
+                                floorNum = activeStage.floor || 1;
+                                const path = activeStage.path || [];
+                                const along = interpolateAlongPath(path, stageRatio);
+                                if (along) {
+                                    coords = along.coords;
+                                    angle = along.angle;
+                                    robot.currentSegIdx = along.segIdx;
+                                }
+                                taskText = `Mengantar ${delivery.item_name} ke ${locations[mission.destId]?.name || delivery.destination_location}`;
+                                currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
+
+                                // Pengurangan Baterai
+                                const nowTime = now.getTime();
+                                if (!robot.lastBatteryTick) robot.lastBatteryTick = nowTime;
+                                if (nowTime - robot.lastBatteryTick >= 3500) {
+                                    robot.lastBatteryTick = nowTime;
+                                    robot.battery_level = Math.max(0, (Number(robot.battery_level) || 100) - 1);
+                                    syncRobotPosition(robot.id, coords.x, coords.y, floorNum, robot.status, robot.battery_level);
+                                    
+                                    if (robot.battery_level <= 20 && !robot.isLowBatteryReturning && robot.status !== 'Charging') {
+                                        triggerLowBatteryReturn(robot, delivery, coords, floorNum, elapsedMs);
                                         return;
                                     }
                                 }
@@ -4846,7 +4940,8 @@
             (r.status === 'Idle' || r.status === 'Returning') && 
             r.battery_level > 20 && 
             !r.isDispatching && 
-            !r.hasIssue
+            !r.hasIssue &&
+            !activeDeliveries.some(d => Number(d.robot_id) === Number(r.id) && (d.status === 'In Progress' || d.status === 'Pending'))
         );
 
         if (eligibleRobots.length === 0) return;
@@ -4896,7 +4991,7 @@
                     console.error('Error dispatching robot:', err);
                     robot.isDispatching = false;
                 });
-            }, idx * 350);
+            }, idx * 250);
         });
     }
 
@@ -4913,7 +5008,8 @@
             (r.status === 'Idle' || r.status === 'Returning') && 
             !r.isDispatching && 
             !r.hasIssue && 
-            r.battery_level > 20
+            r.battery_level > 20 &&
+            !activeDeliveries.some(d => Number(d.robot_id) === Number(r.id) && (d.status === 'In Progress' || d.status === 'Pending'))
         );
 
         if (readyRobots.length > 0) {
@@ -4968,12 +5064,22 @@
                     const bLoc = getBaseLocation();
                     const isClientAtBase = Number(existing.floor || 1) === 1 && Math.hypot((existing.current_x || bLoc.x) - bLoc.x, (existing.current_y || bLoc.y) - bLoc.y) < 2.0;
                     const hasDeliveryInProgress = activeDeliveries.some(d => Number(d.robot_id) === Number(existing.id) && d.status === 'In Progress');
+                    const hasDeliveryPending = activeDeliveries.some(d => Number(d.robot_id) === Number(existing.id) && d.status === 'Pending');
 
                     if (hasDeliveryInProgress) {
                         existing.status = 'Delivering';
                         existing.returnMission = null;
                         existing.isReturning = false;
                         existing.needsReturnToBase = false;
+                    } else if (hasDeliveryPending) {
+                        existing.returnMission = null;
+                        existing.isReturning = false;
+                        existing.needsReturnToBase = false;
+                        if (newRobot.status === 'Waiting for Item') {
+                            existing.status = 'Waiting for Item';
+                        } else {
+                            existing.status = 'Heading to Pickup';
+                        }
                     } else if (existing.status === 'Delivering') {
                         if (newRobot.status === 'Maintenance') {
                             existing.status = 'Maintenance';
@@ -4985,6 +5091,13 @@
                                 existing.isReturning = true;
                             }
                         }
+                    } else if (existing.status === 'Heading to Pickup' || existing.status === 'Waiting for Item') {
+                        if (newRobot.status === 'Maintenance') {
+                            existing.status = 'Maintenance';
+                            existing.hasIssue = true;
+                        } else {
+                            existing.status = newRobot.status;
+                        }
                     } else if (existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
                         if (newRobot.status === 'Maintenance') {
                             existing.status = 'Maintenance';
@@ -4995,6 +5108,8 @@
                             existing.status = 'Charging';
                         } else if (newRobot.status === 'Returning' && !isClientAtBase) {
                             existing.status = 'Returning';
+                        } else if (newRobot.status === 'Heading to Pickup' || newRobot.status === 'Waiting for Item') {
+                            existing.status = newRobot.status;
                         }
                     } else {
                         existing.status = newRobot.status;
@@ -5005,7 +5120,7 @@
                         existing.floor = 1;
                         existing.current_x = bLoc.x;
                         existing.current_y = bLoc.y;
-                    } else if (existing.status === 'Delivering' || existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
+                    } else if (existing.status === 'Delivering' || existing.status === 'Heading to Pickup' || existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
                         // Keep live client-side coordinates along path - NEVER overwrite from server!
                     } else if (newRobot.current_x != null && newRobot.current_y != null && !existing.customPosition) {
                         existing.floor = newRobot.floor || existing.floor || 1;
@@ -5106,6 +5221,15 @@
             runSimulationStep();
         }
     });
+
+    window.onDashboardViewActivated = function() {
+        const v = activeStdViewer();
+        if (v && typeof v.resize === 'function') {
+            v.resize();
+        }
+        fetchData();
+        runSimulationStep();
+    };
 
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {

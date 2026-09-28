@@ -1040,21 +1040,13 @@ class TelemetryController extends Controller
                 }
             }
 
-            // 2. Only cancel pending (not yet started) deliveries
-            Delivery::where('status', 'Pending')->update([
-                'status' => 'Cancelled',
-                'completed_at' => Carbon::now(),
-            ]);
-
-            // 3. For robots without an active In Progress delivery:
-            // - If at base (dist <= 1.5) or already Idle/Charging: keep at base as Idle/Charging
-            // - If out in the field and marked Delivering without delivery: transition to Returning
-            // Note: Robots with an active 'In Progress' delivery will finish their delivery,
-            // then return to base, and stay Idle at base.
+            // 2. Untuk robot tanpa pengiriman aktif (In Progress atau Pending):
+            // - Jika di markas atau sudah Siaga/Pengisian Daya: tetap di markas
+            // - Jika robot sedang dalam misi pemanggilan (Pending) atau pengantaran (In Progress), biarkan melanjutkan tugas.
             $robots = Robot::all();
             foreach ($robots as $robot) {
                 $hasActiveDelivery = Delivery::where('robot_id', $robot->id)
-                    ->where('status', 'In Progress')
+                    ->whereIn('status', ['In Progress', 'Pending'])
                     ->exists();
 
                 if (! $hasActiveDelivery) {

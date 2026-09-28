@@ -312,21 +312,24 @@
             </div>
 
             <!-- Navigation Links -->
-            <nav class="p-4 space-y-2 mt-2">
+            <nav id="sidebar-nav" class="p-4 space-y-2 mt-2">
                 <a href="{{ route('dashboard') }}" 
-                   class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('dashboard') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
+                   data-spa-route="/"
+                   class="spa-nav-link flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('dashboard') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-chart-line text-lg {{ Route::is('dashboard') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
                     <span class="text-sm">Dashboard</span>
                 </a>
 
                 <a href="{{ route('deliveries') }}" 
-                   class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('deliveries') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
+                   data-spa-route="/pengiriman"
+                   class="spa-nav-link flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('deliveries') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-route text-lg {{ Route::is('deliveries') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
                     <span class="text-sm">Pengiriman</span>
                 </a>
 
                 <a href="{{ route('reports') }}" 
-                   class="flex items-center justify-between px-4 py-3 rounded transition duration-200 group {{ Route::is('reports') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
+                   data-spa-route="/laporan"
+                   class="spa-nav-link flex items-center justify-between px-4 py-3 rounded transition duration-200 group {{ Route::is('reports') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <div class="flex items-center gap-4 min-w-0">
                         <i class="fa-solid fa-triangle-exclamation text-lg {{ Route::is('reports') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
                         <span class="text-sm truncate">Laporan</span>
@@ -336,13 +339,15 @@
 
                 @if(auth()->check() && auth()->user()->isAdmin())
                 <a href="{{ route('history') }}" 
-                   class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('history') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
+                   data-spa-route="/riwayat"
+                   class="spa-nav-link flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('history') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-clock-rotate-left text-lg {{ Route::is('history') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
                     <span class="text-sm">Riwayat</span>
                 </a>
 
                 <a href="{{ route('bot-control') }}" 
-                   class="flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('bot-control') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
+                   data-spa-route="/pusat-kontrol"
+                   class="spa-nav-link flex items-center gap-4 px-4 py-3 rounded transition duration-200 group {{ Route::is('bot-control') ? 'bg-white text-brand-blue font-semibold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white' }}">
                     <i class="fa-solid fa-sliders text-lg {{ Route::is('bot-control') ? 'text-brand-blue' : 'text-white/70 group-hover:text-white' }}"></i>
                     <span class="text-sm">Pusat Kontrol</span>
                 </a>
@@ -353,24 +358,25 @@
 
     <!-- Main Content Area -->
     <main id="main-content" class="flex-1 flex flex-col h-screen overflow-hidden relative z-10">
+        <!-- Topbar Loading Progress Indicator -->
+        <div id="spa-progress-bar" class="absolute top-0 left-0 right-0 h-1 bg-brand-blue z-50 transition-all duration-300 opacity-0 pointer-events-none" style="width: 0%;"></div>
+
         <!-- Topbar -->
         <header class="h-20 border-b border-gray-200 bg-white shadow-sm flex items-center justify-between px-6 lg:px-8 shrink-0 z-10 gap-4">
             <div class="min-w-0">
-                <h2 class="text-xl font-bold text-gray-800 leading-tight">@yield('page_title')</h2>
-                <p class="text-xs sm:text-sm text-gray-500 mt-0.5 truncate max-w-xl">@yield('page_subtitle')</p>
+                <h2 id="topbar-page-title" class="text-xl font-bold text-gray-800 leading-tight">@yield('page_title')</h2>
+                <p id="topbar-page-subtitle" class="text-xs sm:text-sm text-gray-500 mt-0.5 truncate max-w-xl">@yield('page_subtitle')</p>
             </div>
 
             <div class="flex items-center gap-3 md:gap-4 shrink-0">
-                @hasSection('topbar_actions')
-                    <div class="shrink-0">
-                        @yield('topbar_actions')
-                    </div>
-                    <div class="h-8 w-px bg-gray-200 hidden sm:block"></div>
-                @endif
+                <div id="topbar-actions-container" class="shrink-0">
+                    @yield('topbar_actions')
+                </div>
+                <div id="topbar-actions-divider" class="h-8 w-px bg-gray-200 {{ View::hasSection('topbar_actions') ? 'hidden sm:block' : 'hidden' }}"></div>
                 
                 @if(auth()->check() && auth()->user()->isAdmin())
                 <div class="relative">
-                    <a href="{{ route('reports') }}" id="topbar-bell-btn" class="relative w-9 h-9 rounded-xl bg-gray-100 hover:bg-amber-50 text-gray-600 hover:text-amber-600 border border-gray-200 flex items-center justify-center transition" title="Laporan Kendala Aktif">
+                    <a href="{{ route('reports') }}" id="topbar-bell-btn" data-spa-route="/laporan" class="spa-nav-link relative w-9 h-9 rounded-xl bg-gray-100 hover:bg-amber-50 text-gray-600 hover:text-amber-600 border border-gray-200 flex items-center justify-center transition" title="Laporan Kendala Aktif">
                         <i class="fa-solid fa-bell text-sm"></i>
                         <span id="topbar-alert-badge" class="hidden absolute -top-1 -right-1 min-w-[16px] h-4 bg-rose-500 text-white text-[9px] font-extrabold px-1 rounded-full flex items-center justify-center animate-bounce shadow-xs">0</span>
                     </a>
@@ -401,9 +407,15 @@
             </div>
         </header>
 
-        <!-- Scrollable Content -->
-        <div class="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar">
-            @yield('content')
+        <!-- Scrollable Content with SPA View Panes -->
+        <div id="spa-views-container" class="flex-1 overflow-y-auto p-6 lg:p-8 custom-scrollbar relative">
+            <div id="spa-pane-initial" 
+                 class="spa-view-pane min-h-full" 
+                 data-route-url="{{ request()->path() === '/' ? '/' : '/' . ltrim(request()->path(), '/') }}"
+                 data-page-title="@yield('page_title')"
+                 data-page-subtitle="@yield('page_subtitle')">
+                @yield('content')
+            </div>
         </div>
     </main>
 
@@ -682,6 +694,318 @@
         };
     </script>
 
-    @yield('scripts')
+    <!-- SPA Navigation Manager (Perpindahan instan tanpa unduh ulang GLB dan tanpa render ulang Three.js) -->
+    <script>
+    (function() {
+        const SPA = {
+            activeRoute: '{{ request()->path() === "/" ? "/" : "/" . ltrim(request()->path(), "/") }}',
+            loadingRoute: null,
+            prefetched: new Set(),
+
+            normalize(path) {
+                if (!path) return '/';
+                try {
+                    const u = new URL(path, window.location.origin);
+                    let p = u.pathname.replace(/\/+$/, '') || '/';
+                    if (p === '/deliveries' || p === '/pengantaran') p = '/pengiriman';
+                    if (p === '/bot-control') p = '/pusat-kontrol';
+                    if (p === '/reports') p = '/laporan';
+                    if (p === '/history') p = '/riwayat';
+                    return p;
+                } catch (e) {
+                    return path;
+                }
+            },
+
+            setLoading(show) {
+                const bar = document.getElementById('spa-progress-bar');
+                if (!bar) return;
+                if (show) {
+                    bar.style.width = '35%';
+                    bar.style.opacity = '1';
+                    setTimeout(() => { if (this.loadingRoute) bar.style.width = '75%'; }, 150);
+                } else {
+                    bar.style.width = '100%';
+                    setTimeout(() => {
+                        bar.style.opacity = '0';
+                        setTimeout(() => { bar.style.width = '0%'; }, 300);
+                    }, 100);
+                }
+            },
+
+            updateSidebar(targetRoute) {
+                const norm = this.normalize(targetRoute);
+                document.querySelectorAll('#sidebar-nav a.spa-nav-link').forEach(a => {
+                    const r = this.normalize(a.getAttribute('data-spa-route') || a.getAttribute('href'));
+                    const isMatch = (r === norm);
+                    const icon = a.querySelector('i');
+                    if (isMatch) {
+                        a.className = 'spa-nav-link flex items-center gap-4 px-4 py-3 rounded transition duration-200 group bg-white text-brand-blue font-semibold shadow-sm';
+                        if (icon) {
+                            icon.className = icon.className.replace(/text-white\S*/g, '').trim() + ' text-brand-blue';
+                        }
+                    } else {
+                        a.className = 'spa-nav-link flex items-center gap-4 px-4 py-3 rounded transition duration-200 group text-white/80 hover:bg-white/10 hover:text-white';
+                        if (icon) {
+                            icon.className = icon.className.replace(/text-brand-blue/g, '').trim() + ' text-white/70 group-hover:text-white';
+                        }
+                    }
+                });
+            },
+
+            updateTopbar(pane) {
+                if (!pane) return;
+                const title = pane.getAttribute('data-page-title');
+                const subtitle = pane.getAttribute('data-page-subtitle');
+                const tEl = document.getElementById('topbar-page-title');
+                const sEl = document.getElementById('topbar-page-subtitle');
+                if (tEl && title) tEl.textContent = title;
+                if (sEl && subtitle) sEl.textContent = subtitle;
+                if (title) document.title = 'Robopath - ' + title;
+
+                const actionsContainer = document.getElementById('topbar-actions-container');
+                const divider = document.getElementById('topbar-actions-divider');
+                if (actionsContainer && typeof pane._topbarActions !== 'undefined') {
+                    actionsContainer.innerHTML = pane._topbarActions || '';
+                    if (divider) {
+                        if (pane._topbarActions && pane._topbarActions.trim().length > 0) {
+                            divider.classList.remove('hidden');
+                            divider.classList.add('sm:block');
+                        } else {
+                            divider.classList.add('hidden');
+                            divider.classList.remove('sm:block');
+                        }
+                    }
+                }
+            },
+
+            triggerViewHooks(route) {
+                const norm = this.normalize(route);
+                if (norm === '/' && typeof window.onDashboardViewActivated === 'function') {
+                    window.onDashboardViewActivated();
+                } else if (norm === '/pengiriman' && typeof window.onPengirimanViewActivated === 'function') {
+                    window.onPengirimanViewActivated();
+                } else if (norm === '/pusat-kontrol' && typeof window.onPusatKontrolViewActivated === 'function') {
+                    window.onPusatKontrolViewActivated();
+                }
+                window.dispatchEvent(new CustomEvent('robopath:view-activated', { detail: { route: norm } }));
+            },
+
+            findPane(targetRoute) {
+                const norm = this.normalize(targetRoute);
+                const panes = document.querySelectorAll('#spa-views-container .spa-view-pane');
+                for (let p of panes) {
+                    if (this.normalize(p.getAttribute('data-route-url')) === norm) {
+                        return p;
+                    }
+                }
+                return null;
+            },
+
+            switchToExistingPane(targetRoute, pushState = true) {
+                const norm = this.normalize(targetRoute);
+                const targetPane = this.findPane(norm);
+                if (!targetPane) return false;
+
+                // Sembunyikan semua pane lain
+                document.querySelectorAll('#spa-views-container .spa-view-pane').forEach(p => {
+                    p.style.display = 'none';
+                });
+
+                // Tampilkan target pane
+                targetPane.style.display = '';
+                this.activeRoute = norm;
+                this.updateSidebar(norm);
+                this.updateTopbar(targetPane);
+
+                if (pushState && window.location.pathname !== norm) {
+                    history.pushState({ route: norm }, '', norm);
+                }
+
+                this.triggerViewHooks(norm);
+                return true;
+            },
+
+            async navigateTo(targetRoute, pushState = true) {
+                const norm = this.normalize(targetRoute);
+                if (this.switchToExistingPane(norm, pushState)) {
+                    return;
+                }
+
+                this.loadingRoute = norm;
+                this.setLoading(true);
+
+                try {
+                    const res = await fetch(norm, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'text/html'
+                        }
+                    });
+
+                    if (!res.ok) {
+                        window.location.href = norm;
+                        return;
+                    }
+
+                    const html = await res.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+
+                    const fetchedPane = doc.querySelector('#spa-views-container .spa-view-pane') || doc.querySelector('#main-content');
+                    if (!fetchedPane) {
+                        window.location.href = norm;
+                        return;
+                    }
+
+                    const title = doc.querySelector('#topbar-page-title')?.textContent || doc.title || '';
+                    const subtitle = doc.querySelector('#topbar-page-subtitle')?.textContent || '';
+                    const topbarActions = doc.querySelector('#topbar-actions-container')?.innerHTML || '';
+
+                    const container = document.getElementById('spa-views-container');
+                    const newPane = document.createElement('div');
+                    newPane.className = 'spa-view-pane min-h-full';
+                    newPane.setAttribute('data-route-url', norm);
+                    newPane.setAttribute('data-page-title', title);
+                    newPane.setAttribute('data-page-subtitle', subtitle);
+                    newPane._topbarActions = topbarActions;
+                    newPane.innerHTML = fetchedPane.innerHTML;
+
+                    document.querySelectorAll('#spa-views-container .spa-view-pane').forEach(p => {
+                        p.style.display = 'none';
+                    });
+                    container.appendChild(newPane);
+
+                    // Jalankan skrip halaman baru
+                    const scripts = doc.querySelectorAll('#initial-page-scripts script, #main-content script');
+                    scripts.forEach(s => {
+                        const src = s.getAttribute('src');
+                        if (src && (src.includes('three') || src.includes('OrbitControls') || src.includes('GLTFLoader') || src.includes('DRACOLoader') || src.includes('sweetalert'))) {
+                            return;
+                        }
+                        const newS = document.createElement('script');
+                        if (src) {
+                            newS.src = src;
+                        } else {
+                            newS.textContent = s.textContent;
+                        }
+                        document.body.appendChild(newS);
+                    });
+
+                    this.activeRoute = norm;
+                    this.updateSidebar(norm);
+                    this.updateTopbar(newPane);
+
+                    if (pushState && window.location.pathname !== norm) {
+                        history.pushState({ route: norm }, '', norm);
+                    }
+
+                    this.triggerViewHooks(norm);
+                } catch (err) {
+                    console.error('[Robopath SPA] Error navigating:', err);
+                    window.location.href = norm;
+                } finally {
+                    this.loadingRoute = null;
+                    this.setLoading(false);
+                }
+            },
+
+            async prefetch(targetRoute) {
+                const norm = this.normalize(targetRoute);
+                if (this.findPane(norm) || this.prefetched.has(norm)) return;
+                this.prefetched.add(norm);
+
+                try {
+                    const res = await fetch(norm, { headers: { 'Accept': 'text/html' } });
+                    if (!res.ok) return;
+                    const html = await res.text();
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const fetchedPane = doc.querySelector('#spa-views-container .spa-view-pane');
+                    if (!fetchedPane) return;
+
+                    const title = doc.querySelector('#topbar-page-title')?.textContent || '';
+                    const subtitle = doc.querySelector('#topbar-page-subtitle')?.textContent || '';
+                    const topbarActions = doc.querySelector('#topbar-actions-container')?.innerHTML || '';
+
+                    const container = document.getElementById('spa-views-container');
+                    const newPane = document.createElement('div');
+                    newPane.className = 'spa-view-pane min-h-full';
+                    newPane.style.display = 'none';
+                    newPane.setAttribute('data-route-url', norm);
+                    newPane.setAttribute('data-page-title', title);
+                    newPane.setAttribute('data-page-subtitle', subtitle);
+                    newPane._topbarActions = topbarActions;
+                    newPane.innerHTML = fetchedPane.innerHTML;
+                    container.appendChild(newPane);
+
+                    const scripts = doc.querySelectorAll('#initial-page-scripts script');
+                    scripts.forEach(s => {
+                        const src = s.getAttribute('src');
+                        if (src && (src.includes('three') || src.includes('OrbitControls') || src.includes('GLTFLoader') || src.includes('DRACOLoader') || src.includes('sweetalert'))) return;
+                        const newS = document.createElement('script');
+                        if (src) newS.src = src;
+                        else newS.textContent = s.textContent;
+                        document.body.appendChild(newS);
+                    });
+                } catch (e) {
+                    // prefetch error diabaikan
+                }
+            }
+        };
+
+        window.RobopathSPA = SPA;
+
+        // Tangkap klik tautan internal navigasi
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            if (!link) return;
+
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || link.target === '_blank') return;
+
+            const spaRoute = link.getAttribute('data-spa-route');
+            const href = link.getAttribute('href');
+            const target = spaRoute || href;
+
+            if (!target) return;
+            const norm = SPA.normalize(target);
+
+            const internalRoutes = ['/', '/pengiriman', '/laporan', '/riwayat', '/pusat-kontrol'];
+            if (internalRoutes.includes(norm)) {
+                e.preventDefault();
+                SPA.navigateTo(norm, true);
+            }
+        });
+
+        // Tangkap navigasi tombol kembali/maju peramban
+        window.addEventListener('popstate', (e) => {
+            const target = (e.state && e.state.route) ? e.state.route : window.location.pathname;
+            SPA.navigateTo(target, false);
+        });
+
+        const initialPane = document.getElementById('spa-pane-initial');
+        if (initialPane) {
+            const actionsEl = document.getElementById('topbar-actions-container');
+            if (actionsEl) initialPane._topbarActions = actionsEl.innerHTML;
+        }
+
+        // Prefetch otomatis saat peramban senggang
+        const idlePrefetch = () => {
+            if (SPA.activeRoute === '/') {
+                SPA.prefetch('/pengiriman');
+            } else if (SPA.activeRoute === '/pengiriman') {
+                SPA.prefetch('/');
+            }
+        };
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(idlePrefetch, { timeout: 3000 });
+        } else {
+            setTimeout(idlePrefetch, 2000);
+        }
+    })();
+    </script>
+
+    <div id="initial-page-scripts">
+        @yield('scripts')
+    </div>
 </body>
 </html>
