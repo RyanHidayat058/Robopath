@@ -162,24 +162,29 @@
         window.RobopathGLBCache = {
             // Fast multi-layer read: Memory (0ms) -> CacheStorage (<10ms) -> IndexedDB (<300ms)
             async get(url) {
-                if (memoryCache.has(url)) return memoryCache.get(url);
+                if (memoryCache.has(url)) {
+                    const buf = memoryCache.get(url);
+                    if (buf && buf.byteLength > 0) return buf.slice(0);
+                    memoryCache.delete(url);
+                }
                 const csBuf = await getFromCacheStorage(url);
-                if (csBuf) {
+                if (csBuf && csBuf.byteLength > 0) {
                     memoryCache.set(url, csBuf);
                     putToIDB(url, csBuf); // async background backup
-                    return csBuf;
+                    return csBuf.slice(0);
                 }
                 const idbBuf = await getFromIDB(url);
-                if (idbBuf) {
+                if (idbBuf && idbBuf.byteLength > 0) {
                     memoryCache.set(url, idbBuf);
                     putToCacheStorage(url, idbBuf); // sync to cacheStorage
-                    return idbBuf;
+                    return idbBuf.slice(0);
                 }
                 return null;
             },
 
             async put(url, buffer) {
-                memoryCache.set(url, buffer);
+                if (!buffer || buffer.byteLength === 0) return;
+                memoryCache.set(url, buffer.slice(0));
                 await Promise.allSettled([
                     putToCacheStorage(url, buffer),
                     putToIDB(url, buffer)
@@ -187,7 +192,11 @@
             },
 
             async isCached(url) {
-                if (memoryCache.has(url)) return true;
+                if (memoryCache.has(url)) {
+                    const b = memoryCache.get(url);
+                    if (b && b.byteLength > 0) return true;
+                    memoryCache.delete(url);
+                }
                 if ('caches' in window) {
                     try {
                         const cache = await caches.open(CACHE_NAME);
@@ -196,7 +205,7 @@
                     } catch (e) {}
                 }
                 const buf = await getFromIDB(url);
-                if (buf) {
+                if (buf && buf.byteLength > 0) {
                     memoryCache.set(url, buf);
                     return true;
                 }

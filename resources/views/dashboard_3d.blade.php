@@ -1562,6 +1562,7 @@
                 if(Number(loc.floor) !== floorNum) continue;
                 const isDest = !!loc.is_destination;
                 const isStairs = id.includes('Stairs');
+                const isHidden = !!loc.hidden;
                 const radius = (isDest || isStairs) ? 0.10 : 0.05;
                 const color = isStairs ? 0xf59e0b : (isDest ? 0xff0000 : 0x64748b);
                 const discGeo = new THREE.CylinderGeometry(radius, radius, 0.015, 24);
@@ -1653,20 +1654,24 @@
         const loaderStatus = document.getElementById('std-3d-loader-status');
         const loaderTitle = document.getElementById('std-3d-loader-title');
 
-        if (loaderEl && !dashboardModelLoadedByFloor[floorNum]) {
-            loaderEl.classList.remove('hidden');
-            if (loaderTitle) loaderTitle.textContent = `Menyiapkan Model 3D Lantai ${floorNum}...`;
-            if (loaderStatus) loaderStatus.textContent = `Memeriksa penyimpanan lokal...`;
-            if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
-                window.RobopathGLBCache.isCached(modelUrl).then(isCached => {
-                    if (isCached && loaderStatus) {
-                        loaderStatus.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
-                        if (loaderBar) loaderBar.style.width = '85%';
-                        if (loaderPct) loaderPct.textContent = '85%';
-                    } else if (loaderStatus) {
-                        loaderStatus.textContent = `Mengunduh aset GLB (${floorNum === 1 ? '8' : '14'} MB)...`;
-                    }
-                }).catch(() => {});
+        if (loaderEl) {
+            if (dashboardModelLoadedByFloor[floorNum]) {
+                loaderEl.classList.add('hidden');
+            } else {
+                loaderEl.classList.remove('hidden');
+                if (loaderTitle) loaderTitle.textContent = `Menyiapkan Model 3D Lantai ${floorNum}...`;
+                if (loaderStatus) loaderStatus.textContent = `Memeriksa penyimpanan lokal...`;
+                if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                    window.RobopathGLBCache.isCached(modelUrl).then(isCached => {
+                        if (isCached && loaderStatus) {
+                            loaderStatus.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                            if (loaderBar) loaderBar.style.width = '85%';
+                            if (loaderPct) loaderPct.textContent = '85%';
+                        } else if (loaderStatus) {
+                            loaderStatus.textContent = `Mengunduh aset GLB (${floorNum === 1 ? '8' : '14'} MB)...`;
+                        }
+                    }).catch(() => {});
+                }
             }
         }
 
@@ -1678,7 +1683,7 @@
             gltfLoader.setDRACOLoader(dracoLoader);
         }
 
-        // Safety watchdog: loader overlay cannot be stuck permanently (max 10s auto-dismiss)
+        // Safety watchdog: loader overlay cannot be stuck permanently (max 7s auto-dismiss)
         const watchdogTimer = setTimeout(() => {
             if (loaderEl && !loaderEl.classList.contains('hidden') && Number(currentDashboardFloor) === floorNum) {
                 console.warn(`[Robopath 3D] Watchdog auto-dismiss loader for Floor ${floorNum}`);
@@ -1686,7 +1691,7 @@
                 if (loaderPct) loaderPct.textContent = '100%';
                 loaderEl.classList.add('hidden');
             }
-        }, 10000);
+        }, 7000);
 
         // Load GLB using cached ArrayBuffer
         fetchGLBBufferWithCache(modelUrl, (loadedBytes, totalBytes, fromCache) => {
@@ -3039,6 +3044,15 @@
                             if (_ldS) _ldS.textContent = 'Memeriksa penyimpanan lokal...';
                             if (_ldB) _ldB.style.width = '5%';
                             if (_ldP) _ldP.textContent = '5%';
+                            if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                                window.RobopathGLBCache.isCached(floor1ModelUrl).then(isCached => {
+                                    if (isCached && !dashboardModelLoadedByFloor[1]) {
+                                        if (_ldS) _ldS.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                                        if (_ldB) _ldB.style.width = '85%';
+                                        if (_ldP) _ldP.textContent = '85%';
+                                    }
+                                }).catch(() => {});
+                            }
                         }
                     }
                 } catch(e){}
@@ -3080,6 +3094,15 @@
                             if (_ldS2) _ldS2.textContent = 'Memeriksa penyimpanan lokal...';
                             if (_ldB2) _ldB2.style.width = '5%';
                             if (_ldP2) _ldP2.textContent = '5%';
+                            if (window.RobopathGLBCache && typeof window.RobopathGLBCache.isCached === 'function') {
+                                window.RobopathGLBCache.isCached(floor2ModelUrl).then(isCached => {
+                                    if (isCached && !dashboardModelLoadedByFloor[2]) {
+                                        if (_ldS2) _ldS2.textContent = 'Memuat dari penyimpanan lokal (Instan)...';
+                                        if (_ldB2) _ldB2.style.width = '85%';
+                                        if (_ldP2) _ldP2.textContent = '85%';
+                                    }
+                                }).catch(() => {});
+                            }
                         }
                     }
                 } catch(e){}
@@ -3201,6 +3224,8 @@
                     ? 'bg-slate-900/90 hover:bg-slate-800 border border-emerald-500/30 text-emerald-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap'
                     : 'bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap';
             }
+        }
+
         if (typeof updateActiveMissionBanner === 'function') {
             updateActiveMissionBanner();
         }
@@ -5647,7 +5672,11 @@
         .catch(err => console.error('Error fetching dashboard telemetry:', err));
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    let isDashboardUIInitialized = false;
+    function initDashboardUI() {
+        if (isDashboardUIInitialized) return;
+        isDashboardUIInitialized = true;
+
         updateAutopilotUI();
         // Ensure Full View starts closed
         toggleFullView(false);
@@ -5669,7 +5698,14 @@
         };
         if ('requestIdleCallback' in window) requestIdleCallback(preloadOther, { timeout: 8000 });
         else setTimeout(preloadOther, 4000);
-    });
+    }
+
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        initDashboardUI();
+    } else {
+        document.addEventListener('DOMContentLoaded', initDashboardUI);
+        window.addEventListener('load', initDashboardUI);
+    }
 
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
