@@ -19,6 +19,30 @@
         .swal2-container {
             z-index: 9999999 !important;
         }
+        /* Dimensi dasar kanvas peta 3D multi-lantai agar tidak kolaps ke tinggi 0 */
+        .floor-map-card,
+        .editor-map-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            min-height: 380px;
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            background-position: center;
+            border-radius: 1rem;
+            box-shadow: 0 4px 20px rgba(59, 76, 184, 0.08), inset 0 0 0 1px rgba(0,0,0,0.06);
+        }
+        #std-3d-canvas-container,
+        #std-3d-canvas-f1,
+        #botctrl-3d-canvas-container,
+        #botctrl-3d-canvas-f1 {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
     </style>
 
     <!-- Three.js 3D Rendering Engine & Draco Loaders (Served Locally for Instant Load) -->
@@ -770,10 +794,11 @@
 
                 const actionsContainer = document.getElementById('topbar-actions-container');
                 const divider = document.getElementById('topbar-actions-divider');
-                if (actionsContainer && typeof pane._topbarActions !== 'undefined') {
-                    actionsContainer.innerHTML = pane._topbarActions || '';
+                if (actionsContainer) {
+                    const topbarHtml = (pane._topbarActions !== undefined && pane._topbarActions !== null) ? pane._topbarActions : '';
+                    actionsContainer.innerHTML = topbarHtml;
                     if (divider) {
-                        if (pane._topbarActions && pane._topbarActions.trim().length > 0) {
+                        if (topbarHtml.trim().length > 0) {
                             divider.classList.remove('hidden');
                             divider.classList.add('sm:block');
                         } else {
@@ -917,6 +942,24 @@
                         p.style.display = 'none';
                     });
                     container.appendChild(newPane);
+
+                    // Ekstrak dan pasang stylesheet / tag <style> dari halaman tujuan jika belum ada
+                    const pageStyles = doc.querySelectorAll('head style, head link[rel="stylesheet"], #main-content style');
+                    pageStyles.forEach(st => {
+                        if (st.tagName === 'STYLE' && st.textContent.trim().length > 0) {
+                            const newSt = document.createElement('style');
+                            newSt.textContent = st.textContent;
+                            newSt.setAttribute('data-spa-injected', norm);
+                            document.head.appendChild(newSt);
+                        } else if (st.tagName === 'LINK' && st.href) {
+                            if (!document.querySelector(`link[href="${st.href}"]`)) {
+                                const newLink = document.createElement('link');
+                                newLink.rel = 'stylesheet';
+                                newLink.href = st.href;
+                                document.head.appendChild(newLink);
+                            }
+                        }
+                    });
 
                     // Jalankan skrip halaman baru untuk pertama kali
                     const scripts = doc.querySelectorAll('#initial-page-scripts script, #main-content script');

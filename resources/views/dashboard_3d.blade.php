@@ -10,6 +10,7 @@
         position: relative;
         width: 100%;
         aspect-ratio: 16/9;
+        min-height: 380px;
         background-size: 100% 100%;
         background-repeat: no-repeat;
         background-position: center;
@@ -373,7 +374,7 @@
                 </div>
 
                 <!-- Map Canvas Container (Proporsional 16:9) — kedua lantai murni 3D -->
-                <div class="floor-map-card overflow-hidden shadow-inner border border-gray-200 relative" id="std-map-container" style="background-color: #0f172a;">
+                <div class="floor-map-card overflow-hidden shadow-inner border border-gray-200 relative" id="std-map-container" style="background-color: #0f172a; width: 100%; aspect-ratio: 16 / 9; min-height: 380px;">
                     <!-- 3D WebGL Canvas Layer for Floor 2 -->
                     <div id="std-3d-canvas-container" class="absolute inset-0 z-0 hidden pointer-events-auto"></div>
                     <!-- 3D WebGL Canvas Layer for Floor 1 -->
@@ -3071,6 +3072,16 @@
         }
         if (mapContainer) {
             mapContainer.classList.toggle('dashboard-fullview-canvas', isFullViewMode);
+            if (isFullViewMode) {
+                mapContainer.style.aspectRatio = 'auto';
+                mapContainer.style.minHeight = '0px';
+                mapContainer.style.height = '100%';
+            } else {
+                mapContainer.style.aspectRatio = '16 / 9';
+                mapContainer.style.minHeight = '380px';
+                mapContainer.style.height = '';
+                mapContainer.style.width = '100%';
+            }
         }
         if (headerBar) {
             headerBar.classList.toggle('hidden', isFullViewMode);
@@ -5241,20 +5252,48 @@
     });
 
     window.onDashboardViewActivated = function() {
-        document.body.classList.remove('body-in-fullmap');
+        document.body.classList.remove('body-in-fullmap', 'body-in-fullview');
+        isFullViewMode = false;
+        window.isFullViewMode = false;
+
+        const mapCard = document.getElementById('std-map-card');
+        const mapContainer = document.getElementById('std-map-container');
+        const headerBar = document.getElementById('std-header-bar');
+        const floorTitleBar = document.getElementById('std-floor-title-bar');
+        const fullviewTopBar = document.getElementById('fullview-top-bar');
+        const toolbar3D = document.getElementById('std-3d-toolbar');
+
+        if (mapCard) {
+            mapCard.classList.remove('dashboard-fullview-card', 'botctrl-fullmap-card');
+        }
+        if (mapContainer) {
+            mapContainer.classList.remove('dashboard-fullview-canvas', 'botctrl-fullmap-canvas');
+            mapContainer.style.aspectRatio = '16 / 9';
+            mapContainer.style.minHeight = '380px';
+            mapContainer.style.width = '100%';
+            mapContainer.style.height = '';
+            mapContainer.style.display = 'block';
+        }
+        if (headerBar) headerBar.classList.remove('hidden');
+        if (floorTitleBar) floorTitleBar.classList.remove('hidden');
+        if (fullviewTopBar) fullviewTopBar.classList.add('hidden');
+        if (toolbar3D) toolbar3D.classList.remove('hidden');
+
         const asideEl = document.getElementById('main-sidebar') || document.querySelector('body > aside') || document.querySelector('aside');
-        if (asideEl && !isFullViewMode) {
+        if (asideEl) {
             asideEl.style.removeProperty('display');
             asideEl.classList.remove('hidden', 'fullview-hidden');
         }
 
         const curFloor = Number(currentDashboardFloor || 1);
-        const v = activeStdViewer();
-        if (v && typeof v.resize === 'function') {
-            v.resize();
-        } else {
-            switchDashboardFloor(curFloor);
-        }
+        switchDashboardFloor(curFloor);
+
+        requestAnimationFrame(() => {
+            const v = activeStdViewer();
+            if (v && typeof v.resize === 'function') {
+                v.resize();
+            }
+        });
 
         if (dashboardModelLoadedByFloor[curFloor]) {
             const _ld = document.getElementById('std-3d-loader');
