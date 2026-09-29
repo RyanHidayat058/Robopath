@@ -228,56 +228,69 @@ class TelemetryController extends Controller
         $request->validate([
             'robot_id' => 'required|exists:robots,id',
             'item_name' => 'required|string',
-            'origin_location' => 'required|string',
+            'origin_location' => 'nullable|string',
             'start_location' => 'required|string',
             'destination_location' => 'required|string',
         ]);
 
         $robot = Robot::find($request->robot_id);
 
-        // If robot is in maintenance, charging, or low battery, prevent dispatch
-        if ($robot->status === 'Maintenance' || $robot->status === 'Charging' || $robot->battery_level <= 20) {
+        $hasActiveReport = Report::where('robot_id', $robot->id)->where('status', 'Active')->exists();
+
+        // Jika robot dalam perbaikan, pengisian daya, baterai lemah, atau ada laporan aktif
+        if ($robot->status === 'Maintenance' || $robot->status === 'Charging' || $robot->battery_level <= 20 || $hasActiveReport) {
             return response()->json([
                 'success' => false,
                 'message' => 'Robot saat ini sedang tidak tersedia (dalam perbaikan, pengisian daya, atau baterai lemah) dan tidak dapat ditugaskan.',
             ], 422);
         }
 
-        // Cancel any previous stale/unfinished deliveries for this robot to prevent task stacking
-        Delivery::where('robot_id', $robot->id)
+        // Jika robot sedang sibuk menjalankan tugas pengantaran (tidak boleh dioverwrite)
+        $hasActiveDelivery = Delivery::where('robot_id', $robot->id)
             ->whereIn('status', ['In Progress', 'Pending'])
-            ->update([
-                'status' => 'Cancelled',
-                'completed_at' => Carbon::now(),
-            ]);
+            ->exists();
 
-        // Set robot status to Delivering without teleporting
-        $robot->update([
-            'status' => 'Delivering',
-        ]);
+        if ($hasActiveDelivery || in_array($robot->status, ['Delivering', 'Heading to Pickup', 'Waiting for Item', 'Arrived at Pickup'])) {
+            return response()->json([
+                'success' => false,
+                'message' => "Robot {$robot->name} saat ini sedang menjalankan tugas dan tidak dapat menerima penugasan baru.",
+            ], 422);
+        }
 
         $originLoc = $request->origin_location;
         if (! $originLoc) {
-            $rx = (float) ($robot->current_x ?? 76.23);
-            $ry = (float) ($robot->current_y ?? 64.42);
-            $distTo3DBase = hypot($rx - 85.48, $ry - 51.07);
-            $originLoc = ($distTo3DBase < 4.0) ? '1_Markas Robot' : '1_N7';
+            $originLoc = $this->resolveRobotNearestLocationName($robot);
         }
 
-        // Create new active delivery
+        // Periksa apakah robot sudah berada tepat di titik penjemputan
+        $isAlreadyAtPickup = (strcasecmp($originLoc, $request->start_location) === 0);
+        $initialRobotStatus = $isAlreadyAtPickup ? 'Waiting for Item' : 'Heading to Pickup';
+
+        $robot->update([
+            'status' => $initialRobotStatus,
+        ]);
+
+        // Buat penugasan manual dengan status Pending mengikuti alur baru
         $delivery = Delivery::create([
-            'robot_id' => $request->robot_id,
-            'item_name' => $request->item_name,
+            'robot_id' => $robot->id,
+            'task_type' => Delivery::TASK_TYPE_MANUAL,
+            'item_name' => trim($request->item_name),
             'origin_location' => $originLoc,
-            'start_location' => $request->start_location,
-            'destination_location' => $request->destination_location,
-            'status' => 'In Progress',
+            'start_location' => trim($request->start_location),
+            'destination_location' => trim($request->destination_location),
+            'status' => 'Pending',
             'started_at' => Carbon::now(),
         ]);
 
+        $message = $isAlreadyAtPickup
+            ? "{$robot->name} sudah berada di " . Delivery::formatLocationName($request->start_location) . ". Silakan masukkan barang dan konfirmasi pengantaran."
+            : "{$robot->name} berhasil ditugaskan dan sedang menuju ke " . Delivery::formatLocationName($request->start_location) . ".";
+
         return response()->json([
             'success' => true,
+            'message' => $message,
             'delivery' => $delivery->load('robot'),
+            'robot' => $robot,
         ]);
     }
 
@@ -303,10 +316,12 @@ class TelemetryController extends Controller
         // Cari robot yang tersedia
         // Prioritas 1: Siaga (Idle)
         // Prioritas 2: Kembali (Returning)
-        // Filter: tidak dalam Maintenance / Charging / battery <= 20% / tidak ada active report
+        // Filter: tidak dalam Maintenance / Charging / battery <= 20% / tidak ada active report / tidak ada active delivery
         $activeReportRobotIds = Report::where('status', 'Active')->pluck('robot_id')->toArray();
+        $activeDeliveryRobotIds = Delivery::whereIn('status', ['In Progress', 'Pending'])->pluck('robot_id')->toArray();
+        $busyRobotIds = array_unique(array_merge($activeReportRobotIds, $activeDeliveryRobotIds));
 
-        $availableRobot = Robot::whereNotIn('id', $activeReportRobotIds)
+        $availableRobot = Robot::whereNotIn('id', $busyRobotIds)
             ->where('battery_level', '>', 20)
             ->where('status', 'Idle')
             ->first();
@@ -315,7 +330,7 @@ class TelemetryController extends Controller
 
         if (! $availableRobot) {
             // Cek Prioritas 2: Kembali
-            $availableRobot = Robot::whereNotIn('id', $activeReportRobotIds)
+            $availableRobot = Robot::whereNotIn('id', $busyRobotIds)
                 ->where('battery_level', '>', 20)
                 ->where('status', 'Returning')
                 ->first();
@@ -332,28 +347,24 @@ class TelemetryController extends Controller
             ], 422);
         }
 
-        // Batalkan tugas pending / in progress lama pada robot ini jika ada
-        Delivery::where('robot_id', $availableRobot->id)
-            ->whereIn('status', ['In Progress', 'Pending'])
-            ->update([
-                'status' => 'Cancelled',
-                'completed_at' => Carbon::now(),
-            ]);
-
-        // Tentukan origin_location (titik awal robot saat dipanggil)
+        // Tentukan origin_location (titik awal robot saat dipanggil, dari koordinat aktualnya)
         $originLoc = $request->origin_location;
         if (! $originLoc) {
             $originLoc = $this->resolveRobotNearestLocationName($availableRobot);
         }
 
-        // Update robot status ke 'Heading to Pickup'
+        // Periksa apakah robot sudah berada di titik penjemputan
+        $isAlreadyAtPickup = (strcasecmp($originLoc, $startLoc) === 0);
+        $initialRobotStatus = $isAlreadyAtPickup ? 'Waiting for Item' : 'Heading to Pickup';
+
         $availableRobot->update([
-            'status' => 'Heading to Pickup',
+            'status' => $initialRobotStatus,
         ]);
 
-        // Buat data Delivery dengan status Pending
+        // Buat data Delivery dengan status Pending dan task_type Delivery
         $delivery = Delivery::create([
             'robot_id' => $availableRobot->id,
+            'task_type' => Delivery::TASK_TYPE_DELIVERY,
             'item_name' => $itemName,
             'origin_location' => $originLoc,
             'start_location' => $startLoc,
@@ -364,7 +375,9 @@ class TelemetryController extends Controller
 
         $message = $wasRedirected
             ? "{$availableRobot->name} sedang kembali ke markas. Tujuan robot dialihkan ke " . Delivery::formatLocationName($startLoc) . "."
-            : "{$availableRobot->name} berhasil dipanggil dan sedang menuju ke " . Delivery::formatLocationName($startLoc) . ".";
+            : ($isAlreadyAtPickup
+                ? "{$availableRobot->name} sudah berada di " . Delivery::formatLocationName($startLoc) . ". Silakan masukkan barang dan konfirmasi pengantaran."
+                : "{$availableRobot->name} berhasil dipanggil dan sedang menuju ke " . Delivery::formatLocationName($startLoc) . ".");
 
         return response()->json([
             'success' => true,
@@ -1239,6 +1252,7 @@ class TelemetryController extends Controller
 
             Delivery::create([
                 'robot_id' => $robot->id,
+                'task_type' => Delivery::TASK_TYPE_MANUAL,
                 'item_name' => $item,
                 'origin_location' => $chosenOrigin,
                 'start_location' => $startLoc,

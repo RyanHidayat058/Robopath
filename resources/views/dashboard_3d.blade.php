@@ -303,6 +303,16 @@
                     </span>
                 </div>
 
+                <!-- Live Active Mission Banner (Tampilan Standar) -->
+                <div id="active-mission-banner-std" class="hidden mb-2 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700/80 text-white text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm transition">
+                    <div class="flex items-center gap-2 overflow-hidden min-w-0">
+                        <span class="w-2.5 h-2.5 rounded-full bg-sky-400 shrink-0 animate-ping" id="mission-std-dot"></span>
+                        <span class="font-bold text-sky-400 text-[11px] shrink-0 uppercase tracking-wider" id="mission-std-tag">MISI AKTIF:</span>
+                        <span class="truncate font-semibold text-slate-200 text-xs" id="mission-std-text">Memuat status misi...</span>
+                    </div>
+                    <div id="mission-std-actions" class="shrink-0 flex items-center gap-1.5 ml-auto"></div>
+                </div>
+
                 <!-- Top Floating Navigation Bar in Full View (Matching Bot Control Sleek Single Row) -->
                 <div id="fullview-top-bar" class="hidden flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-700/60 text-xs shrink-0 select-none w-full">
                     <!-- Left: Floor Switcher Tabs & View Badge -->
@@ -371,6 +381,16 @@
                             <i class="fa-solid fa-compress"></i> <span>Keluar</span>
                         </button>
                     </div>
+                </div>
+
+                <!-- Live Active Mission Banner (Tampilan Penuh / Full View) -->
+                <div id="active-mission-banner-fullview" class="hidden mb-2 px-3.5 py-2 rounded-xl bg-slate-900/95 border border-white/10 text-white text-xs flex flex-wrap items-center justify-between gap-3 shadow-md shrink-0 w-full transition">
+                    <div class="flex items-center gap-2.5 overflow-hidden min-w-0">
+                        <span class="w-2.5 h-2.5 rounded-full bg-sky-400 shrink-0 animate-ping" id="mission-fv-dot"></span>
+                        <span class="font-bold text-sky-400 text-xs shrink-0 uppercase tracking-wider" id="mission-fv-tag">MISI AKTIF:</span>
+                        <span class="truncate font-semibold text-slate-100 text-xs" id="mission-fv-text">Memuat status misi...</span>
+                    </div>
+                    <div id="mission-fv-actions" class="shrink-0 flex items-center gap-2 ml-auto"></div>
                 </div>
 
                 <!-- Map Canvas Container (Proporsional 16:9) — kedua lantai murni 3D -->
@@ -920,6 +940,59 @@
     </div>
 </div>
 @endif
+
+<!-- Modal Ubah Rincian Pengantaran Manual (Full View & Standar) -->
+<div id="modal-fv-edit-delivery" class="hidden fixed inset-0 z-[10008] overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-md w-full p-6 shadow-2xl text-slate-100 animate-in fade-in zoom-in duration-200">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-700/80 mb-4">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-white">Ubah Rincian Pengantaran</h3>
+                    <p class="text-[10px] text-slate-400">Perbarui nama muatan atau lokasi tujuan</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeFvEditDeliveryModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
+
+        <div id="fv-edit-error" class="hidden mb-3 p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs">
+            Terjadi kesalahan saat menyimpan rincian.
+        </div>
+
+        <form id="fv-edit-form" onsubmit="handleSaveFvEditDetail(event)" class="space-y-3.5 text-xs">
+            <input type="hidden" id="fv-edit-delivery-id" value="">
+            
+            <div>
+                <label for="fv-edit-item-name" class="block font-bold text-slate-300 text-[10px] uppercase tracking-wider mb-1">
+                    Nama Barang / Muatan
+                </label>
+                <input type="text" id="fv-edit-item-name" required class="w-full bg-slate-800/95 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium">
+            </div>
+
+            <div>
+                <label for="fv-edit-destination" class="block font-bold text-slate-300 text-[10px] uppercase tracking-wider mb-1">
+                    Tujuan Pengantaran
+                </label>
+                <select id="fv-edit-destination" required class="w-full bg-slate-800/95 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-medium">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+
+            <div class="pt-3 border-t border-slate-700/80 flex items-center justify-end gap-2">
+                <button type="button" onclick="closeFvEditDeliveryModal()" class="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition">
+                    Batal
+                </button>
+                <button type="submit" id="btn-save-fv-edit" class="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm">
+                    Simpan Perubahan
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -3028,6 +3101,7 @@
         }
 
         runSimulationStep();
+        if (typeof updateActiveMissionBanner === 'function') updateActiveMissionBanner();
     }
 
     function switchFullViewFloor(floorNum) {
@@ -3127,6 +3201,8 @@
                     ? 'bg-slate-900/90 hover:bg-slate-800 border border-emerald-500/30 text-emerald-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap'
                     : 'bg-slate-900/90 hover:bg-slate-800 border border-white/10 text-gray-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition whitespace-nowrap';
             }
+        if (typeof updateActiveMissionBanner === 'function') {
+            updateActiveMissionBanner();
         }
 
         setTimeout(() => {
@@ -3897,8 +3973,8 @@
 
     function runSimulationStep() {
         if (document.hidden) return;
-        const container = document.getElementById('std-3d-canvas-container');
-        if (container && container.offsetParent === null) return;
+        const mapContainer = document.getElementById('std-map-container');
+        if (!mapContainer || (mapContainer.offsetParent === null && !isFullViewMode)) return;
 
         const now = new Date(new Date().getTime() + serverClientOffset);
 
@@ -3984,7 +4060,8 @@
                             floorNum = pickupLoc.floor || 1;
                         }
                         const startDisplayName = locations[mission.startId]?.name || delivery.start_location;
-                        taskText = `<span class="text-orange-600 font-bold"><i class="fa-solid fa-box-open mr-1 animate-pulse"></i> Menunggu barang dimuat di ${startDisplayName}</span>`;
+                        const itemDisplay = delivery.item_name || 'Muatan';
+                        taskText = `<span class="text-orange-600 font-bold"><i class="fa-solid fa-box-open mr-1 animate-pulse"></i> Menunggu muatan [${itemDisplay}] dimuat di ${startDisplayName}</span>`;
                         currentLocName = startDisplayName;
                         robot.current_x = coords.x;
                         robot.current_y = coords.y;
@@ -4006,8 +4083,11 @@
                                 }
                                 robot.status = 'Waiting for Item';
                                 const startDisplayName = locations[mission.startId]?.name || delivery.start_location;
-                                taskText = `<span class="text-orange-600 font-bold"><i class="fa-solid fa-box-open mr-1 animate-pulse"></i> Menunggu barang dimuat di ${startDisplayName}</span>`;
+                                const itemDisplay = delivery.item_name || 'Muatan';
+                                taskText = `<span class="text-orange-600 font-bold"><i class="fa-solid fa-box-open mr-1 animate-pulse"></i> Menunggu muatan [${itemDisplay}] dimuat di ${startDisplayName}</span>`;
                                 currentLocName = startDisplayName;
+                                if (typeof updateActiveMissionBanner === 'function') updateActiveMissionBanner();
+                                if (typeof updateFullViewActiveDeliveriesList === 'function') updateFullViewActiveDeliveriesList();
 
                                 // Kirim notifikasi tiba ke backend
                                 if (!delivery._arriveApiSent) {
@@ -4067,7 +4147,8 @@
                                         robot.currentSegIdx = along.segIdx;
                                     }
                                     const startDisplayName = locations[mission.startId]?.name || delivery.start_location;
-                                    taskText = `Menuju titik ambil: ${startDisplayName}`;
+                                    const itemDisplay = delivery.item_name || 'Muatan';
+                                    taskText = `Menuju titik ambil ${startDisplayName} [${itemDisplay}]`;
                                     currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
                                 }
                             }
@@ -4079,8 +4160,11 @@
                             }
                             robot.status = 'Waiting for Item';
                             const startDisplayName = locations[mission.startId]?.name || delivery.start_location;
-                            taskText = `<span class="text-orange-600 font-bold"><i class="fa-solid fa-box-open mr-1 animate-pulse"></i> Menunggu barang dimuat di ${startDisplayName}</span>`;
+                            const itemDisplay = delivery.item_name || 'Muatan';
+                            taskText = `<span class="text-orange-600 font-bold"><i class="fa-solid fa-box-open mr-1 animate-pulse"></i> Menunggu muatan [${itemDisplay}] dimuat di ${startDisplayName}</span>`;
                             currentLocName = startDisplayName;
+                            if (typeof updateActiveMissionBanner === 'function') updateActiveMissionBanner();
+                            if (typeof updateFullViewActiveDeliveriesList === 'function') updateFullViewActiveDeliveriesList();
                         }
 
                         robot.current_x = coords.x;
@@ -4417,6 +4501,12 @@
 
         // Update Emergency Alert Banner
         updateEmergencyBanner();
+
+        // Update Active Mission Banner secara berkala
+        if (!window._lastMissionBannerUpdate || now.getTime() - window._lastMissionBannerUpdate >= 1000) {
+            window._lastMissionBannerUpdate = now.getTime();
+            if (typeof updateActiveMissionBanner === 'function') updateActiveMissionBanner();
+        }
 
         // Draw path lines dynamically after positions and segments have updated
         drawRobotPaths();
@@ -4805,7 +4895,7 @@
         if (succBox) succBox.classList.add('hidden');
 
         const robotId = robotSelect?.value;
-        const item = itemSelect?.value;
+        const item = itemSelect?.value?.trim();
         const start = startSelect?.value;
         const dest = destSelect?.value;
 
@@ -4831,8 +4921,22 @@
         }
 
         const robot = robots.find(r => String(r.id) === String(robotId));
-        const rFloor = Number(robot?.floor || 1);
-        const origin = (robot && robot.current_x != null && robot.current_y != null)
+        if (!robot) return;
+
+        // Validasi ketersediaan robot
+        const hasActiveAlert = (activeAlerts || []).some(a => Number(a.robot_id) === Number(robotId) && a.status === 'Active');
+        const hasActiveDelivery = (activeDeliveries || []).some(d => Number(d.robot_id) === Number(robotId) && (d.status === 'In Progress' || d.status === 'Pending'));
+        const isRobotBusy = hasActiveDelivery || ['Delivering', 'Heading to Pickup', 'Waiting for Item', 'Arrived at Pickup'].includes(robot.status);
+        const isUnavailable = ['Maintenance', 'Charging'].includes(robot.status) || Number(robot.battery_level) <= 20 || hasActiveAlert;
+
+        if (isUnavailable || isRobotBusy) {
+            if (errText) errText.textContent = `Robot ${robot.name} sedang tidak tersedia atau sedang sibuk bertugas!`;
+            if (errBox) errBox.classList.remove('hidden');
+            return;
+        }
+
+        const rFloor = Number(robot.floor || 1);
+        const origin = (robot.current_x != null && robot.current_y != null)
             ? (resolveLocationNodeId(robot.current_x, robot.current_y, rFloor) || getBaseLocationId())
             : getBaseLocationId();
 
@@ -4862,10 +4966,12 @@
 
             if (data.success) {
                 if (robot) {
-                    robot.status = 'Delivering';
+                    robot.status = data.robot ? data.robot.status : 'Heading to Pickup';
                     robot.isDispatching = false;
+                    robot.returnMission = null;
+                    robot.isReturning = false;
                 }
-                if (succText) succText.textContent = `${robot ? robot.name : 'Robot'} berhasil ditugaskan mengantar ${item}!`;
+                if (succText) succText.textContent = data.message || `${robot ? robot.name : 'Robot'} berhasil ditugaskan dan menuju titik jemput!`;
                 if (succBox) succBox.classList.remove('hidden');
 
                 if (itemSelect) itemSelect.value = '';
@@ -4873,10 +4979,11 @@
                 fetchData();
                 populateFullViewDispatchDropdowns();
                 updateFullViewActiveDeliveriesList();
+                updateActiveMissionBanner();
 
                 setTimeout(() => {
                     if (succBox) succBox.classList.add('hidden');
-                }, 5000);
+                }, 6000);
             } else {
                 if (errText) errText.textContent = data.message || 'Gagal menugaskan robot.';
                 if (errBox) errBox.classList.remove('hidden');
@@ -4889,6 +4996,131 @@
             if (errText) errText.textContent = 'Terjadi kesalahan jaringan. Coba lagi.';
             if (errBox) errBox.classList.remove('hidden');
         });
+    }
+
+    function updateActiveMissionBanner() {
+        const bannerStd = document.getElementById('active-mission-banner-std');
+        const bannerFv = document.getElementById('active-mission-banner-fullview');
+        if (!bannerStd && !bannerFv) return;
+
+        const activeList = (activeDeliveries || []).filter(d => d.status === 'In Progress' || d.status === 'Pending');
+
+        if (activeList.length === 0) {
+            const returningRobots = robots.filter(r => r.status === 'Returning' || r.isReturning);
+            if (returningRobots.length > 0) {
+                const rNames = returningRobots.map(r => r.name).join(', ');
+                const htmlStd = `
+                    <div class="flex items-center gap-2 overflow-hidden min-w-0">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 animate-pulse"></span>
+                        <span class="font-bold text-amber-400 text-[11px] shrink-0 uppercase tracking-wider">KEMBALI KE MARKAS:</span>
+                        <span class="truncate font-semibold text-slate-200 text-xs">${rNames} sedang bergerak kembali ke Markas Robot.</span>
+                    </div>
+                `;
+                const htmlFv = `
+                    <div class="flex items-center gap-2.5 overflow-hidden min-w-0">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 animate-pulse"></span>
+                        <span class="font-bold text-amber-400 text-xs shrink-0 uppercase tracking-wider">KEMBALI KE MARKAS:</span>
+                        <span class="truncate font-semibold text-slate-100 text-xs">${rNames} sedang bergerak kembali ke Markas Robot.</span>
+                    </div>
+                `;
+                if (bannerStd) {
+                    if (!isFullViewMode) {
+                        bannerStd.innerHTML = htmlStd;
+                        bannerStd.classList.remove('hidden');
+                    } else {
+                        bannerStd.classList.add('hidden');
+                    }
+                }
+                if (bannerFv) {
+                    if (isFullViewMode) {
+                        bannerFv.innerHTML = htmlFv;
+                        bannerFv.classList.remove('hidden');
+                    } else {
+                        bannerFv.classList.add('hidden');
+                    }
+                }
+                return;
+            }
+
+            if (bannerStd) bannerStd.classList.add('hidden');
+            if (bannerFv) bannerFv.classList.add('hidden');
+            return;
+        }
+
+        const renderRows = (isFullView) => {
+            return activeList.map(delivery => {
+                const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
+                const robotName = robot ? robot.name : `Robot #${delivery.robot_id}`;
+                const startName = (locations[delivery.start_location] && locations[delivery.start_location].name) || delivery.start_location || '-';
+                const destName = (locations[delivery.destination_location] && locations[delivery.destination_location].name) || delivery.destination_location || '-';
+                const itemName = delivery.item_name || 'Muatan';
+                const isPending = delivery.status === 'Pending';
+                const isWaiting = isPending && robot && robot.status === 'Waiting for Item';
+
+                let dotClass = 'bg-sky-400 animate-ping';
+                let tagClass = 'text-sky-400';
+                let tagText = 'MENUJU PENJEMPUTAN:';
+                let statusDesc = `<strong>${robotName}</strong> sedang menuju ke <span class="text-sky-300 font-semibold">${startName}</span> untuk mengambil muatan [<strong>${itemName}</strong>] &rarr; Tujuan: <span class="text-indigo-300 font-semibold">${destName}</span>`;
+                let actionHtml = '';
+
+                if (!isPending) {
+                    dotClass = 'bg-emerald-400 animate-ping';
+                    tagClass = 'text-emerald-400';
+                    tagText = 'SEDANG MENGANTAR:';
+                    statusDesc = `<strong>${robotName}</strong> sedang mengantar [<strong>${itemName}</strong>] dari <span class="text-sky-300 font-semibold">${startName}</span> menuju ke <span class="text-indigo-300 font-bold">${destName}</span>`;
+                    actionHtml = `<span class="text-[10px] text-emerald-400 font-bold px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/30 shrink-0"><i class="fa-solid fa-truck-fast mr-1"></i> Dalam Perjalanan</span>`;
+                } else if (isWaiting) {
+                    dotClass = 'bg-amber-400 animate-bounce';
+                    tagClass = 'text-amber-400';
+                    tagText = 'MENUNGGU MUATAN:';
+                    statusDesc = `<strong>${robotName}</strong> telah tiba di <span class="text-sky-300 font-semibold">${startName}</span> &bull; Menunggu muatan [<strong>${itemName}</strong>] dimuat &rarr; Tujuan: <span class="text-indigo-300 font-semibold">${destName}</span>`;
+                    actionHtml = `
+                        <button type="button" onclick="openFvEditDeliveryModal(${delivery.id})" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600/80 text-[10px] font-bold flex items-center gap-1 transition shrink-0">
+                            <i class="fa-solid fa-pen text-[9px] text-indigo-400"></i> Ubah
+                        </button>
+                        <button type="button" onclick="executeFvDispatchNow(${delivery.id})" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold flex items-center gap-1 shadow-sm transition shrink-0 animate-pulse">
+                            <i class="fa-solid fa-play text-[9px]"></i> Suruh Pergi
+                        </button>
+                    `;
+                } else {
+                    actionHtml = `
+                        <button type="button" onclick="openFvEditDeliveryModal(${delivery.id})" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600/80 text-[10px] font-bold flex items-center gap-1 transition shrink-0">
+                            <i class="fa-solid fa-pen text-[9px] text-indigo-400"></i> Ubah
+                        </button>
+                    `;
+                }
+
+                return `
+                    <div class="flex items-center justify-between gap-2.5 w-full py-1 ${activeList.length > 1 ? 'border-b border-slate-800/80 last:border-b-0' : ''}">
+                        <div class="flex items-center gap-2 overflow-hidden min-w-0 text-slate-100 text-xs">
+                            <span class="w-2.5 h-2.5 rounded-full ${dotClass} shrink-0"></span>
+                            <span class="font-bold ${tagClass} text-[11px] shrink-0 uppercase tracking-wider">${tagText}</span>
+                            <span class="truncate text-xs">${statusDesc}</span>
+                        </div>
+                        <div class="shrink-0 flex items-center gap-1.5 ml-auto">
+                            ${actionHtml}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        if (bannerStd) {
+            if (!isFullViewMode) {
+                bannerStd.innerHTML = `<div class="w-full flex flex-col gap-1">${renderRows(false)}</div>`;
+                bannerStd.classList.remove('hidden');
+            } else {
+                bannerStd.classList.add('hidden');
+            }
+        }
+        if (bannerFv) {
+            if (isFullViewMode) {
+                bannerFv.innerHTML = `<div class="w-full flex flex-col gap-1">${renderRows(true)}</div>`;
+                bannerFv.classList.remove('hidden');
+            } else {
+                bannerFv.classList.add('hidden');
+            }
+        }
     }
 
     function updateFullViewActiveDeliveriesList() {
@@ -4927,29 +5159,224 @@
             const startName = (locations[delivery.start_location] && locations[delivery.start_location].name) || delivery.start_location || '-';
             const destName = (locations[delivery.destination_location] && locations[delivery.destination_location].name) || delivery.destination_location || '-';
             const itemName = delivery.item_name || 'Barang';
+            const isPending = delivery.status === 'Pending';
+            const isWaiting = isPending && robot && robot.status === 'Waiting for Item';
+
+            let statusBadge = '';
+            if (!isPending) {
+                statusBadge = `
+                    <span class="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 shrink-0">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Sedang Mengantar
+                    </span>
+                `;
+            } else if (isWaiting) {
+                statusBadge = `
+                    <span class="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shrink-0">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce"></span> Menunggu Muatan
+                    </span>
+                `;
+            } else {
+                statusBadge = `
+                    <span class="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1 shrink-0">
+                        <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping"></span> Menuju Titik Ambil
+                    </span>
+                `;
+            }
+
+            let actionHtml = '';
+            if (isPending) {
+                actionHtml = `
+                    <div class="mt-2.5 pt-2 border-t border-slate-700/70 flex flex-wrap items-center gap-1.5">
+                        <button type="button" onclick="openFvEditDeliveryModal(${delivery.id})" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600/80 text-[11px] font-semibold flex items-center gap-1 transition">
+                            <i class="fa-solid fa-pen-to-square text-[10px] text-indigo-400"></i> Ubah Rincian
+                        </button>
+                        ${isWaiting ? `
+                            <button type="button" onclick="executeFvDispatchNow(${delivery.id})" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-sm transition ml-auto animate-pulse">
+                                <i class="fa-solid fa-paper-plane text-[10px]"></i> Suruh Pergi
+                            </button>
+                        ` : `
+                            <button type="button" onclick="executeFvDispatchNow(${delivery.id})" class="px-2.5 py-1 rounded-lg bg-emerald-600/70 hover:bg-emerald-600 text-white text-[11px] font-semibold flex items-center gap-1 shadow-sm transition ml-auto">
+                                <i class="fa-solid fa-paper-plane text-[10px]"></i> Mulai Pengantaran
+                            </button>
+                        `}
+                    </div>
+                `;
+            }
 
             return `
-                <div class="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 hover:border-slate-600 transition shadow-sm text-xs">
+                <div class="p-2.5 rounded-xl bg-slate-800/80 border ${isWaiting ? 'border-amber-500/50 ring-1 ring-amber-500/20' : 'border-slate-700/80'} hover:border-slate-600 transition shadow-sm text-xs">
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="font-bold text-slate-200 flex items-center gap-1.5 truncate">
                             <i class="fa-solid fa-robot text-sky-400"></i> ${robotName}
                         </span>
-                        <span class="text-[10px] px-1.5 py-0.5 rounded-md font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30 flex items-center gap-1 shrink-0">
-                            <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span> ${delivery.status === 'In Progress' ? 'Berlangsung' : (delivery.status === 'Pending' ? 'Tertunda' : (delivery.status === 'Completed' ? 'Selesai' : (delivery.status === 'Failed' ? 'Gagal' : delivery.status)))}
-                        </span>
+                        ${statusBadge}
                     </div>
-                    <div class="flex items-center gap-1 text-[11px] text-slate-300 font-medium mb-1">
+                    <div class="flex items-center gap-1.5 text-[11px] text-slate-300 font-medium mb-1">
                         <i class="fa-solid fa-box text-amber-400 text-[10px]"></i>
-                        <span class="truncate">${itemName}</span>
+                        <span class="text-slate-400 text-[10px]">Muatan:</span>
+                        <span class="truncate font-semibold text-white">${itemName}</span>
                     </div>
                     <div class="flex items-center gap-1 text-[10px] text-slate-400">
-                        <span class="truncate text-slate-300">${startName}</span>
+                        <span class="truncate text-slate-300 font-medium">${startName}</span>
                         <i class="fa-solid fa-arrow-right text-[9px] text-slate-500 shrink-0"></i>
-                        <span class="truncate text-indigo-300 font-medium">${destName}</span>
+                        <span class="truncate text-indigo-300 font-semibold">${destName}</span>
                     </div>
+                    ${actionHtml}
                 </div>
             `;
         }).join('');
+    }
+
+    function openFvEditDeliveryModal(deliveryId) {
+        const delivery = (activeDeliveries || []).find(d => Number(d.id) === Number(deliveryId));
+        if (!delivery) return;
+
+        const modal = document.getElementById('modal-fv-edit-delivery');
+        const idInput = document.getElementById('fv-edit-delivery-id');
+        const itemInput = document.getElementById('fv-edit-item-name');
+        const destSelect = document.getElementById('fv-edit-destination');
+        const errBox = document.getElementById('fv-edit-error');
+
+        if (errBox) errBox.classList.add('hidden');
+        if (idInput) idInput.value = delivery.id;
+        if (itemInput) itemInput.value = delivery.item_name || '';
+
+        if (destSelect) {
+            destSelect.innerHTML = '';
+            const baseId = getBaseLocationId();
+            Object.keys(locations).forEach(k => {
+                const loc = locations[k];
+                if (k !== baseId && k !== delivery.start_location && !k.includes('_N') && !k.includes('Tangga') && !k.includes('_Stairs')) {
+                    const opt = document.createElement('option');
+                    opt.value = k;
+                    opt.textContent = `${loc.name || k} (Lt. ${loc.floor || 1})`;
+                    if (k === delivery.destination_location) {
+                        opt.selected = true;
+                    }
+                    destSelect.appendChild(opt);
+                }
+            });
+        }
+
+        if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeFvEditDeliveryModal() {
+        const modal = document.getElementById('modal-fv-edit-delivery');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function handleSaveFvEditDetail(e) {
+        if (e) e.preventDefault();
+        const idInput = document.getElementById('fv-edit-delivery-id');
+        const itemInput = document.getElementById('fv-edit-item-name');
+        const destSelect = document.getElementById('fv-edit-destination');
+        const errBox = document.getElementById('fv-edit-error');
+        const saveBtn = document.getElementById('btn-save-fv-edit');
+
+        const deliveryId = idInput ? idInput.value : null;
+        const newItemName = itemInput ? itemInput.value.trim() : '';
+        const newDest = destSelect ? destSelect.value : '';
+
+        if (!deliveryId || !newItemName || !newDest) {
+            if (errBox) {
+                errBox.textContent = 'Nama muatan dan tujuan pengantaran wajib diisi!';
+                errBox.classList.remove('hidden');
+            }
+            return;
+        }
+
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...';
+        }
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        fetch(`/api/deliveries/${deliveryId}/update-details`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                item_name: newItemName,
+                destination_location: newDest
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Simpan Perubahan';
+            }
+            if (data.success && data.delivery) {
+                const target = (activeDeliveries || []).find(d => Number(d.id) === Number(deliveryId));
+                if (target) {
+                    target.item_name = data.delivery.item_name;
+                    target.destination_location = data.delivery.destination_location;
+                    delete target._cachedMission;
+                    delete target._cachedPath;
+                }
+                closeFvEditDeliveryModal();
+                fetchData();
+                updateActiveMissionBanner();
+                updateFullViewActiveDeliveriesList();
+            } else {
+                if (errBox) {
+                    errBox.textContent = data.message || 'Gagal menyimpan perubahan.';
+                    errBox.classList.remove('hidden');
+                }
+            }
+        })
+        .catch(err => {
+            console.error('Error saving delivery details:', err);
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Simpan Perubahan';
+            }
+            if (errBox) {
+                errBox.textContent = 'Terjadi kesalahan jaringan saat menyimpan perubahan.';
+                errBox.classList.remove('hidden');
+            }
+        });
+    }
+
+    function executeFvDispatchNow(deliveryId) {
+        const delivery = (activeDeliveries || []).find(d => Number(d.id) === Number(deliveryId));
+        if (!delivery) return;
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        fetch(`/api/deliveries/${deliveryId}/dispatch`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                delivery.status = 'In Progress';
+                delete delivery._cachedMission;
+                delete delivery._cachedPath;
+
+                const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
+                if (robot) {
+                    robot.status = 'Delivering';
+                }
+                fetchData();
+                updateActiveMissionBanner();
+                updateFullViewActiveDeliveriesList();
+            } else {
+                alert(data.message || 'Gagal memulai pengantaran.');
+            }
+        })
+        .catch(err => {
+            console.error('Error dispatching delivery:', err);
+            alert('Terjadi kesalahan jaringan saat memulai pengantaran.');
+        });
     }
 
     function dispatchAllRobotsSerentak() {
@@ -5178,6 +5605,9 @@
 
             if (typeof updateFullViewActiveDeliveriesList === 'function') {
                 updateFullViewActiveDeliveriesList();
+            }
+            if (typeof updateActiveMissionBanner === 'function') {
+                updateActiveMissionBanner();
             }
             if (typeof populateFullViewDispatchDropdowns === 'function') {
                 populateFullViewDispatchDropdowns();

@@ -7,8 +7,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Delivery extends Model
 {
+    const TASK_TYPE_MANUAL = 'Manual';
+    const TASK_TYPE_DELIVERY = 'Delivery';
+
     protected $fillable = [
         'robot_id',
+        'task_type',
         'item_name',
         'origin_location',
         'start_location',

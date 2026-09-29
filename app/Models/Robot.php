@@ -26,6 +26,11 @@ class Robot extends Model
     protected $appends = [
         'status_indonesian',
         'position_name',
+        'task_type',
+        'is_moving',
+        'package_ready',
+        'current_task_id',
+        'is_busy',
     ];
 
     public function getStatusIndonesianAttribute(): string
@@ -106,6 +111,36 @@ class Robot extends Model
         }
 
         return 'Lantai ' . ($this->floor ?? 1);
+    }
+
+    public function getTaskTypeAttribute(): ?string
+    {
+        $active = $this->deliveries()->whereIn('status', ['Pending', 'In Progress'])->latest()->first();
+        return $active ? ($active->task_type ?? 'Delivery') : null;
+    }
+
+    public function getIsMovingAttribute(): bool
+    {
+        return in_array($this->status, ['Delivering', 'Heading to Pickup', 'Returning']);
+    }
+
+    public function getPackageReadyAttribute(): bool
+    {
+        return ($this->status === 'Delivering');
+    }
+
+    public function getCurrentTaskIdAttribute(): ?int
+    {
+        $active = $this->deliveries()->whereIn('status', ['Pending', 'In Progress'])->latest()->first();
+        return $active ? $active->id : null;
+    }
+
+    public function getIsBusyAttribute(): bool
+    {
+        if (in_array($this->status, ['Delivering', 'Heading to Pickup', 'Waiting for Item', 'Charging', 'Maintenance'])) {
+            return true;
+        }
+        return $this->deliveries()->whereIn('status', ['Pending', 'In Progress'])->exists();
     }
 
     public function deliveries(): HasMany
