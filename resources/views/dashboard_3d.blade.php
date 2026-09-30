@@ -1095,17 +1095,24 @@
     var currentFullViewFloor = 1;
 
     function getDeliveryDispatchTime(delivery) {
-        if (!delivery) return null;
-        if (delivery._dispatchClientTime) return delivery._dispatchClientTime;
+        if (!delivery) return Date.now();
+        if (delivery._dispatchLocalTime) return delivery._dispatchLocalTime;
+        if (delivery._dispatchClientTime) {
+            delivery._dispatchLocalTime = delivery._dispatchClientTime;
+            return delivery._dispatchLocalTime;
+        }
         const stored = localStorage.getItem('robopath_dispatch_' + delivery.id);
         if (stored) {
             const val = Number(stored);
             if (!isNaN(val) && val > 0) {
-                delivery._dispatchClientTime = val;
+                delivery._dispatchLocalTime = val;
                 return val;
             }
         }
-        return null;
+        const fallbackNow = Date.now();
+        delivery._dispatchLocalTime = fallbackNow;
+        try { localStorage.setItem('robopath_dispatch_' + delivery.id, String(fallbackNow)); } catch(e){}
+        return fallbackNow;
     }
 
     // 3D Three.js State, Cache & Loader
@@ -3979,9 +3986,9 @@
 
             const robotColor = getRobotColor(robot.id);
             let elapsedMs = 0;
-            const dispatchTime = getDeliveryDispatchTime(delivery);
-            if (delivery.status === 'In Progress' && dispatchTime) {
-                elapsedMs = Math.max(0, now.getTime() - dispatchTime);
+            if (delivery.status === 'In Progress') {
+                const dispatchTime = getDeliveryDispatchTime(delivery);
+                elapsedMs = Math.max(0, Date.now() - dispatchTime);
             } else {
                 const startedTime = parseServerDate(delivery.started_at);
                 elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
@@ -4322,12 +4329,7 @@
                     if (mission.stages && mission.stages.length > 0) {
                         let elapsedMs = 0;
                         const dispatchTime = getDeliveryDispatchTime(delivery);
-                        if (dispatchTime) {
-                            elapsedMs = Math.max(0, now.getTime() - dispatchTime);
-                        } else {
-                            const startedTime = parseServerDate(delivery.started_at);
-                            elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
-                        }
+                        elapsedMs = Math.max(0, Date.now() - dispatchTime);
                         let angle = 0;
 
                         if (elapsedMs >= mission.totalDurationMs) {
@@ -5531,11 +5533,12 @@
 
         // Optimistic update: langsung alihkan delivery ke In Progress & robot ke Delivering seketika
         const prevDeliveryStatus = delivery.status;
-        const nowTime = (new Date().getTime() + serverClientOffset);
+        const nowLocal = Date.now();
         delivery.status = 'In Progress';
-        delivery.started_at = new Date(nowTime).toISOString();
-        delivery._dispatchClientTime = nowTime;
-        try { localStorage.setItem('robopath_dispatch_' + deliveryId, String(nowTime)); } catch(e){}
+        delivery.started_at = new Date().toISOString();
+        delivery._dispatchLocalTime = nowLocal;
+        delivery._dispatchClientTime = nowLocal;
+        try { localStorage.setItem('robopath_dispatch_' + deliveryId, String(nowLocal)); } catch(e){}
         delete delivery._cachedMission;
         delete delivery._cachedPath;
         delete delivery._cachedMissionStatus;
@@ -5756,7 +5759,11 @@
                                 newDeliv._cachedMissionStatus = existing._cachedMissionStatus;
                             }
                             if (existing._cachedPath) newDeliv._cachedPath = existing._cachedPath;
-                            if (existing._dispatchClientTime) {
+                            if (existing._dispatchLocalTime) {
+                                newDeliv._dispatchLocalTime = existing._dispatchLocalTime;
+                                newDeliv._dispatchClientTime = existing._dispatchLocalTime;
+                            } else if (existing._dispatchClientTime) {
+                                newDeliv._dispatchLocalTime = existing._dispatchClientTime;
                                 newDeliv._dispatchClientTime = existing._dispatchClientTime;
                             }
                         } else if (newDeliv.status === 'In Progress') {
@@ -5765,14 +5772,33 @@
                             delete newDeliv._cachedMissionStatus;
                             delete newDeliv._cachedPath;
                             const savedTime = localStorage.getItem('robopath_dispatch_' + newDeliv.id);
-                            if (savedTime) newDeliv._dispatchClientTime = Number(savedTime);
-                            else if (existing._dispatchClientTime) newDeliv._dispatchClientTime = existing._dispatchClientTime;
+                            if (savedTime) {
+                                newDeliv._dispatchLocalTime = Number(savedTime);
+                                newDeliv._dispatchClientTime = Number(savedTime);
+                            } else if (existing._dispatchLocalTime) {
+                                newDeliv._dispatchLocalTime = existing._dispatchLocalTime;
+                                newDeliv._dispatchClientTime = existing._dispatchLocalTime;
+                            } else if (existing._dispatchClientTime) {
+                                newDeliv._dispatchLocalTime = existing._dispatchClientTime;
+                                newDeliv._dispatchClientTime = existing._dispatchClientTime;
+                            } else {
+                                newDeliv._dispatchLocalTime = Date.now();
+                                newDeliv._dispatchClientTime = newDeliv._dispatchLocalTime;
+                                try { localStorage.setItem('robopath_dispatch_' + newDeliv.id, String(newDeliv._dispatchLocalTime)); } catch(e){}
+                            }
                         }
                         if (existing.isCompleting) newDeliv.isCompleting = existing.isCompleting;
                     }
-                    if (!newDeliv._dispatchClientTime && newDeliv.status === 'In Progress') {
+                    if (!newDeliv._dispatchLocalTime && newDeliv.status === 'In Progress') {
                         const savedTime = localStorage.getItem('robopath_dispatch_' + newDeliv.id);
-                        if (savedTime) newDeliv._dispatchClientTime = Number(savedTime);
+                        if (savedTime) {
+                            newDeliv._dispatchLocalTime = Number(savedTime);
+                            newDeliv._dispatchClientTime = Number(savedTime);
+                        } else {
+                            newDeliv._dispatchLocalTime = Date.now();
+                            newDeliv._dispatchClientTime = newDeliv._dispatchLocalTime;
+                            try { localStorage.setItem('robopath_dispatch_' + newDeliv.id, String(newDeliv._dispatchLocalTime)); } catch(e){}
+                        }
                     }
                 });
             }
