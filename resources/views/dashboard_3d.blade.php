@@ -1051,9 +1051,24 @@
         return { dx, dy };
     }
 
+    var completedDeliveryIds = new Set();
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('robopath_completed_')) {
+                const idVal = Number(k.replace('robopath_completed_', ''));
+                if (!isNaN(idVal)) completedDeliveryIds.add(idVal);
+            }
+        }
+    } catch(e){}
+
     var robots = @json($robots);
     var activeDeliveries = @json($activeDeliveries);
     if (Array.isArray(activeDeliveries)) {
+        activeDeliveries = activeDeliveries.filter(deliv => {
+            const idNum = Number(deliv.id);
+            return !completedDeliveryIds.has(idNum) && !localStorage.getItem('robopath_completed_' + idNum);
+        });
         activeDeliveries.forEach(deliv => {
             if (deliv.status === 'In Progress') {
                 const savedTime = localStorage.getItem('robopath_dispatch_' + deliv.id);
@@ -4011,6 +4026,7 @@
         activeDeliveries.forEach(delivery => {
             const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
             if (!robot || (delivery.status !== 'In Progress' && delivery.status !== 'Pending')) return;
+            if (delivery.isCompleting || completedDeliveryIds.has(Number(delivery.id))) return;
             
             const mission = getDeliveryMission(delivery, robot);
             if (!mission || !mission.stages) return;
@@ -4156,7 +4172,23 @@
         // (2D overlay/SVG dihapus — kedua lantai murni 3D; avatar & path digambar di scene)
         
         robots.forEach(robot => {
-            const delivery = activeDeliveries.find(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending'));
+            const isCompletedDeliv = (d) => {
+                const idNum = Number(d.id);
+                return d.isCompleting || completedDeliveryIds.has(idNum) || !!localStorage.getItem('robopath_completed_' + idNum);
+            };
+
+            const isRobotReturningNow = (robot.status === 'Returning' || robot.isReturning || !!robot.returnMission);
+            const delivery = activeDeliveries.find(d => {
+                if (Number(d.robot_id) !== Number(robot.id)) return false;
+                if (isCompletedDeliv(d)) return false;
+                if (d.status === 'In Progress') {
+                    // Robot yang sedang kembali ke markas tidak boleh dibajak oleh pengantaran In Progress lama
+                    if (isRobotReturningNow) return false;
+                    return true;
+                }
+                if (d.status === 'Pending') return true;
+                return false;
+            });
             robot._activeDelivery = delivery || null;
             
             // Check if robot has active issue / alert
@@ -4493,7 +4525,7 @@
                     }
                     currentLocName = baseLoc.name || 'Markas Robot';
                 } else if (!isNearBase && distToBase > 2.0 && !robot.customPosition) {
-                    const hasActiveOrPendingDelivery = activeDeliveries.some(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending'));
+                    const hasActiveOrPendingDelivery = activeDeliveries.some(d => Number(d.robot_id) === Number(robot.id) && (d.status === 'In Progress' || d.status === 'Pending') && !isCompletedDeliv(d));
                     if (!hasActiveOrPendingDelivery && !robot.isDispatching && !robot._activeDelivery) {
                         if (!robot.returnMission) {
                             robot.returnMission = buildReturnMission(robot, now);
@@ -4813,20 +4845,22 @@
         issueRobots.forEach(r => fixRobotAction(r.id));
     }
 
-    var completedDeliveryIds = new Map();
-
     // Delivery Completion API
     function completeDeliveryAPI(deliveryId, finalX, finalY, finalFloor) {
-        const delivery = activeDeliveries.find(d => Number(d.id) === Number(deliveryId));
-        if (!delivery || delivery.isCompleting) return;
-        delivery.isCompleting = true;
-        completedDeliveryIds.set(Number(deliveryId), Date.now());
+        const idNum = Number(deliveryId);
+        if (completedDeliveryIds.has(idNum)) return;
+        completedDeliveryIds.add(idNum);
         try { 
-            localStorage.removeItem('robopath_dispatch_' + deliveryId); 
-            localStorage.removeItem('robopath_pickup_' + deliveryId); 
+            localStorage.setItem('robopath_completed_' + idNum, '1');
+            localStorage.removeItem('robopath_dispatch_' + idNum); 
+            localStorage.removeItem('robopath_pickup_' + idNum); 
         } catch(e){}
 
-        const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
+        const delivery = activeDeliveries.find(d => Number(d.id) === idNum);
+        if (delivery) delivery.isCompleting = true;
+
+        const robotId = delivery ? delivery.robot_id : null;
+        const robot = robots.find(r => (robotId && Number(r.id) === Number(robotId)) || (r.status === 'Delivering' && !r.hasIssue));
         if (robot) {
             robot.current_x = finalX;
             robot.current_y = finalY;
@@ -4842,13 +4876,13 @@
         }
 
         // Hapus pengantaran dari daftar aktif seketika agar robot langsung bergerak kembali tanpa tertahan
-        activeDeliveries = activeDeliveries.filter(d => Number(d.id) !== Number(deliveryId));
+        activeDeliveries = activeDeliveries.filter(d => Number(d.id) !== idNum);
         updateActiveMissionBanner();
         updateFullViewActiveDeliveriesList();
         if (typeof drawRobotPaths === 'function') drawRobotPaths();
 
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-        fetch(`/api/deliveries/${deliveryId}/complete`, {
+        fetch(`/api/deliveries/${idNum}/complete`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -4867,6 +4901,17 @@
         })
         .catch(err => {
             console.error('Error completing delivery:', err);
+            setTimeout(() => {
+                fetch(`/api/deliveries/${idNum}/complete`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ current_x: finalX, current_y: finalY, floor: finalFloor || 1 })
+                }).catch(e => {});
+            }, 2000);
         });
     }
 
@@ -5246,7 +5291,7 @@
         const bannerFv = document.getElementById('active-mission-banner-fullview');
         if (!bannerStd && !bannerFv) return;
 
-        const activeList = (activeDeliveries || []).filter(d => d.status === 'In Progress' || d.status === 'Pending');
+        const activeList = (activeDeliveries || []).filter(d => (d.status === 'In Progress' || d.status === 'Pending') && !d.isCompleting && !completedDeliveryIds.has(Number(d.id)));
 
         if (activeList.length === 0) {
             const returningRobots = robots.filter(r => r.status === 'Returning' || r.isReturning);
@@ -5371,7 +5416,7 @@
         const badge = document.getElementById('fv-active-count-badge');
         const topBadge = document.getElementById('fullview-active-deliv-badge');
 
-        const activeList = (activeDeliveries || []).filter(d => d.status === 'In Progress' || d.status === 'Pending');
+        const activeList = (activeDeliveries || []).filter(d => (d.status === 'In Progress' || d.status === 'Pending') && !d.isCompleting && !completedDeliveryIds.has(Number(d.id)));
         const count = activeList.length;
 
         if (badge) badge.textContent = `${count} Aktif`;
@@ -5586,7 +5631,11 @@
     }
 
     function executeFvDispatchNow(deliveryId, btnEl = null) {
-        const delivery = (activeDeliveries || []).find(d => Number(d.id) === Number(deliveryId));
+        const idNum = Number(deliveryId);
+        completedDeliveryIds.delete(idNum);
+        try { localStorage.removeItem('robopath_completed_' + idNum); } catch(e){}
+
+        const delivery = (activeDeliveries || []).find(d => Number(d.id) === idNum);
         if (!delivery || delivery._isDispatching) return;
         delivery._isDispatching = true;
 
@@ -5763,6 +5812,9 @@
                     if (data.success) {
                         if (data.delivery) {
                             const newDeliv = data.delivery;
+                            const idNum = Number(newDeliv.id);
+                            completedDeliveryIds.delete(idNum);
+                            try { localStorage.removeItem('robopath_completed_' + idNum); } catch(e){}
                             newDeliv._pickupLocalTime = Date.now();
                             try { localStorage.setItem('robopath_pickup_' + newDeliv.id, String(Date.now())); } catch(e){}
                             const exIdx = (activeDeliveries || []).findIndex(d => Number(d.id) === Number(newDeliv.id));
@@ -5832,16 +5884,12 @@
             }
             
             if (data.active_deliveries && Array.isArray(data.active_deliveries)) {
-                const nowTime = Date.now();
                 data.active_deliveries = data.active_deliveries.filter(deliv => {
-                    const completedAt = completedDeliveryIds.get(Number(deliv.id));
-                    if (completedAt && nowTime - completedAt < 15000) {
+                    const idNum = Number(deliv.id);
+                    if (completedDeliveryIds.has(idNum) || localStorage.getItem('robopath_completed_' + idNum)) {
                         return false;
                     }
                     return true;
-                });
-                completedDeliveryIds.forEach((time, id) => {
-                    if (nowTime - time > 60000) completedDeliveryIds.delete(id);
                 });
             }
             
@@ -5931,14 +5979,17 @@
 
                     const bLoc = getBaseLocation();
                     const isClientAtBase = Number(existing.floor || 1) === 1 && Math.hypot((existing.current_x || bLoc.x) - bLoc.x, (existing.current_y || bLoc.y) - bLoc.y) < 2.0;
-                    const hasDeliveryInProgress = activeDeliveries.some(d => Number(d.robot_id) === Number(existing.id) && d.status === 'In Progress');
-                    const hasDeliveryPending = activeDeliveries.some(d => Number(d.robot_id) === Number(existing.id) && d.status === 'Pending');
+                    const hasDeliveryInProgress = activeDeliveries.some(d => Number(d.robot_id) === Number(existing.id) && d.status === 'In Progress' && !d.isCompleting && !completedDeliveryIds.has(Number(d.id)));
+                    const hasDeliveryPending = activeDeliveries.some(d => Number(d.robot_id) === Number(existing.id) && d.status === 'Pending' && !d.isCompleting && !completedDeliveryIds.has(Number(d.id)));
 
                     if (hasDeliveryInProgress) {
-                        existing.status = 'Delivering';
-                        existing.returnMission = null;
-                        existing.isReturning = false;
-                        existing.needsReturnToBase = false;
+                        const isRobotReturning = (existing.status === 'Returning' || existing.isReturning || !!existing.returnMission);
+                        if (!isRobotReturning) {
+                            existing.status = 'Delivering';
+                            existing.returnMission = null;
+                            existing.isReturning = false;
+                            existing.needsReturnToBase = false;
+                        }
                     } else if (hasDeliveryPending) {
                         existing.returnMission = null;
                         existing.isReturning = false;
