@@ -1115,6 +1115,34 @@
         return fallbackNow;
     }
 
+    function getDeliveryPickupTime(delivery) {
+        if (!delivery) return Date.now();
+        if (delivery._pickupLocalTime) return delivery._pickupLocalTime;
+        const stored = localStorage.getItem('robopath_pickup_' + delivery.id);
+        if (stored) {
+            const val = Number(stored);
+            if (!isNaN(val) && val > 0) {
+                delivery._pickupLocalTime = val;
+                return val;
+            }
+        }
+        if (delivery.started_at) {
+            const serverMs = parseServerDate(delivery.started_at).getTime();
+            const nowServerMs = Date.now() + serverClientOffset;
+            const diff = nowServerMs - serverMs;
+            if (diff > 1000) {
+                const approxClientStart = Date.now() - diff;
+                delivery._pickupLocalTime = approxClientStart;
+                try { localStorage.setItem('robopath_pickup_' + delivery.id, String(approxClientStart)); } catch(e){}
+                return approxClientStart;
+            }
+        }
+        const fallbackNow = Date.now();
+        delivery._pickupLocalTime = fallbackNow;
+        try { localStorage.setItem('robopath_pickup_' + delivery.id, String(fallbackNow)); } catch(e){}
+        return fallbackNow;
+    }
+
     // 3D Three.js State, Cache & Loader
     var floor2ModelUrl = window.floor2ModelUrl || "{{ asset('models/Lantai_2-final.glb') }}";
     var floor1ModelUrl = window.floor1ModelUrl || "{{ asset('models/Denah_Lantai_1-opt.glb') }}";
@@ -3590,7 +3618,7 @@
             destId: targetId,
             stages: consolidatedStages,
             totalDurationMs: accumulatedMs,
-            startedAt: now.getTime() + 200
+            startedAt: Date.now()
         };
     }
 
@@ -3993,8 +4021,8 @@
                 const dispatchTime = getDeliveryDispatchTime(delivery);
                 elapsedMs = Math.max(0, Date.now() - dispatchTime);
             } else {
-                const startedTime = parseServerDate(delivery.started_at);
-                elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
+                const pickupTime = getDeliveryPickupTime(delivery);
+                elapsedMs = Math.max(0, Date.now() - pickupTime);
             }
             const isPending = delivery.status === 'Pending';
             const robotFloor = Number(robot.floor || 1);
@@ -4060,7 +4088,7 @@
         robots.forEach(robot => {
             if ((robot.status === 'Idle' || robot.status === 'Returning' || robot.isReturning) && robot.returnMission && robot.returnMission.stages) {
                 const robotColor = getRobotColor(robot.id);
-                const elapsedMs = now.getTime() - robot.returnMission.startedAt;
+                const elapsedMs = Math.max(0, Date.now() - robot.returnMission.startedAt);
                 const robotFloor = Number(robot.floor || 1);
 
                 [1, 2].forEach(floorNum => {
@@ -4217,13 +4245,14 @@
                     } else {
                         // Robot sedang dalam perjalanan menuju titik jemput
                         robot.status = 'Heading to Pickup';
-                        const startedTime = parseServerDate(delivery.started_at);
-                        const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
+                        const pickupTime = getDeliveryPickupTime(delivery);
+                        const elapsedMs = Math.max(0, Date.now() - pickupTime);
                         angle = 0;
 
                         if (mission.stages && mission.stages.length > 0) {
                             if (elapsedMs >= mission.totalDurationMs) {
                                 // Tiba di lokasi penjemputan!
+                                try { localStorage.removeItem('robopath_pickup_' + delivery.id); } catch(e){}
                                 const pickupLoc = locations[mission.startId] || locations[delivery.start_location];
                                 if (pickupLoc) {
                                     coords = pickupLoc;
@@ -4487,7 +4516,7 @@
                     robot.isReturning = true;
                     robot.status = 'Returning';
                     const mission = robot.returnMission;
-                    const elapsedMs = now.getTime() - mission.startedAt;
+                    const elapsedMs = Math.max(0, Date.now() - mission.startedAt);
                     angle = 0;
 
                     if (elapsedMs < 0) {
@@ -4784,12 +4813,39 @@
         issueRobots.forEach(r => fixRobotAction(r.id));
     }
 
+    var completedDeliveryIds = new Map();
+
     // Delivery Completion API
     function completeDeliveryAPI(deliveryId, finalX, finalY, finalFloor) {
         const delivery = activeDeliveries.find(d => Number(d.id) === Number(deliveryId));
         if (!delivery || delivery.isCompleting) return;
         delivery.isCompleting = true;
-        try { localStorage.removeItem('robopath_dispatch_' + deliveryId); } catch(e){}
+        completedDeliveryIds.set(Number(deliveryId), Date.now());
+        try { 
+            localStorage.removeItem('robopath_dispatch_' + deliveryId); 
+            localStorage.removeItem('robopath_pickup_' + deliveryId); 
+        } catch(e){}
+
+        const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
+        if (robot) {
+            robot.current_x = finalX;
+            robot.current_y = finalY;
+            robot.floor = finalFloor || 1;
+            robot.status = 'Returning';
+            robot.isReturning = true;
+            robot.needsReturnToBase = false;
+            robot._activeDelivery = null;
+            robot.returnMission = buildReturnMission(robot, new Date());
+            if (robot.returnMission) {
+                robot.returnMission.startedAt = Date.now();
+            }
+        }
+
+        // Hapus pengantaran dari daftar aktif seketika agar robot langsung bergerak kembali tanpa tertahan
+        activeDeliveries = activeDeliveries.filter(d => Number(d.id) !== Number(deliveryId));
+        updateActiveMissionBanner();
+        updateFullViewActiveDeliveriesList();
+        if (typeof drawRobotPaths === 'function') drawRobotPaths();
 
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
         fetch(`/api/deliveries/${deliveryId}/complete`, {
@@ -4807,20 +4863,10 @@
         })
         .then(res => res.json())
         .then(data => {
-            if (data.success) {
-                const robot = robots.find(r => Number(r.id) === Number(delivery.robot_id));
-                if (robot && data.robot) {
-                    robot.status = data.robot.status;
-                    robot.current_x = data.robot.current_x;
-                    robot.current_y = data.robot.current_y;
-                    robot.floor = data.robot.floor;
-                }
-                fetchData();
-            }
+            fetchData();
         })
         .catch(err => {
             console.error('Error completing delivery:', err);
-            delivery.isCompleting = false;
         });
     }
 
@@ -5147,21 +5193,35 @@
             if (btnText) btnText.textContent = 'Tugaskan Robot Sekarang';
 
             if (data.success) {
+                if (data.delivery) {
+                    const newDeliv = data.delivery;
+                    newDeliv._pickupLocalTime = Date.now();
+                    try { localStorage.setItem('robopath_pickup_' + newDeliv.id, String(Date.now())); } catch(e){}
+                    const exIdx = (activeDeliveries || []).findIndex(d => Number(d.id) === Number(newDeliv.id));
+                    if (exIdx >= 0) activeDeliveries[exIdx] = newDeliv;
+                    else activeDeliveries.push(newDeliv);
+                }
+
                 if (robot) {
                     robot.status = data.robot ? data.robot.status : 'Heading to Pickup';
                     robot.isDispatching = false;
                     robot.returnMission = null;
                     robot.isReturning = false;
+                    robot.needsReturnToBase = false;
+                    if (data.delivery) {
+                        getDeliveryMission(data.delivery, robot);
+                    }
                 }
                 if (succText) succText.textContent = data.message || `${robot ? robot.name : 'Robot'} berhasil ditugaskan dan menuju titik jemput!`;
                 if (succBox) succBox.classList.remove('hidden');
 
                 if (itemSelect) itemSelect.value = '';
                 
-                fetchData();
                 populateFullViewDispatchDropdowns();
                 updateFullViewActiveDeliveriesList();
                 updateActiveMissionBanner();
+                if (typeof drawRobotPaths === 'function') drawRobotPaths();
+                fetchData();
 
                 setTimeout(() => {
                     if (succBox) succBox.classList.add('hidden');
@@ -5701,6 +5761,20 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
+                        if (data.delivery) {
+                            const newDeliv = data.delivery;
+                            newDeliv._pickupLocalTime = Date.now();
+                            try { localStorage.setItem('robopath_pickup_' + newDeliv.id, String(Date.now())); } catch(e){}
+                            const exIdx = (activeDeliveries || []).findIndex(d => Number(d.id) === Number(newDeliv.id));
+                            if (exIdx >= 0) activeDeliveries[exIdx] = newDeliv;
+                            else activeDeliveries.push(newDeliv);
+                            getDeliveryMission(newDeliv, robot);
+                        }
+                        robot.status = data.robot ? data.robot.status : 'Heading to Pickup';
+                        robot.returnMission = null;
+                        robot.isReturning = false;
+                        robot.needsReturnToBase = false;
+                        if (typeof drawRobotPaths === 'function') drawRobotPaths();
                         fetchData();
                     }
                     robot.isDispatching = false;
@@ -5757,6 +5831,20 @@
                 if (data.settings_3d.initial_camera) current3DSettings.initial_camera = data.settings_3d.initial_camera;
             }
             
+            if (data.active_deliveries && Array.isArray(data.active_deliveries)) {
+                const nowTime = Date.now();
+                data.active_deliveries = data.active_deliveries.filter(deliv => {
+                    const completedAt = completedDeliveryIds.get(Number(deliv.id));
+                    if (completedAt && nowTime - completedAt < 15000) {
+                        return false;
+                    }
+                    return true;
+                });
+                completedDeliveryIds.forEach((time, id) => {
+                    if (nowTime - time > 60000) completedDeliveryIds.delete(id);
+                });
+            }
+            
             if (activeDeliveries && Array.isArray(activeDeliveries)) {
                 data.active_deliveries.forEach(newDeliv => {
                     const existing = activeDeliveries.find(d => Number(d.id) === Number(newDeliv.id));
@@ -5765,6 +5853,10 @@
                         if (existing.status === 'In Progress' && newDeliv.status === 'Pending') {
                             newDeliv.status = 'In Progress';
                             newDeliv.started_at = existing.started_at;
+                        }
+
+                        if (existing._pickupLocalTime) {
+                            newDeliv._pickupLocalTime = existing._pickupLocalTime;
                         }
 
                         if (existing.status === newDeliv.status) {
@@ -5802,6 +5894,15 @@
                             }
                         }
                         if (existing.isCompleting) newDeliv.isCompleting = existing.isCompleting;
+                    }
+                    if (!newDeliv._pickupLocalTime && newDeliv.status === 'Pending') {
+                        const savedTime = localStorage.getItem('robopath_pickup_' + newDeliv.id);
+                        if (savedTime) {
+                            newDeliv._pickupLocalTime = Number(savedTime);
+                        } else {
+                            newDeliv._pickupLocalTime = Date.now();
+                            try { localStorage.setItem('robopath_pickup_' + newDeliv.id, String(newDeliv._pickupLocalTime)); } catch(e){}
+                        }
                     }
                     if (!newDeliv._dispatchLocalTime && newDeliv.status === 'In Progress') {
                         const savedTime = localStorage.getItem('robopath_dispatch_' + newDeliv.id);
