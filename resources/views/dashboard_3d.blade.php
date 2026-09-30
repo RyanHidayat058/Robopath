@@ -2104,7 +2104,10 @@
             const d = (robot.status === 'Delivering' || robot.status === 'Waiting for Item' || robot.status === 'Heading to Pickup') ? (robot._activeDelivery || null) : null;
             updateRobotStatusSprite(holder, robot, d, robot.hasIssue, destName);
             return true;
-        } catch(e){ return false; }
+        } catch(e){
+            console.error('[Robopath] Error updateRobot3DAvatar:', e);
+            return false;
+        }
     }
 
     // Toggle 3D Room Labels (ON/OFF)
@@ -4137,6 +4140,7 @@
 
             let coords = { x: robot.current_x, y: robot.current_y };
             let floorNum = robot.floor || 1;
+            let angle = Number(robot.rotation || 0);
             const baseLoc = getBaseLocation();
             let taskText = `Siaga di ${baseLoc.name || 'Markas Robot'}`;
             let currentLocName = resolveLocationName(coords.x, coords.y, floorNum);
@@ -4215,7 +4219,7 @@
                         robot.status = 'Heading to Pickup';
                         const startedTime = parseServerDate(delivery.started_at);
                         const elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
-                        let angle = 0;
+                        angle = 0;
 
                         if (mission.stages && mission.stages.length > 0) {
                             if (elapsedMs >= mission.totalDurationMs) {
@@ -4330,7 +4334,7 @@
                         let elapsedMs = 0;
                         const dispatchTime = getDeliveryDispatchTime(delivery);
                         elapsedMs = Math.max(0, Date.now() - dispatchTime);
-                        let angle = 0;
+                        angle = 0;
 
                         if (elapsedMs >= mission.totalDurationMs) {
                             const lastStage = mission.stages[mission.stages.length - 1];
@@ -4484,7 +4488,7 @@
                     robot.status = 'Returning';
                     const mission = robot.returnMission;
                     const elapsedMs = now.getTime() - mission.startedAt;
-                    let angle = 0;
+                    angle = 0;
 
                     if (elapsedMs < 0) {
                         taskText = `<span class="text-indigo-600 font-bold"><i class="fa-solid fa-box-open mr-1"></i> Selesai antar, persiapan balik ke ${baseLoc.name || 'Base'}...</span>`;
@@ -5561,6 +5565,16 @@
                 robot.floor = startLoc.floor || 1;
             }
             getDeliveryMission(delivery, robot);
+
+            // Segera sinkronisasi avatar 3D dan jalur rute saat tombol ditekan
+            const destNodeId = delivery.destination_location;
+            const destName = destNodeId ? (locations[destNodeId]?.name || locations[getNode(destNodeId, robot.floor)]?.name || destNodeId) : null;
+            if (Number(robot.floor) === 2) {
+                updateRobot3DAvatar(threeStd, robot, { x: robot.current_x, y: robot.current_y }, destName);
+            } else {
+                updateRobot3DAvatar(threeStdF1, robot, { x: robot.current_x, y: robot.current_y }, destName);
+            }
+            if (typeof drawRobotPaths === 'function') drawRobotPaths();
         }
         updateActiveMissionBanner();
         updateFullViewActiveDeliveriesList();
