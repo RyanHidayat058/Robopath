@@ -923,6 +923,7 @@
             closeConfirmDispatchModal();
 
             if (data.success) {
+                try { localStorage.setItem('robopath_dispatch_' + currentPendingSummon.id, String(new Date().getTime())); } catch(e){}
                 resetSummonViewToDefault();
                 fetchData();
             } else {

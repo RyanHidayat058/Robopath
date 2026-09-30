@@ -458,10 +458,16 @@ class TelemetryController extends Controller
             'started_at' => Carbon::now(),
         ]);
 
-        // Update robot ke Delivering
-        $robot->update([
-            'status' => 'Delivering',
-        ]);
+        // Update robot ke Delivering dan sinkronkan posisi keberangkatan dari titik jemput
+        $robotUpdate = ['status' => 'Delivering'];
+        if ($request->filled('current_x') && $request->filled('current_y')) {
+            $robotUpdate['current_x'] = (float) $request->input('current_x');
+            $robotUpdate['current_y'] = (float) $request->input('current_y');
+            if ($request->filled('floor')) {
+                $robotUpdate['floor'] = (int) $request->input('floor');
+            }
+        }
+        $robot->update($robotUpdate);
 
         return response()->json([
             'success' => true,

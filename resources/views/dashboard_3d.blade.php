@@ -132,6 +132,12 @@
         max-width: calc(100vw - 2rem) !important;
         right: 1rem !important;
     }
+    body.body-in-fullview #std-3d-toolbar,
+    .dashboard-fullview-card #std-3d-toolbar {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
 </style>
 @endsection
 
@@ -919,7 +925,7 @@
 
         <!-- Submit Button -->
         <button type="submit" id="fv-dispatch-submit-btn" class="w-full mt-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-blue-600/30 transition flex items-center justify-center gap-2 active:scale-95">
-            <i class="fa-solid fa-paper-plane"></i>
+            <span id="fv-dispatch-btn-icon"><i class="fa-solid fa-paper-plane"></i></span>
             <span id="fv-dispatch-btn-text">Tugaskan Robot Sekarang</span>
         </button>
     </form>
@@ -3044,8 +3050,8 @@
         // Kedua lantai tampil 3D — samakan ukuran/light/kamera via current3DSettings yg dishare
         container.style.backgroundImage = 'none';
         container.style.backgroundColor = '#0f172a';
-        if (hint3D) hint3D.classList.remove('hidden');
-        if (toolbar3D) toolbar3D.classList.remove('hidden');
+        if (hint3D) { if (isFullViewMode) hint3D.classList.add('hidden'); else hint3D.classList.remove('hidden'); }
+        if (toolbar3D) { if (isFullViewMode) toolbar3D.classList.add('hidden'); else toolbar3D.classList.remove('hidden'); }
 
         if (floorNum === 1) {
             if (tabF1) tabF1.className = "px-3.5 py-1.5 rounded-lg bg-[#3b4cb8] text-white shadow-sm transition";
@@ -3147,8 +3153,8 @@
                     }
                 }, 50);
             }
-            if (hint3D) hint3D.classList.remove('hidden');
-            if (toolbar3D) toolbar3D.classList.remove('hidden');
+            if (hint3D) { if (isFullViewMode) hint3D.classList.add('hidden'); else hint3D.classList.remove('hidden'); }
+            if (toolbar3D) { if (isFullViewMode) toolbar3D.classList.add('hidden'); else toolbar3D.classList.remove('hidden'); }
         }
 
         runSimulationStep();
@@ -3284,14 +3290,17 @@
         if (!nameOrId) return null;
         if (locations[nameOrId]) return nameOrId;
         
+        const cleanName = String(nameOrId).replace(/\s*\(Lantai\s*\d+\)/i, '').trim();
+        if (locations[cleanName]) return cleanName;
+
         let matches = [];
         for (let id in locations) {
-            if (locations[id].name === nameOrId) {
+            if (locations[id].name === cleanName || locations[id].name === nameOrId) {
                 matches.push(id);
             }
         }
         if (matches.length === 0) {
-            const lower = String(nameOrId).trim().toLowerCase();
+            const lower = cleanName.toLowerCase();
             for (let id in locations) {
                 if (locations[id].name && locations[id].name.trim().toLowerCase() === lower) {
                     matches.push(id);
@@ -3802,7 +3811,13 @@
 
     function getDeliveryMission(delivery, robot) {
         if (delivery._cachedMission && delivery._cachedMissionStatus === delivery.status) {
-            return delivery._cachedMission;
+            // Guard: jika status In Progress tapi stages kosong atau tidak ada stage travel, hitung ulang!
+            const hasTravel = delivery._cachedMission.stages && delivery._cachedMission.stages.some(st => st.type === 'travel' && st.path && st.path.length >= 2);
+            if (delivery.status === 'In Progress' && !hasTravel && delivery.start_location !== delivery.destination_location) {
+                // Biarkan hitung ulang agar rute pengantaran segar
+            } else {
+                return delivery._cachedMission;
+            }
         }
 
         const robotFloor = Number(robot?.floor || 1);
@@ -3844,10 +3859,8 @@
                 }
             }
         } else {
-            // Tahap 2: Robot mengantar dari titik jemput (atau posisi aktual robot) ke tujuan akhir
-            const fromNodeId = (robot && robot.current_x !== undefined && robot.current_y !== undefined)
-                ? (resolveLocationNodeId(robot.current_x, robot.current_y, robotFloor) || validStart)
-                : validStart;
+            // Tahap 2: Robot mengantar dari titik jemput barang ke tujuan akhir
+            const fromNodeId = validStart;
             const dropoffStage = {
                 type: 'dropoff',
                 nodeId: validDest,
@@ -3856,18 +3869,16 @@
             };
 
             if (fromNodeId !== validDest) {
-                const routeStages = planRouteBetween(fromNodeId, validDest);
-                if (routeStages && routeStages.length > 0) {
-                    rawStages = [
-                        ...routeStages,
-                        dropoffStage
-                    ];
-                } else {
-                    rawStages = [
-                        { type: 'travel', floor: locations[validDest]?.floor || 1, path: [fromNodeId, validDest] },
-                        dropoffStage
+                let routeStages = planRouteBetween(fromNodeId, validDest);
+                if (!routeStages || routeStages.length === 0 || !routeStages.some(st => st.type === 'travel' && st.path && st.path.length >= 2)) {
+                    routeStages = [
+                        { type: 'travel', floor: locations[validDest]?.floor || 1, path: [fromNodeId, validDest] }
                     ];
                 }
+                rawStages = [
+                    ...routeStages,
+                    dropoffStage
+                ];
             } else {
                 rawStages = [dropoffStage];
             }
@@ -4901,7 +4912,7 @@
             } else {
                 fvTitle.textContent = "Mode Autopilot: NONAKTIF (Manual)";
                 fvTitle.className = "font-bold text-slate-200 text-[11px]";
-                if (fvInspIcon) fvInspIcon.className = "fa-solid fa-hand text-sky-400 text-sm";
+                if (fvInspIcon) fvInspIcon.className = "fa-solid fa-sliders text-sky-400 text-sm";
             }
         }
     }
@@ -4946,10 +4957,19 @@
             
             const statusIndoMap = {
                 'Idle': 'Siaga',
-                'Delivering': 'Mengantar',
+                'Delivering': 'Sedang Mengantar',
                 'Charging': 'Mengisi Daya',
                 'Maintenance': 'Perbaikan',
-                'Returning': 'Kembali'
+                'Returning': 'Kembali ke Markas',
+                'Heading to Pickup': 'Menuju Titik Ambil',
+                'Waiting for Item': 'Menunggu Muatan',
+                'Arrived at Pickup': 'Tiba di Penjemputan',
+                'In Progress': 'Sedang Mengantar',
+                'Pending': 'Menunggu',
+                'Completed': 'Selesai',
+                'Failed': 'Gagal',
+                'Docked': 'Di Markas',
+                'Offline': 'Terputus'
             };
             const rStatusText = statusIndoMap[robot.status] || robot.status;
             let label = `${robot.name} (${rStatusText} - Bat: ${robot.battery_level}%)`;
@@ -5093,8 +5113,10 @@
             ? (resolveLocationNodeId(robot.current_x, robot.current_y, rFloor) || getBaseLocationId())
             : getBaseLocationId();
 
+        const btnIcon = document.getElementById('fv-dispatch-btn-icon');
         if (submitBtn) submitBtn.disabled = true;
-        if (btnText) btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Menugaskan...';
+        if (btnIcon) btnIcon.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        if (btnText) btnText.textContent = 'Menugaskan...';
 
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
         fetch('/api/deliveries', {
@@ -5115,7 +5137,8 @@
         .then(res => res.json())
         .then(data => {
             if (submitBtn) submitBtn.disabled = false;
-            if (btnText) btnText.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Tugaskan Robot Sekarang';
+            if (btnIcon) btnIcon.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+            if (btnText) btnText.textContent = 'Tugaskan Robot Sekarang';
 
             if (data.success) {
                 if (robot) {
@@ -5145,7 +5168,8 @@
         .catch(err => {
             console.error('Error dispatching from full view:', err);
             if (submitBtn) submitBtn.disabled = false;
-            if (btnText) btnText.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Tugaskan Robot Sekarang';
+            if (btnIcon) btnIcon.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+            if (btnText) btnText.textContent = 'Tugaskan Robot Sekarang';
             if (errText) errText.textContent = 'Terjadi kesalahan jaringan. Coba lagi.';
             if (errBox) errBox.classList.remove('hidden');
         });
@@ -5524,6 +5548,16 @@
             robot.returnMission = null;
             robot.isReturning = false;
             robot.needsReturnToBase = false;
+
+            // Kunci posisi robot tepat di titik jemput barang agar tidak melompat ke base
+            const startNode = getNode(delivery.start_location, robot.floor);
+            const startLoc = (startNode && locations[startNode]) ? locations[startNode] : null;
+            if (startLoc) {
+                robot.current_x = startLoc.x;
+                robot.current_y = startLoc.y;
+                robot.floor = startLoc.floor || 1;
+            }
+            getDeliveryMission(delivery, robot);
         }
         updateActiveMissionBanner();
         updateFullViewActiveDeliveriesList();
@@ -5535,13 +5569,22 @@
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrf,
                 'Accept': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+                current_x: robot ? robot.current_x : undefined,
+                current_y: robot ? robot.current_y : undefined,
+                floor: robot ? robot.floor : undefined
+            })
         })
         .then(res => res.json())
         .then(data => {
             if (data.success) {
                 if (data.delivery && data.delivery.started_at) {
                     delivery.started_at = data.delivery.started_at;
+                }
+                if (robot) {
+                    robot.status = 'Delivering';
+                    getDeliveryMission(delivery, robot);
                 }
                 fetchData();
                 updateActiveMissionBanner();
@@ -5707,18 +5750,29 @@
                             newDeliv.started_at = existing.started_at;
                         }
 
-                        if (existing.status === newDeliv.status || newDeliv.status === 'In Progress') {
-                            if (existing._cachedMission) newDeliv._cachedMission = existing._cachedMission;
-                            if (existing._cachedMissionStatus) newDeliv._cachedMissionStatus = existing._cachedMissionStatus;
+                        if (existing.status === newDeliv.status) {
+                            if (existing._cachedMission && existing._cachedMissionStatus === existing.status) {
+                                newDeliv._cachedMission = existing._cachedMission;
+                                newDeliv._cachedMissionStatus = existing._cachedMissionStatus;
+                            }
                             if (existing._cachedPath) newDeliv._cachedPath = existing._cachedPath;
                             if (existing._dispatchClientTime) {
                                 newDeliv._dispatchClientTime = existing._dispatchClientTime;
-                            } else if (newDeliv.status === 'In Progress') {
-                                const savedTime = localStorage.getItem('robopath_dispatch_' + newDeliv.id);
-                                if (savedTime) newDeliv._dispatchClientTime = Number(savedTime);
                             }
+                        } else if (newDeliv.status === 'In Progress') {
+                            // Status baru beralih ke In Progress: bersihkan cache misi lama tahap penjemputan
+                            delete newDeliv._cachedMission;
+                            delete newDeliv._cachedMissionStatus;
+                            delete newDeliv._cachedPath;
+                            const savedTime = localStorage.getItem('robopath_dispatch_' + newDeliv.id);
+                            if (savedTime) newDeliv._dispatchClientTime = Number(savedTime);
+                            else if (existing._dispatchClientTime) newDeliv._dispatchClientTime = existing._dispatchClientTime;
                         }
                         if (existing.isCompleting) newDeliv.isCompleting = existing.isCompleting;
+                    }
+                    if (!newDeliv._dispatchClientTime && newDeliv.status === 'In Progress') {
+                        const savedTime = localStorage.getItem('robopath_dispatch_' + newDeliv.id);
+                        if (savedTime) newDeliv._dispatchClientTime = Number(savedTime);
                     }
                 });
             }
@@ -5793,7 +5847,7 @@
                         existing.floor = 1;
                         existing.current_x = bLoc.x;
                         existing.current_y = bLoc.y;
-                    } else if (existing.status === 'Delivering' || existing.status === 'Heading to Pickup' || existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
+                    } else if (existing.status === 'Delivering' || existing.status === 'Heading to Pickup' || existing.status === 'Waiting for Item' || existing.status === 'Returning' || existing.isReturning || !!existing.returnMission) {
                         // Keep live client-side coordinates along path - NEVER overwrite from server!
                     } else if (newRobot.current_x != null && newRobot.current_y != null && !existing.customPosition) {
                         existing.floor = newRobot.floor || existing.floor || 1;
