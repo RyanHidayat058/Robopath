@@ -1047,6 +1047,16 @@
 
     var robots = @json($robots);
     var activeDeliveries = @json($activeDeliveries);
+    if (Array.isArray(activeDeliveries)) {
+        activeDeliveries.forEach(deliv => {
+            if (deliv.status === 'In Progress') {
+                const savedTime = localStorage.getItem('robopath_dispatch_' + deliv.id);
+                if (savedTime) {
+                    deliv._dispatchClientTime = Number(savedTime);
+                }
+            }
+        });
+    }
     var activeAlerts = @json($activeAlerts ?? []);
     var isAutopilotEnabled = {{ Illuminate\Support\Facades\Cache::get('autopilot_enabled', false) ? 'true' : 'false' }};
     window.isAdmin = {{ (auth()->check() && auth()->user()->isAdmin()) ? 'true' : 'false' }};
@@ -1073,10 +1083,24 @@
         initial_camera: settings3D?.initial_camera ?? null
     };
     var settings3DSaveTimeout = null;
-    var serverClientOffset = 0;
+    var serverClientOffset = (new Date("{{ now()->toISOString() }}").getTime() - new Date().getTime());
     var currentDashboardFloor = 1;
     var isFullViewMode = false;
     var currentFullViewFloor = 1;
+
+    function getDeliveryDispatchTime(delivery) {
+        if (!delivery) return null;
+        if (delivery._dispatchClientTime) return delivery._dispatchClientTime;
+        const stored = localStorage.getItem('robopath_dispatch_' + delivery.id);
+        if (stored) {
+            const val = Number(stored);
+            if (!isNaN(val) && val > 0) {
+                delivery._dispatchClientTime = val;
+                return val;
+            }
+        }
+        return null;
+    }
 
     // 3D Three.js State, Cache & Loader
     var floor2ModelUrl = window.floor2ModelUrl || "{{ asset('models/Lantai_2-final.glb') }}";
@@ -2000,14 +2024,14 @@
         if (holder) holder.visible = false;
     }
 
-    // Perbarui badge status 3D di atas robot (idle / mengantar → tujuan / charging / maintenance / masalah)
+    // Perbarui badge status 3D di atas robot (idle / mengantar -> tujuan / charging / maintenance / masalah)
     function updateRobotStatusSprite(holder, robot, delivery, hasIssue, destName) {
         const spr = holder.userData.statusSprite;
         if (!spr) return;
         const c = spr.userData.canvas, tex = spr.userData.texture;
         const ctx = c.getContext('2d');
         ctx.clearRect(0, 0, c.width, c.height);
-        let label = '● SIAGA (Markas)', bg = 'rgba(16,185,129,0.94)';
+        let label = 'SIAGA (Markas)', bg = 'rgba(16,185,129,0.94)';
         if (hasIssue) {
             let issue = 'KENDALA';
             if (robot.activeAlert && robot.activeAlert.issue_type) {
@@ -2021,15 +2045,19 @@
             } else {
                 issue = 'PERBAIKAN';
             }
-            label = '⚠ ' + issue; bg = 'rgba(225,29,72,0.94)';
+            label = 'PERINGATAN: ' + issue; bg = 'rgba(225,29,72,0.94)';
+        } else if (robot.status === 'Waiting for Item') {
+            label = 'MENUNGGU MUATAN'; bg = 'rgba(245,158,11,0.94)';
+        } else if (robot.status === 'Heading to Pickup') {
+            label = 'MENUJU PENJEMPUTAN'; bg = 'rgba(14,165,233,0.94)';
         } else if (robot.status === 'Delivering' && delivery) {
-            label = '▶ MENGANTAR → ' + (destName || '?'); bg = 'rgba(59,130,246,0.94)';
+            label = 'MENGANTAR -> ' + (destName || '?'); bg = 'rgba(59,130,246,0.94)';
         } else if (robot.status === 'Returning' || robot.isReturning) {
-            label = '◀ MENUJU MARKAS'; bg = 'rgba(99,102,241,0.94)';
+            label = 'MENUJU MARKAS'; bg = 'rgba(99,102,241,0.94)';
         } else if (robot.status === 'Charging') {
-            label = '⚡ MENGISI DAYA'; bg = 'rgba(249,115,22,0.94)';
+            label = 'MENGISI DAYA'; bg = 'rgba(249,115,22,0.94)';
         } else if (robot.status === 'Maintenance') {
-            label = '🔧 PERBAIKAN'; bg = 'rgba(225,29,72,0.94)';
+            label = 'PERBAIKAN'; bg = 'rgba(225,29,72,0.94)';
         }
         ctx.font = 'bold 18px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         const wRaw = ctx.measureText(label).width;
@@ -2060,7 +2088,7 @@
                 smoothFaceTowards(holder, robot.rotation);
             }
             holder.visible = true;
-            const d = (robot.status === 'Delivering') ? (robot._activeDelivery || null) : null;
+            const d = (robot.status === 'Delivering' || robot.status === 'Waiting for Item' || robot.status === 'Heading to Pickup') ? (robot._activeDelivery || null) : null;
             updateRobotStatusSprite(holder, robot, d, robot.hasIssue, destName);
             return true;
         } catch(e){ return false; }
@@ -3262,19 +3290,23 @@
                 matches.push(id);
             }
         }
+        if (matches.length === 0) {
+            const lower = String(nameOrId).trim().toLowerCase();
+            for (let id in locations) {
+                if (locations[id].name && locations[id].name.trim().toLowerCase() === lower) {
+                    matches.push(id);
+                }
+            }
+        }
         if (matches.length === 1) return matches[0];
         if (matches.length > 1) {
-            if (preferredFloor) {
+            if (preferredFloor != null) {
                 const match = matches.find(id => Number(locations[id].floor) === Number(preferredFloor));
                 if (match) return match;
             }
+            const f1Match = matches.find(id => Number(locations[id].floor) === 1);
+            if (f1Match) return f1Match;
             return matches[0];
-        }
-        
-        for (let id in locations) {
-            if (locations[id].name && locations[id].name.toLowerCase() === String(nameOrId).toLowerCase()) {
-                return id;
-            }
         }
         return null;
     }
@@ -3773,14 +3805,14 @@
             return delivery._cachedMission;
         }
 
-        const startNodeId = getNode(delivery.start_location);
-        const destNodeId = getNode(delivery.destination_location);
-        
         const robotFloor = Number(robot?.floor || 1);
+        const startNodeId = getNode(delivery.start_location, robotFloor);
+        const startFloor = (startNodeId && locations[startNodeId]) ? Number(locations[startNodeId].floor || robotFloor) : robotFloor;
+        const destNodeId = getNode(delivery.destination_location, startFloor);
         const baseLoc = getBaseLocation();
         const baseId = getBaseLocationId();
 
-        let originNodeId = getNode(delivery.origin_location);
+        let originNodeId = getNode(delivery.origin_location, robotFloor);
         if (robot && robot.current_x && robot.current_y) {
             const isAtBase = robotFloor === 1 && Math.hypot(robot.current_x - baseLoc.x, robot.current_y - baseLoc.y) < 2.0;
             if (isAtBase) {
@@ -3936,8 +3968,9 @@
 
             const robotColor = getRobotColor(robot.id);
             let elapsedMs = 0;
-            if (delivery.status === 'In Progress' && delivery._dispatchClientTime) {
-                elapsedMs = Math.max(0, now.getTime() - delivery._dispatchClientTime);
+            const dispatchTime = getDeliveryDispatchTime(delivery);
+            if (delivery.status === 'In Progress' && dispatchTime) {
+                elapsedMs = Math.max(0, now.getTime() - dispatchTime);
             } else {
                 const startedTime = parseServerDate(delivery.started_at);
                 elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
@@ -3956,7 +3989,7 @@
                     const stageEndMs = st.startMs + st.durationMs;
                     if (elapsedMs >= stageEndMs) return;
 
-                    const isWaiting = (robot.status === 'Waiting for Item');
+                    const isWaiting = (delivery.status === 'Pending' && robot.status === 'Waiting for Item');
                     if (isWaiting) return;
 
                     const isCurrentActive = (elapsedMs >= st.startMs && elapsedMs < stageEndMs);
@@ -4277,8 +4310,9 @@
                     robot.status = 'Delivering';
                     if (mission.stages && mission.stages.length > 0) {
                         let elapsedMs = 0;
-                        if (delivery._dispatchClientTime) {
-                            elapsedMs = Math.max(0, now.getTime() - delivery._dispatchClientTime);
+                        const dispatchTime = getDeliveryDispatchTime(delivery);
+                        if (dispatchTime) {
+                            elapsedMs = Math.max(0, now.getTime() - dispatchTime);
                         } else {
                             const startedTime = parseServerDate(delivery.started_at);
                             elapsedMs = Math.max(0, now.getTime() - startedTime.getTime());
@@ -4567,7 +4601,7 @@
             // Avatar 3D per lantai (std + fullview); posisi & status badge sinkron dari data gerak yang sama.
             // Sembunyikan avatar di lantai lain agar tidak ada ghost mesh
             const destNodeId = (delivery && delivery.status === 'In Progress' && robot.status === 'Delivering') ? delivery.destination_location : null;
-            const destName = destNodeId ? (locations[destNodeId]?.name || null) : null;
+            const destName = destNodeId ? (locations[destNodeId]?.name || locations[getNode(destNodeId, floorNum)]?.name || destNodeId) : null;
             if (Number(floorNum) === 2) {
                 updateRobot3DAvatar(threeStd, robot, coords, destName);
                 hideRobot3DAvatar(threeStdF1, robot);
@@ -4738,6 +4772,7 @@
         const delivery = activeDeliveries.find(d => Number(d.id) === Number(deliveryId));
         if (!delivery || delivery.isCompleting) return;
         delivery.isCompleting = true;
+        try { localStorage.removeItem('robopath_dispatch_' + deliveryId); } catch(e){}
 
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
         fetch(`/api/deliveries/${deliveryId}/complete`, {
@@ -5476,6 +5511,7 @@
         delivery.status = 'In Progress';
         delivery.started_at = new Date(nowTime).toISOString();
         delivery._dispatchClientTime = nowTime;
+        try { localStorage.setItem('robopath_dispatch_' + deliveryId, String(nowTime)); } catch(e){}
         delete delivery._cachedMission;
         delete delivery._cachedPath;
         delete delivery._cachedMissionStatus;
@@ -5514,6 +5550,7 @@
                 delivery.status = prevDeliveryStatus;
                 if (robot && prevRobotStatus) robot.status = prevRobotStatus;
                 delete delivery._dispatchClientTime;
+                try { localStorage.removeItem('robopath_dispatch_' + deliveryId); } catch(e){}
                 delete delivery._cachedMission;
                 updateActiveMissionBanner();
                 updateFullViewActiveDeliveriesList();
@@ -5529,6 +5566,7 @@
             delivery.status = prevDeliveryStatus;
             if (robot && prevRobotStatus) robot.status = prevRobotStatus;
             delete delivery._dispatchClientTime;
+            try { localStorage.removeItem('robopath_dispatch_' + deliveryId); } catch(e){}
             delete delivery._cachedMission;
             updateActiveMissionBanner();
             updateFullViewActiveDeliveriesList();
@@ -5673,7 +5711,12 @@
                             if (existing._cachedMission) newDeliv._cachedMission = existing._cachedMission;
                             if (existing._cachedMissionStatus) newDeliv._cachedMissionStatus = existing._cachedMissionStatus;
                             if (existing._cachedPath) newDeliv._cachedPath = existing._cachedPath;
-                            if (existing._dispatchClientTime) newDeliv._dispatchClientTime = existing._dispatchClientTime;
+                            if (existing._dispatchClientTime) {
+                                newDeliv._dispatchClientTime = existing._dispatchClientTime;
+                            } else if (newDeliv.status === 'In Progress') {
+                                const savedTime = localStorage.getItem('robopath_dispatch_' + newDeliv.id);
+                                if (savedTime) newDeliv._dispatchClientTime = Number(savedTime);
+                            }
                         }
                         if (existing.isCompleting) newDeliv.isCompleting = existing.isCompleting;
                     }
